@@ -518,6 +518,194 @@ auto SliceArray(const T &parent, const string &dir, int dirInd, range dir1,
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// main insert funciton that all other overloaded insert functions call
+template <typename T>
+void InsertArray(T &parent, const range &ir, const range &jr, const range &kr,
+                 const T &arr) {
+  // ir -- i-index range to take slice [inclusive, exclusive)
+  // jr -- j-index range to take slice [inclusive, exclusive)
+  // kr -- k-index range to take slice [inclusive, exclusive)
+  // arr -- array to insert into this one
+
+  // check that given bounds fit in this, sizes match, and that bounds are valid
+  if (!ir.IsInside(parent.RangeI()) || !jr.IsInside(parent.RangeJ()) ||
+      !kr.IsInside(parent.RangeK()) ||
+      ir.Size() != arr.RangeI().Size() || jr.Size() != arr.RangeJ().Size() ||
+      kr.Size() != arr.RangeK().Size() ||
+      !ir.IsValid() || !jr.IsValid() || !kr.IsValid()) {
+    cerr << "ERROR: Error in InsertArray. Given array does not fit in "
+         << "given bounds" << endl
+         << "Given bounds: " << ir << ", " << jr << ", " << kr << endl
+         << "Bounds of array being inserted: " << arr.RangeI() << ", "
+         << arr.RangeJ() << ", " << arr.RangeK() << endl;
+    cerr << "Bounds of array accepting data: " << parent.RangeI() << ", "
+         << parent.RangeJ() << ", " << parent.RangeK() << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // s is for index of sliced array, p is for index of parent array
+  for (int ks = arr.StartK(), kp = kr.Start(); ks < arr.EndK(); ks++, kp++) {
+    for (int js = arr.StartJ(), jp = jr.Start(); js < arr.EndJ(); js++, jp++) {
+      for (int is = arr.StartI(), ip = ir.Start(); is < arr.EndI(); is++, ip++) {
+        parent.InsertBlock(ip, jp, kp, arr(is, js, ks));
+      }
+    }
+  }
+}
+
+// Overload to insert only in one direction. Given a 3D array, this inserts a
+// plane with normal direction dir, or a smaller 3D array where the direction
+// dir is inserted over dirRange. It also has the ability to include or ignore
+// ghost cells in its planar inserts
+template <typename T>
+void InsertArray(T &parent, const string &dir, const range &dirRange,
+                 const T &arr, const bool physOnly) {
+  // dir -- direction of slice to insert
+  // dirRange -- range to insert slice into in direction given
+  // arr -- array to insert
+  // phsOnly -- flag to only include physical cells in the two directions that
+  //            are not specified as dir
+
+  if (dir == "i") {
+    if (physOnly) {
+      return parent.Insert(dirRange, parent.PhysRangeJ(), parent.PhysRangeK(),
+                           arr);
+    } else {
+      return parent.Insert(dirRange, parent.RangeJ(), parent.RangeK(), arr);
+    }
+  } else if (dir == "j") {
+    if (physOnly) {
+      return parent.Insert(parent.PhysRangeI(), dirRange, parent.PhysRangeK(),
+                           arr);
+    } else {
+      return parent.Insert(parent.RangeI(), dirRange, parent.RangeK(), arr);
+    }
+  } else if (dir == "k") {
+    if (physOnly) {
+      return parent.Insert(parent.PhysRangeI(), parent.PhysRangeJ(), dirRange,
+                           arr);
+    } else {
+      return parent.Insert(parent.RangeI(), parent.RangeJ(), dirRange, arr);
+    }
+  } else {
+    cerr << "ERROR: Error in InsertArray, direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// overload to insert line into array
+template <typename T>
+void InsertArray(T &parent, const string &dir, int d2Ind, int d3Ind,
+                 const T &arr, const bool physOnly, const string id,
+                 const bool upper2, const bool upper3) {
+  // dir -- direction of line slice to insert (direction 1)
+  // d2Ind -- index of direction 2 to insert into
+  // d3Ind -- index of direction 3 to insert into
+  // physOnly -- flag to only include physical cells in line insert
+  // id -- type of multiArray3d being sliced: cell, i, j, or k
+  //       d2Ind and d3Ind are supplied as cell indices, but may need to be
+  //       altered if the array is storing i, j, or k face data
+  // upper2 -- flag to determine if direction 2 is at upper index
+  // upper3 -- flag to determine if direction 3 is at upper index
+
+  if (dir == "i") {  // d2 = j, d3 = k
+    if (upper2 && id == "j") {
+      d2Ind++;
+    } else if (upper3 && id == "k") {
+      d3Ind++;
+    }
+
+    if (physOnly) {
+      return parent.Insert(parent.PhysRangeI(), d2Ind, d3Ind, arr);
+    } else {
+      return parent.Insert(parent.RangeI(), d2Ind, d3Ind, arr);
+    }
+  } else if (dir == "j") {  // d2 = k, d3 = i
+    if (upper2 && id == "k") {
+      d2Ind++;
+    } else if (upper3 && id == "i") {
+      d3Ind++;
+    }
+
+    if (physOnly) {
+      return parent.Insert(d3Ind, parent.PhysRangeJ(), d2Ind, arr);
+    } else {
+      return parent.Insert(d3Ind, parent.RangeJ(), d2Ind, arr);
+    }
+  } else if (dir == "k") {  // d2 = i, d3 = j
+    if (upper2 && id == "i") {
+      d2Ind++;
+    } else if (upper3 && id == "j") {
+      d3Ind++;
+    }
+
+    if (physOnly) {
+      return parent.Insert(d2Ind, d3Ind, parent.PhysRangeK(), arr);
+    } else {
+      return parent.Insert(d2Ind, d3Ind, parent.RangeK(), arr);
+    }
+  } else {
+    cerr << "ERROR: Error in InsertArray, direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// overload to insert plane into array
+// Identical to previous insert overload, but more general in that in can insert
+// over a subset of direction 2 & 3. This is useful to insert into a plane that
+// borders a boundary condition patch.
+template <typename T>
+void InsertArray(T &parent, const string &dir, int dirInd, range dir1,
+                 range dir2, const T &arr, const string id, const int type) {
+  // dir -- normal direction of planar slice
+  // dirInd -- index in normal direction
+  // dir1 -- range of direction 1 (direction 3 is normal to slice)
+  // dir2 -- range of direction 2 (direction 3 is normal to slice)
+  // arr -- array to insert
+  // id -- id of array being inserted into (i, j, k for faces, cell for cells)
+  // type -- surface type of dir
+
+  if (dir == "i") {  // d1 = j, d2 = k
+    if (type == 2 && id == "i") {  // upper i-surface & i normal
+      dirInd++;
+    }
+    if (id == "j") {
+      dir1.GrowEnd();
+    } else if (id == "k") {
+      dir2.GrowEnd();
+    }
+    return parent.Insert(dirInd, dir1, dir2, arr);
+  } else if (dir == "j") {  // d1 = k, d2 = i
+    if (type == 4 && id == "j") {  // upper j-surface & j normal
+      dirInd++;
+    }
+    if (id == "k") {
+      dir1.GrowEnd();
+    } else if (id == "i") {
+      dir2.GrowEnd();
+    }
+    return parent.Insert(dir2, dirInd, dir1, arr);
+  } else if (dir == "k") {  // d1 = i, d2 = j
+    if (type == 6 && id == "k") {  // upper k-surface & k normal
+      dirInd++;
+    }
+    if (id == "i") {
+      dir1.GrowEnd();
+    } else if (id == "j") {
+      dir2.GrowEnd();
+    }
+    return parent.Insert(dir1, dir2, dirInd, arr);
+  } else {
+    cerr << "ERROR: Error in InsertArray, direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // member function definitions
 
 template <typename T>
@@ -822,31 +1010,7 @@ void multiArray3d<T>::Insert(const range &ir, const range &jr, const range &kr,
   // jr -- j-index range to take slice [inclusive, exclusive)
   // kr -- k-index range to take slice [inclusive, exclusive)
   // arr -- array to insert into this one
-
-  // check that given bounds fit in this, sizes match, and that bounds are valid
-  if (!ir.IsInside(this->RangeI()) || !jr.IsInside(this->RangeJ()) ||
-      !kr.IsInside(this->RangeK()) ||
-      ir.Size() != arr.RangeI().Size() || jr.Size() != arr.RangeJ().Size() ||
-      kr.Size() != arr.RangeK().Size() ||
-      !ir.IsValid() || !jr.IsValid() || !kr.IsValid()) {
-    cerr << "ERROR: Error in multiArray3d::Insert. Given array does not fit in "
-         << "given bounds" << endl
-         << "Given bounds: " << ir << ", " << jr << ", " << kr << endl
-         << "Bounds of array being inserted: " << arr.RangeI() << ", "
-         << arr.RangeJ() << ", " << arr.RangeK() << endl;
-    cerr << "Bounds of array accepting data: " << this->RangeI() << ", "
-         << this->RangeJ() << ", " << this->RangeK() << endl;
-    exit(EXIT_FAILURE);
-  }
-
-  // s is for index of sliced array, p is for index of parent array
-  for (int ks = arr.StartK(), kp = kr.Start(); ks < arr.EndK(); ks++, kp++) {
-    for (int js = arr.StartJ(), jp = jr.Start(); js < arr.EndJ(); js++, jp++) {
-      for (int is = arr.StartI(), ip = ir.Start(); is < arr.EndI(); is++, ip++) {
-        this->InsertBlock(ip, jp, kp, arr(is, js, ks));
-      }
-    }
-  }
+  InsertArray((*this), ir, jr, kr, arr);
 }
 
 // Overload to insert only in one direction. Given a 3D array, this inserts a
@@ -862,30 +1026,7 @@ void multiArray3d<T>::Insert(const string &dir, const range &dirRange,
   // arr -- array to insert
   // phsOnly -- flag to only include physical cells in the two directions that
   //            are not specified as dir
-
-  if (dir == "i") {
-    if (physOnly) {
-      return this->Insert(dirRange, this->PhysRangeJ(), this->PhysRangeK(), arr);
-    } else {
-      return this->Insert(dirRange, this->RangeJ(), this->RangeK(), arr);
-    }
-  } else if (dir == "j") {
-    if (physOnly) {
-      return this->Insert(this->PhysRangeI(), dirRange, this->PhysRangeK(), arr);
-    } else {
-      return this->Insert(this->RangeI(), dirRange, this->RangeK(), arr);
-    }
-  } else if (dir == "k") {
-    if (physOnly) {
-      return this->Insert(this->PhysRangeI(), this->PhysRangeJ(), dirRange, arr);
-    } else {
-      return this->Insert(this->RangeI(), this->RangeJ(), dirRange, arr);
-    }
-  } else {
-    cerr << "ERROR: Error in multiArray3d::Insert, direction " << dir
-         << " is not recognized!" << endl;
-    exit(EXIT_FAILURE);
-  }
+  InsertArray((*this), dir, dirRange, arr, physOnly);
 }
 
 // overload to insert line into array
@@ -904,48 +1045,7 @@ void multiArray3d<T>::Insert(const string &dir, int d2Ind, int d3Ind,
   //       altered if the array is storing i, j, or k face data
   // upper2 -- flag to determine if direction 2 is at upper index
   // upper3 -- flag to determine if direction 3 is at upper index
-
-  if (dir == "i") {  // d2 = j, d3 = k
-    if (upper2 && id == "j") {
-      d2Ind++;
-    } else if (upper3 && id == "k") {
-      d3Ind++;
-    }
-
-    if (physOnly) {
-      return this->Insert(this->PhysRangeI(), d2Ind, d3Ind, arr);
-    } else {
-      return this->Insert(this->RangeI(), d2Ind, d3Ind, arr);
-    }
-  } else if (dir == "j") {  // d2 = k, d3 = i
-    if (upper2 && id == "k") {
-      d2Ind++;
-    } else if (upper3 && id == "i") {
-      d3Ind++;
-    }
-
-    if (physOnly) {
-      return this->Insert(d3Ind, this->PhysRangeJ(), d2Ind, arr);
-    } else {
-      return this->Insert(d3Ind, this->RangeJ(), d2Ind, arr);
-    }
-  } else if (dir == "k") {  // d2 = i, d3 = j
-    if (upper2 && id == "i") {
-      d2Ind++;
-    } else if (upper3 && id == "j") {
-      d3Ind++;
-    }
-
-    if (physOnly) {
-      return this->Insert(d2Ind, d3Ind, this->PhysRangeK(), arr);
-    } else {
-      return this->Insert(d2Ind, d3Ind, this->RangeK(), arr);
-    }
-  } else {
-    cerr << "ERROR: Error in multiArray3d::Insert, direction " << dir
-         << " is not recognized!" << endl;
-    exit(EXIT_FAILURE);
-  }
+  InsertArray((*this), dir, d2Ind, d3Ind, arr, physOnly, id, upper2, upper3);
 }
 
 // overload to insert plane into array
@@ -964,42 +1064,7 @@ void multiArray3d<T>::Insert(const string &dir, int dirInd, range dir1,
   // arr -- array to insert
   // id -- id of array being inserted into (i, j, k for faces, cell for cells)
   // type -- surface type of dir
-
-  if (dir == "i") {  // d1 = j, d2 = k
-    if (type == 2 && id == "i") {  // upper i-surface & i normal
-      dirInd++;
-    }
-    if (id == "j") {
-      dir1.GrowEnd();
-    } else if (id == "k") {
-      dir2.GrowEnd();
-    }
-    return this->Insert(dirInd, dir1, dir2, arr);
-  } else if (dir == "j") {  // d1 = k, d2 = i
-    if (type == 4 && id == "j") {  // upper j-surface & j normal
-      dirInd++;
-    }
-    if (id == "k") {
-      dir1.GrowEnd();
-    } else if (id == "i") {
-      dir2.GrowEnd();
-    }
-    return this->Insert(dir2, dirInd, dir1, arr);
-  } else if (dir == "k") {  // d1 = i, d2 = j
-    if (type == 6 && id == "k") {  // upper k-surface & k normal
-      dirInd++;
-    }
-    if (id == "i") {
-      dir1.GrowEnd();
-    } else if (id == "j") {
-      dir2.GrowEnd();
-    }
-    return this->Insert(dir1, dir2, dirInd, arr);
-  } else {
-    cerr << "ERROR: Error in multiArray3d::Insert, direction " << dir
-         << " is not recognized!" << endl;
-    exit(EXIT_FAILURE);
-  }
+  InsertArray((*this), dir, dirInd, dir1, dir2, arr, id, type);
 }
 
 // member function to fill this array with data from a provided one

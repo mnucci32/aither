@@ -439,7 +439,7 @@ class procBlock {
                                    const unique_ptr<thermodynamic> &,
                                    const unique_ptr<transport> &,
                                    const unique_ptr<turbModel> &);
-  multiArray3d<primitive> GetGhostStates(
+  blkMultiArray3d<primitive> GetGhostStates(
       const blkMultiArray3d<primitive> &, const string &,
       const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
       const boundarySurface &, const input &, const unique_ptr<eos> &,

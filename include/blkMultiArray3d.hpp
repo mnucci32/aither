@@ -131,6 +131,18 @@ class blkMultiArray3d : public multiArray3d<double> {
   auto Slice(const string &, int, range, range, const string = "cell",
              const int = 0) const;
 
+  template <typename TT>
+  void Insert(const range &, const range &, const range &, const TT &);
+  template <typename TT>
+  void Insert(const string &, const range &, const TT &, const bool = false);
+  template <typename TT>
+  void Insert(const string &, int, int, const TT &, const bool = false,
+              const string = "cell", const bool = false, const bool = false);
+  template <typename TT>
+  void Insert(const string &, int, range, range, const TT &,
+              const string = "cell", const int = 0);
+
+
   // operator overloads
   arrayView<T, double> operator()(const int &ii, const int &jj,
                                   const int &kk) const {
@@ -255,5 +267,72 @@ auto blkMultiArray3d<T>::Slice(const string &dir, int dirInd, range dir1,
   return SliceArray((*this), dir, dirInd, dir1, dir2, id, type);
 }
 
+// member function to insert an array into this one
+// this is the main insert funciton that all other overloaded insert functions
+// call
+template <typename T>
+template <typename TT>
+void blkMultiArray3d<T>::Insert(const range &ir, const range &jr,
+                                const range &kr, const TT &arr) {
+  // ir -- i-index range to take slice [inclusive, exclusive)
+  // jr -- j-index range to take slice [inclusive, exclusive)
+  // kr -- k-index range to take slice [inclusive, exclusive)
+  // arr -- array to insert into this one
+  InsertArray((*this), ir, jr, kr, arr);
+}
+
+// Overload to insert only in one direction. Given a 3D array, this inserts a
+// plane with normal direction dir, or a smaller 3D array where the direction
+// dir is inserted over dirRange. It also has the ability to include or ignore
+// ghost cells in its planar inserts
+template <typename T>
+template <typename TT>
+void blkMultiArray3d<T>::Insert(const string &dir, const range &dirRange,
+                                const TT &arr, const bool physOnly) {
+  // dir -- direction of slice to insert
+  // dirRange -- range to insert slice into in direction given
+  // arr -- array to insert
+  // phsOnly -- flag to only include physical cells in the two directions that
+  //            are not specified as dir
+  InsertArray((*this), dir, dirRange, arr, physOnly);
+}
+
+// overload to insert line into array
+template <typename T>
+template <typename TT>
+void blkMultiArray3d<T>::Insert(const string &dir, int d2Ind, int d3Ind,
+                                const TT &arr, const bool physOnly,
+                                const string id, const bool upper2,
+                                const bool upper3) {
+  // dir -- direction of line slice to insert (direction 1)
+  // d2Ind -- index of direction 2 to insert into
+  // d3Ind -- index of direction 3 to insert into
+  // physOnly -- flag to only include physical cells in line insert
+  // id -- type of multiArray3d being sliced: cell, i, j, or k
+  //       d2Ind and d3Ind are supplied as cell indices, but may need to be
+  //       altered if the array is storing i, j, or k face data
+  // upper2 -- flag to determine if direction 2 is at upper index
+  // upper3 -- flag to determine if direction 3 is at upper index
+  InsertArray((*this), dir, d2Ind, d3Ind, arr, physOnly, id, upper2, upper3);
+}
+
+// overload to insert plane into array
+// Identical to previous insert overload, but more general in that in can insert
+// over a subset of direction 2 & 3. This is useful to insert into a plane that
+// borders a boundary condition patch.
+template <typename T>
+template <typename TT>
+void blkMultiArray3d<T>::Insert(const string &dir, int dirInd, range dir1,
+                                range dir2, const TT &arr, const string id,
+                                const int type) {
+  // dir -- normal direction of planar slice
+  // dirInd -- index in normal direction
+  // dir1 -- range of direction 1 (direction 3 is normal to slice)
+  // dir2 -- range of direction 2 (direction 3 is normal to slice)
+  // arr -- array to insert
+  // id -- id of array being inserted into (i, j, k for faces, cell for cells)
+  // type -- surface type of dir
+  InsertArray((*this), dir, dirInd, dir1, dir2, arr, id, type);
+}
 
 #endif

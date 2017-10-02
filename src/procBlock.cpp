@@ -6707,7 +6707,7 @@ void procBlock::UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &turb,
   }
 }
 
-multiArray3d<primitive> procBlock::GetGhostStates(
+blkMultiArray3d<primitive> procBlock::GetGhostStates(
     const blkMultiArray3d<primitive> &bndStates, const string &bcName,
     const multiArray3d<unitVec3dMag<double>> &faceAreas,
     const multiArray3d<double> &wDist, const boundarySurface &surf,
@@ -6765,9 +6765,10 @@ multiArray3d<primitive> procBlock::GetGhostStates(
     }
   }
 
-  multiArray3d<primitive> ghostStates(
+  blkMultiArray3d<primitive> ghostStates(
       bndStates.NumINoGhosts(), bndStates.NumJNoGhosts(),
-      bndStates.NumKNoGhosts(), bndStates.GhostLayers());
+      bndStates.NumKNoGhosts(), bndStates.GhostLayers(), bndStates.BlockSize(),
+      this->NumSpecies());
   for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
     for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
       for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
