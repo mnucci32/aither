@@ -238,28 +238,28 @@ template <typename T1, typename T2>
 inline const T1 operator+(const arrayView<T1, T2> &lhs,
                           const arrayView<T1, T2> &rhs) {
   auto ll = lhs.CopyData();
-  return ll += rhs;
+  return ll + rhs;
 }
 
 template <typename T1, typename T2>
 inline const T1 operator-(const arrayView<T1, T2> &lhs,
                           const arrayView<T1, T2> &rhs) {
   auto ll = lhs.CopyData();
-  return ll -= rhs;
+  return ll - rhs;
 }
 
 template <typename T1, typename T2>
 inline const T1 operator*(const arrayView<T1, T2> &lhs,
                           const arrayView<T1, T2> &rhs) {
   auto ll = lhs.CopyData();
-  return ll *= rhs;
+  return ll * rhs;
 }
 
 template <typename T1, typename T2>
 inline const T1 operator/(const arrayView<T1, T2> &lhs,
                           const arrayView<T1, T2> &rhs) {
   auto ll = lhs.CopyData();
-  return ll /= rhs;
+  return ll / rhs;
 }
 
 // operator overloads for type T -------------------------------------
@@ -293,7 +293,7 @@ inline const typename std::enable_if_t<
     std::is_base_of<varArray, T3>::value, T3>
 operator+(const T3 &lhs, const arrayView<T1, T2> &rhs) {
   T3 result(rhs.begin(), rhs.end(), rhs.NumSpecies());
-  return result += lhs;
+  return lhs + result;
 }
 
 template <typename T1, typename T2, typename T3>
@@ -301,7 +301,7 @@ inline const typename std::enable_if_t<
     std::is_base_of<varArray, T3>::value, T3>
 operator-(const T3 &lhs, const arrayView<T1, T2> &rhs) {
   T3 result(rhs.begin(), rhs.end(), rhs.NumSpecies());
-  return result -= lhs;
+  return lhs - result;
 }
 
 template <typename T1, typename T2, typename T3>
@@ -309,7 +309,7 @@ inline const typename std::enable_if_t<
     std::is_base_of<varArray, T3>::value, T3>
 operator*(const T3 &lhs, const arrayView<T1, T2> &rhs) {
   T3 result(rhs.begin(), rhs.end(), rhs.NumSpecies());
-  return result *= lhs;
+  return lhs * result;
 }
 
 template <typename T1, typename T2, typename T3>
@@ -317,7 +317,7 @@ inline const typename std::enable_if_t<
     std::is_base_of<varArray, T3>::value, T3>
 operator/(const T3 &lhs, const arrayView<T1, T2> &rhs) {
   T3 result(rhs.begin(), rhs.end(), rhs.NumSpecies());
-  return result /= lhs;
+  return lhs / result;
 }
 
 // ---------------------------------------------------------------------------
@@ -325,15 +325,15 @@ template <typename T1, typename T2, typename T3>
 inline const typename std::enable_if_t<
     std::is_base_of<varArray, T3>::value, T3>
 operator+(const arrayView<T1, T2> &lhs, const T3 &rhs) {
-  auto result = lhs.CopyData();
-  return result += lhs;
+  T3 result(lhs.begin(), lhs.end(), lhs.NumSpecies());
+  return result += rhs;
 }
 
 template <typename T1, typename T2, typename T3>
 inline const typename std::enable_if_t<
     std::is_base_of<varArray, T3>::value, T3>
 operator-(const arrayView<T1, T2> &lhs, const T3 &rhs) {
-  auto result = lhs.CopyData();
+  T3 result(lhs.begin(), lhs.end(), lhs.NumSpecies());
   return result -= rhs;
 }
 
@@ -341,7 +341,7 @@ template <typename T1, typename T2, typename T3>
 inline const typename std::enable_if_t<
     std::is_base_of<varArray, T3>::value, T3>
 operator*(const arrayView<T1, T2> &lhs, const T3 &rhs) {
-  auto result = lhs.CopyData();
+  T3 result(lhs.begin(), lhs.end(), lhs.NumSpecies());
   return result *= rhs;
 }
 
@@ -349,7 +349,7 @@ template <typename T1, typename T2, typename T3>
 inline const typename std::enable_if_t<
     std::is_base_of<varArray, T3>::value, T3>
 operator/(const arrayView<T1, T2> &lhs, const T3 &rhs) {
-  auto result = lhs.CopyData();
+  T3 result(lhs.begin(), lhs.end(), lhs.NumSpecies());
   return result /= rhs;
 }
 

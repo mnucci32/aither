@@ -63,7 +63,10 @@ class primitive : public varArray {
       : varArray(numEqns, numSpecies) {}
   primitive(const int &numEqns, const int &numSpecies, const double &val)
       : varArray(numEqns, numSpecies, val) {}
-  primitive(const conserved &, const unique_ptr<eos> &,
+  template <typename T,
+            typename = std::enable_if_t<std::is_base_of<varArray, T>::value ||
+                                        std::is_same<conservedView, T>::value>>
+  primitive(const T &, const unique_ptr<eos> &,
             const unique_ptr<thermodynamic> &, const unique_ptr<turbModel> &);
   primitive(const vector<const double>::iterator &b,
             const vector<const double>::iterator &e, const int &numSpecies)

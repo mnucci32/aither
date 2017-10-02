@@ -250,9 +250,9 @@ class procBlock {
     return consVarsNm1_(ii, jj, kk);
   }
 
-  multiArray3d<primitive> SliceState(const int &, const int &, const int &,
-                                    const int &, const int &,
-                                    const int &) const;
+  blkMultiArray3d<primitive> SliceState(const int &, const int &, const int &,
+                                        const int &, const int &,
+                                        const int &) const;
   multiArray3d<vector3d<double>> SliceBoundaryCenters(const int &) const;
 
   void AssignSolToTimeN(const unique_ptr<eos> &,

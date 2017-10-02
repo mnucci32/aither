@@ -548,8 +548,8 @@ class residual : public varArray {
   // constructor
   residual(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies) {}
-  residual(const vector<const double>::iterator &b, const vector<const double>::iterator &e,
-           const int &numSpecies)
+  residual(const vector<const double>::iterator &b, 
+           const vector<const double>::iterator &e, const int &numSpecies)
       : varArray(b, e, numSpecies) {}
 
   // move constructor and assignment operator

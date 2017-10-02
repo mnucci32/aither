@@ -1,5 +1,6 @@
-/*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+/*  This file is part of aith
+(ii, jj, kk) + bb > GetB
+Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -58,7 +59,7 @@ class blkMultiArray3d : public multiArray3d<double> {
   // constructor
   blkMultiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
                   const T &init)
-      : multiArray3d<double>(ii, jj, kk, ng, init.BlockSize()),
+      : multiArray3d<double>(ii, jj, kk, ng, init.Size()),
         numSpecies_(init.NumSpecies()) {
     for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
       for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
@@ -161,14 +162,12 @@ class blkMultiArray3d : public multiArray3d<double> {
   double &operator()(const int &ii, const int &jj, const int &kk,
                      const int &bb) {
     MSG_ASSERT(bb <= this->BlockSize(), "accessing data out of block index");
-    auto ind = this->GetBlkLoc1D(ii, jj, kk) + bb;
-    return *ind;
+    return (*this)[this->GetBlkLoc1D(ii, jj, kk) + bb];
   }
   const double &operator()(const int &ii, const int &jj, const int &kk,
                            const int &bb) const {
     MSG_ASSERT(bb <= this->BlockSize(), "accessing data out of block index");
-    auto ind = this->GetBlkLoc1D(ii, jj, kk) + bb;
-    return *ind;
+    return (*this)[this->GetBlkLoc1D(ii, jj, kk) + bb];
   }
 
   // destructor

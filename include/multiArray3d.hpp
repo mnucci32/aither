@@ -1,6 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
-
+ 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
@@ -151,9 +150,7 @@ class multiArray3d {
   void SwapSlice(const connection &, multiArray3d<T> &);
 
   void Zero(const T &z) { std::fill(this->begin(), this->end(), z); }
-  void Zero() {
-    std::for_each(this->begin(), this->end(), [](T &val) { val.Zero(); });
-  }
+  void Zero() { this->Zero(T()); }
 
   auto GrowI() const;
   auto GrowJ() const;
@@ -221,6 +218,14 @@ class multiArray3d {
       exit(EXIT_FAILURE);
     }
   }
+
+  T &operator[](const int &ind) {
+    return data_[ind];
+  }
+  const T &operator[](const int &ind) const {
+    return data_[ind];
+  }
+
 
   // arithmetic with same type
   inline multiArray3d<T> & operator+=(const multiArray3d<T> &);

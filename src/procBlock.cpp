@@ -6650,12 +6650,11 @@ void procBlock::CalcResidualNoSource(const unique_ptr<transport> &trans,
   }
 }
 
-
 // member function to get a slice of the state variables
-multiArray3d<primitive> procBlock::SliceState(const int &is, const int &ie,
-                                             const int &js, const int &je,
-                                             const int &ks,
-                                             const int &ke) const {
+blkMultiArray3d<primitive> procBlock::SliceState(const int &is, const int &ie,
+                                                 const int &js, const int &je,
+                                                 const int &ks,
+                                                 const int &ke) const {
   return state_.Slice({is, ie}, {js, je}, {ks, ke});
 }
 
@@ -6780,7 +6779,7 @@ multiArray3d<primitive> procBlock::GetGhostStates(
               turb, wVars, layer);
         } else {  // using dt, state at time n, press grad, vel grad in BC
           const auto stateN =
-              primitive(consVarsN(ii, jj, kk), false, eqnState, thermo, turb);
+              primitive(consVarsN(ii, jj, kk), eqnState, thermo, turb);
           ghostStates(ii, jj, kk) = GetGhostState(
               bndStates(ii, jj, kk), bcName, faceAreas(ii, jj, kk).UnitVector(),
               wDist(ii, jj, kk), surfType, inp, tag, eqnState, thermo, trans,
@@ -6914,7 +6913,7 @@ void procBlock::CalcCellWidths() {
 }
 
 
-void procBlock::GetStatesFromRestart(const multiArray3d<primitive> &restart) {
+void procBlock::GetStatesFromRestart(const blkMultiArray3d<primitive> &restart) {
   state_.Insert(restart.RangeI(), restart.RangeJ(), restart.RangeK(), restart);
 }
 
