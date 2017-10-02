@@ -185,7 +185,7 @@ class turbModel {
       const unique_ptr<transport> &trans, const double &vol, const double &mut,
       const double &f1, const double &f2, const double &width,
       vector<double> &turbSrc) const;
-  virtual squareMatrix TurbSrcJac(const primitive &state,
+  virtual squareMatrix TurbSrcJac(const primitiveView &state,
                                   const double &beta,
                                   const unique_ptr<transport> &trans,
                                   const double &vol,
@@ -283,14 +283,18 @@ class turbKWWilcox : public turbModel {
 
   // private member functions
   double SigmaD(const vector3d<double>&, const vector3d<double>&) const;
-  double Xw(const primitive &, const tensor<double> &,
+  template <typename T>
+  double Xw(const T &, const tensor<double> &,
             const unique_ptr<transport> &) const;
-  double FBeta(const primitive &, const tensor<double> &,
+  template <typename T>
+  double FBeta(const T &, const tensor<double> &,
                const unique_ptr<transport> &) const;
-  double Beta(const primitive &, const tensor<double> &,
+  template <typename T>
+  double Beta(const T &, const tensor<double> &,
               const unique_ptr<transport> &) const;
   tensor<double> StrainKI(const tensor<double> &) const;
-  double OmegaTilda(const primitive&, const tensor<double>&,
+  template <typename T>
+  double OmegaTilda(const T &, const tensor<double>&,
                     const unique_ptr<transport>&) const;
 
  public:
@@ -349,15 +353,15 @@ class turbKWWilcox : public turbModel {
                          const double &, const double &,
                          const double &) const override;
 
-  squareMatrix TurbSrcJac(const primitive &, const double &,
+  squareMatrix TurbSrcJac(const primitiveView &, const double &,
                           const unique_ptr<transport> &, const double &,
                           const double & = 1.0) const override;
 
   double TurbPrandtlNumber() const override {return prt_;}
   double WallBeta() const override {return beta0_;}
 
-  double TurbLengthScale(const primitive &state,
-                         const unique_ptr<transport> &) const;
+  template <typename T>
+  double TurbLengthScale(const T &state, const unique_ptr<transport> &) const;
 
   double Gamma() const {return gamma_;}
   double BetaStar() const override {return betaStar_;}
@@ -395,11 +399,13 @@ class turbKWSst : public turbModel {
   // private member functions
   double F1(const double &, const double &, const double &) const;
   double F2(const double &, const double &) const;
-  double Alpha1(const primitive &, const unique_ptr<transport> &,
+  template <typename T>
+  double Alpha1(const T &, const unique_ptr<transport> &, const double &) const;
+  template <typename T>
+  double Alpha2(const T &, const unique_ptr<transport> &, const double &,
                 const double &) const;
-  double Alpha2(const primitive &, const unique_ptr<transport> &, const double &,
-                const double &) const;
-  double Alpha3(const primitive &, const double &, const double &) const;
+  template <typename T>
+  double Alpha3(const T &, const double &, const double &) const;
 
  public:
   // constructor
@@ -416,7 +422,8 @@ class turbKWSst : public turbModel {
 
   // member functions
   double BlendedCoeff(const double &, const double &, const double &) const;
-  double CDkw(const primitive &, const vector3d<double> &,
+  template <typename T>
+  double CDkw(const T &, const vector3d<double> &,
               const vector3d<double> &) const;
   virtual squareMatrix CalcTurbSrc(
       const primitiveView &, const tensor<double> &, const vector3d<double> &,
@@ -461,7 +468,7 @@ class turbKWSst : public turbModel {
                          const double &, const double &,
                          const double &) const override;
 
-  virtual squareMatrix TurbSrcJac(const primitive &, const double &,
+  virtual squareMatrix TurbSrcJac(const primitiveView &, const double &,
                                   const unique_ptr<transport> &,
                                   const double &,
                                   const double & = 1.0) const override;
@@ -482,8 +489,8 @@ class turbKWSst : public turbModel {
   double A1() const {return a1_;}
   double BetaStar() const override {return betaStar_;}
   double TkeProd2DestRatio() const {return kProd2Dest_;}
-  double TurbLengthScale(const primitive &state,
-                         const unique_ptr<transport> &) const;
+  template <typename T>
+  double TurbLengthScale(const T &state, const unique_ptr<transport> &) const;
 
   // use coefficients from 1 because they are smaller
   // this is used for TSL flux jacobian, so smaller will help increase
@@ -509,7 +516,8 @@ class turbSstDes : public turbKWSst {
   const double cdes2_ = 0.61;
 
   // private member functions
-  double Phi(const primitive &state, const double &cdes, const double &width,
+  template <typename T>
+  double Phi(const T &state, const double &cdes, const double &width,
              const double &f2, const unique_ptr<transport> &trans) const;
 
  public:

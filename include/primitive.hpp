@@ -99,6 +99,10 @@ class primitive : public varArray {
                                 const unique_ptr<turbModel> &);
 
   primitive Abs() const;
+  primitive Squared() const {
+    auto sq = (*this);
+    return sq *= sq;
+  }
 
   vector3d<double> Velocity() const {
     return {this->U(), this->V(), this->W()};

@@ -27,6 +27,6 @@ class primitive;
 primitive LimiterVanAlbada(const primitive &);
 primitive LimiterMinmod(const primitive &, const primitive &,
                         const double &);
-primitive LimiterNone(const primitive &);
+primitive LimiterNone(const int &, const int &);
 
 #endif

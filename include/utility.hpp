@@ -24,6 +24,7 @@
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
 #include "multiArray3d.hpp"        // multiArray3d
+#include "blkMultiArray3d.hpp"     // blkMultiArray3dd
 #include "tensor.hpp"              // tensor
 #include "macros.hpp"
 
@@ -89,7 +90,7 @@ double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
                       resid &, const vector<connection> &, const int &,
                       const MPI_Datatype &);
 
-void SwapImplicitUpdate(vector<multiArray3d<varArray>> &,
+void SwapImplicitUpdate(vector<blkMultiArray3d<varArray>> &,
                         const vector<connection> &, const int &,
                         const MPI_Datatype &, const int &);
 void SwapTurbVars(vector<procBlock> &, const vector<connection> &, const int &,

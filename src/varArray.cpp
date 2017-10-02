@@ -26,11 +26,9 @@ using std::cerr;
 
 // ------------------------------------------------------------------
 // functions for varArray class
-
-varArray Squared() const {
+varArray varArray::Squared() const {
   auto sq = (*this);
-  sq *= sq;
-  return sq;
+  return sq *= sq;
 }
 
 // member function to sum the residuals from all processors
@@ -40,7 +38,7 @@ void residual::GlobalReduceMPI(const int &rank) {
     MPI_Reduce(MPI_IN_PLACE, &(*this)[0], this->Size(), MPI_DOUBLE, MPI_SUM,
                ROOTP, MPI_COMM_WORLD);
   } else {
-    MPI_Reduce((*this)[0], &(*this)[0], this->Size(), MPI_DOUBLE, MPI_SUM, ROOTP,
+    MPI_Reduce(&(*this)[0], &(*this)[0], this->Size(), MPI_DOUBLE, MPI_SUM, ROOTP,
                MPI_COMM_WORLD);
   }
 }

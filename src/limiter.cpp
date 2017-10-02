@@ -55,9 +55,9 @@ primitive LimiterVanAlbada(const primitive &r) {
 }
 
 // function to return no limiter
-primitive LimiterNone(const primitive &state) {
+primitive LimiterNone(const int &numEq, const int &numSpec) {
   // for no limiter return all 1s
-  primitive limiter(state.Size(), state.NumSpecies(), 1.0);
+  primitive limiter(numEq, numSpec, 1.0);
   return limiter;
 }
 

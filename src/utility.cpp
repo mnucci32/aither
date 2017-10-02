@@ -396,7 +396,7 @@ void ExplicitUpdate(vector<procBlock> &blocks, const input &inp,
                     const unique_ptr<turbModel> &turb, const int &mm,
                     residual &residL2, resid &residLinf) {
   // create dummy update (not used in explicit update)
-  multiArray3d<varArray> du(0, 0, 0);
+  blkMultiArray3d<varArray> du;
   // loop over all blocks and update
   for (auto &block : blocks) {
     block.UpdateBlock(inp, eqnState, thermo, trans, du, turb, mm, residL2,
@@ -435,7 +435,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   }
 
   // initialize matrix update
-  vector<multiArray3d<varArray>> du(blocks.size());
+  vector<blkMultiArray3d<varArray>> du(blocks.size());
   for (auto bb = 0U; bb < blocks.size(); bb++) {
     du[bb] = blocks[bb].InitializeMatrixUpdate(inp, eqnState, thermo,
                                                mainDiagonal[bb]);
@@ -507,7 +507,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   return matrixError;
 }
 
-void SwapImplicitUpdate(vector<multiArray3d<varArray>> &du,
+void SwapImplicitUpdate(vector<blkMultiArray3d<varArray>> &du,
                         const vector<connection> &connections, const int &rank,
                         const MPI_Datatype &MPI_cellData,
                         const int &numGhosts) {
@@ -892,7 +892,7 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
       if (count == 0) {  // first line has number of points
         auto numPts = std::stoi(tokens[0]);
         points.resize(numPts);
-        states.resize(numPts);
+        states.resize(numPts, {inp.NumEquations(), inp.NumSpecies()});
       } else if (count == 1) {  // second line has species
         species = tokens;
         if (species.size() != 1) {
@@ -925,7 +925,16 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
         for (auto ii = 0U; ii < massFractions.size(); ++ii) {
           massFractions[ii] = std::stod(tokens[ii + 10]);
         }
-        primitive state(rho, uVel, vVel, wVel, pressure, tke, omega);
+        primitive state(inp.NumEquations(), species.size());
+        for (auto ii = 0; ii < state.NumSpecies(); ++ii) {
+          state[ii] = rho * massFractions[ii];
+        }
+        state[state.MomentumXIndex()] = uVel;
+        state[state.MomentumYIndex()] = vVel;
+        state[state.MomentumZIndex()] = wVel;
+        state[state.EnergyIndex()] = pressure;
+        state[state.TurbulenceIndex()] = tke;
+        state[state.TurbulenceIndex() + 1] = omega;
         states[count - 2] = state;
       }
     }

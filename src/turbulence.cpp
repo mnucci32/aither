@@ -456,7 +456,8 @@ squareMatrix turbModel::CalcTurbSrc(
   return this->TurbSrcJac(state, 0.0, trans, vol);
 }
 
-squareMatrix turbModel::TurbSrcJac(const primitive &state, const double &beta,
+squareMatrix turbModel::TurbSrcJac(const primitiveView &state, 
+                                   const double &beta,
                                    const unique_ptr<transport> &trans,
                                    const double &vol,
                                    const double &phi) const {
@@ -542,34 +543,46 @@ double turbKWWilcox::SigmaD(const vector3d<double> &kGrad,
 }
 
 // member function to calculate coefficient for omega destruction
-double turbKWWilcox::Beta(const primitive &state,
+template <typename T>
+double turbKWWilcox::Beta(const T &state,
                           const tensor<double> &velGrad,
                           const unique_ptr<transport> &trans) const {
   // state -- primitive variables
   // velGrad -- velocity gradient
   // trans -- viscous transport model
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
   return beta0_ * this->FBeta(state, velGrad, trans);
 }
 
 // member function to calculate coefficient used in beta calculation
-double turbKWWilcox::FBeta(const primitive &state,
+template <typename T>
+double turbKWWilcox::FBeta(const T &state,
                            const tensor<double> &velGrad,
                            const unique_ptr<transport> &trans) const {
   // state -- primitive variables
   // velGrad -- velocity gradient
   // trans -- viscous transport model
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
   auto xw = this->Xw(state, velGrad, trans);
   return (1.0 + 85.0 * xw) / (1.0 + 100.0 * xw);
 }
 
 // member function to calculate vortex stretching coefficient
 // used in fbeta calculation
-double turbKWWilcox::Xw(const primitive &state,
+template <typename T>
+double turbKWWilcox::Xw(const T &state,
                         const tensor<double> &velGrad,
                         const unique_ptr<transport> &trans) const {
   // state -- primitive variables
   // velGrad -- velocity gradient
   // trans -- viscous transport model
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   const auto vorticity = 0.5 * (velGrad - velGrad.Transpose());
 
@@ -591,12 +604,16 @@ tensor<double> turbKWWilcox::StrainKI(const tensor<double> &velGrad) const {
 }
 
 // member function to calculate adjusted omega used in eddy viscosity limiter
-double turbKWWilcox::OmegaTilda(const primitive &state,
+template <typename T>
+double turbKWWilcox::OmegaTilda(const T &state,
                                 const tensor<double> &velGrad,
                                 const unique_ptr<transport> &trans) const {
   // state -- primitive variables
   // velGrad -- velocity gradient
   // trans -- viscous transport model
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   tensor<double> I;
   I.Identity();
@@ -714,7 +731,7 @@ double turbKWWilcox::SrcSpecRad(const primitiveView &state,
   return -2.0 * betaStar_ * state.Omega() * vol * trans->InvNondimScaling();
 }
 
-squareMatrix turbKWWilcox::TurbSrcJac(const primitive &state,
+squareMatrix turbKWWilcox::TurbSrcJac(const primitiveView &state,
                                       const double &beta,
                                       const unique_ptr<transport> &trans,
                                       const double &vol,
@@ -858,8 +875,12 @@ double turbKWWilcox::ViscFaceSpecRad(const primitiveView &state,
                                this->EddyViscNoLim(state), this->SigmaK(f1));
 }
 
-double turbKWWilcox::TurbLengthScale(const primitive &state,
+template <typename T>
+double turbKWWilcox::TurbLengthScale(const T &state,
                                      const unique_ptr<transport> &trans) const {
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
   return sqrt(state.Tke()) / (betaStar_ * state.Omega()) *
          trans->NondimScaling();
 }
@@ -900,10 +921,15 @@ double turbKWSst::EddyVisc(const primitive &state, const tensor<double> &vGrad,
 }
 
 // member function to calculate cross diffusion term
-double turbKWSst::CDkw(const primitive &state, const vector3d<double> &kGrad,
+template <typename T>
+double turbKWSst::CDkw(const T &state, const vector3d<double> &kGrad,
                        const vector3d<double> &wGrad) const {
-  return max(2.0 * state.Rho() * sigmaW2_ / state.Omega() *
-             kGrad.DotProd(wGrad), 1.0e-10);
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+  return max(
+      2.0 * state.Rho() * sigmaW2_ / state.Omega() * kGrad.DotProd(wGrad),
+      1.0e-10);
 }
 
 // member function to calculate blending function
@@ -930,26 +956,37 @@ double turbKWSst::BlendedCoeff(const double &coeff1, const double &coeff2,
 }
 
 // member function to calculate blending term
-double turbKWSst::Alpha1(const primitive &state,
-                         const unique_ptr<transport> &trans,
+template <typename T>
+double turbKWSst::Alpha1(const T &state, const unique_ptr<transport> &trans,
                          const double &wallDist) const {
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
   return trans->NondimScaling() * sqrt(state.Tke()) /
          (betaStar_ * state.Omega() * (wallDist + EPS));
 }
 
 // member function to calculate blending term
-double turbKWSst::Alpha2(const primitive &state,
+template <typename T>
+double turbKWSst::Alpha2(const T &state,
                          const unique_ptr<transport> &trans, const double &mu,
                          const double &wallDist) const {
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
   return trans->NondimScaling() * trans->NondimScaling() * 500.0 * mu /
          ((wallDist + EPS) * (wallDist + EPS) * state.Rho() * state.Omega());
 }
 
 // member function to calculate blending term
-double turbKWSst::Alpha3(const primitive &state, const double &wallDist,
+template <typename T>
+double turbKWSst::Alpha3(const T &state, const double &wallDist,
                          const double &cdkw) const {
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
   return 4.0 * state.Rho() * sigmaW2_ * state.Tke() /
-      (cdkw * (wallDist + EPS) * (wallDist + EPS));
+         (cdkw * (wallDist + EPS) * (wallDist + EPS));
 }
 
 // member function to calculate turbulence source terms and source jacobian
@@ -1065,7 +1102,7 @@ double turbKWSst::SrcSpecRad(const primitiveView &state,
   return -2.0 * betaStar_ * state.Omega() * vol * trans->InvNondimScaling();
 }
 
-squareMatrix turbKWSst::TurbSrcJac(const primitive &state,
+squareMatrix turbKWSst::TurbSrcJac(const primitiveView &state,
                                    const double &beta,
                                    const unique_ptr<transport> &trans,
                                    const double &vol,
@@ -1198,8 +1235,12 @@ double turbKWSst::ViscFaceSpecRad(const primitiveView &state,
                                this->SigmaK(f1));
 }
 
-double turbKWSst::TurbLengthScale(const primitive &state,
+template <typename T>
+double turbKWSst::TurbLengthScale(const T &state,
                                   const unique_ptr<transport> &trans) const {
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
   return sqrt(state.Tke()) / (betaStar_ * state.Omega()) *
          trans->NondimScaling();
 }
@@ -1223,11 +1264,15 @@ void turbKWSst::Print() const {
   cout << "Gamma2: " << gamma2_ << endl;
 }
 
-double turbSstDes::Phi(const primitive &state, const double &cdes,
+template <typename T>
+double turbSstDes::Phi(const T &state, const double &cdes,
                        const double &width, const double &f2,
                        const unique_ptr<transport> &trans) const {
-  return std::max((1.0 - f2) * this->TurbLengthScale(state, trans) /
-                  (cdes * width), 1.0);
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+  return std::max(
+      (1.0 - f2) * this->TurbLengthScale(state, trans) / (cdes * width), 1.0);
 }
 
 // member function to calculate turbulence source terms and source jacobian

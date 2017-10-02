@@ -23,6 +23,7 @@
 #include "eos.hpp"
 #include "transport.hpp"
 #include "thermodynamic.hpp"
+#include "turbulence.hpp"
 
 using std::max;
 using std::min;

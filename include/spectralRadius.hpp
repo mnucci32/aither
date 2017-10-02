@@ -31,6 +31,7 @@ using std::unique_ptr;
 class eos;
 class thermodynamic;
 class transport;
+class turbModel;
 
 template <typename T>
 double InvCellSpectralRadius(const T &, const unitVec3dMag<double> &,

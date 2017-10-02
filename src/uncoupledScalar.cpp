@@ -26,10 +26,10 @@ using std::cerr;
 // member function to multiply the scalars with a varArray
 template <typename T, typename TT>
 T uncoupledScalar::ArrayMult(T arr) const {
-  for (auto ii = 0; ii < T.TurbulenceIndex(); ++ii) {
+  for (auto ii = 0; ii < arr.TurbulenceIndex(); ++ii) {
     arr[ii] *= flowVar_;
   }
-  for (auto ii = T.TurbulenceIndex(); ii < T.Size(); ++ii) {
+  for (auto ii = arr.TurbulenceIndex(); ii < arr.Size(); ++ii) {
     arr[ii] *= turbVar_;
   }
   return arr;

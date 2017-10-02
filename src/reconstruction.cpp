@@ -115,10 +115,10 @@ primitive FaceReconMUSCL(const T &upwind2, const T &upwind1, const T &downwind1,
   const auto r = (EPS + (downwind1 - upwind1) * dPlus) /
       (EPS + (upwind1 - upwind2) * dMinus);
 
-  primitive limiter(this->Size(), this->NumSpecies());
-  primitive invLimiter(this->Size(), this->NumSpecies());
+  primitive limiter(upwind2.Size(), upwind2.NumSpecies());
+  primitive invLimiter(upwind2.Size(), upwind2.NumSpecies());
   if (lim == "none") {
-    limiter = LimiterNone();
+    limiter = LimiterNone(limiter.Size(), limiter.NumSpecies());
     invLimiter = limiter;
   } else if (lim == "vanAlbada") {
     limiter = LimiterVanAlbada(r);
@@ -178,9 +178,9 @@ primitive FaceReconWENO(const T &upwind3, const T &upwind2, const T &upwind1,
   const auto beta2 = Beta2(uw1, dw1, dw2, upwind1, downwind1, downwind2);
 
   // calculate nonlinear weights
-  primitive nlw0(this->Size(), this->NumSpecies());
-  primitive nlw1(this->Size(), this->NumSpecies());
-  primitive nlw2(this->Size(), this->NumSpecies());
+  primitive nlw0(upwind3.Size(), upwind3.NumSpecies());
+  primitive nlw1(upwind3.Size(), upwind3.NumSpecies());
+  primitive nlw2(upwind3.Size(), upwind3.NumSpecies());
   if (isWenoZ) {
     // using weno-z weights with q = 2
     const auto tau5 = (beta0 - beta2).Abs();

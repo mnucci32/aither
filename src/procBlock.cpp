@@ -6774,18 +6774,20 @@ blkMultiArray3d<primitive> procBlock::GetGhostStates(
       for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
         wallVars wVars;
         if (consVarsN.IsEmpty()) {
-          ghostStates(ii, jj, kk) = GetGhostState(
+          const auto ghost = GetGhostState(
               bndStates(ii, jj, kk), bcName, faceAreas(ii, jj, kk).UnitVector(),
               wDist(ii, jj, kk), surfType, inp, tag, eqnState, thermo, trans,
               turb, wVars, layer);
+          ghostStates.InsertBlock(ii, jj, kk, ghost);
         } else {  // using dt, state at time n, press grad, vel grad in BC
           const auto stateN =
               primitive(consVarsN(ii, jj, kk), eqnState, thermo, turb);
-          ghostStates(ii, jj, kk) = GetGhostState(
+          const auto ghost = GetGhostState(
               bndStates(ii, jj, kk), bcName, faceAreas(ii, jj, kk).UnitVector(),
               wDist(ii, jj, kk), surfType, inp, tag, eqnState, thermo, trans,
               turb, wVars, layer, dt(ii, jj, kk), stateN, pGrad(ii, jj, kk),
               velGrad(ii, jj, kk), avgMach, maxMach);
+          ghostStates.InsertBlock(ii, jj, kk, ghost);
         }
         if (bcName == "viscousWall" && layer == 1) {
           const auto ind = this->WallDataIndex(surf);

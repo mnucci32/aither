@@ -23,7 +23,9 @@
 
 #include <string>                  // string
 #include "arrayView.hpp"
+#include "primitive.hpp"
 #include "macros.hpp"
+#include "utility.hpp"
 
 using std::string;
 
