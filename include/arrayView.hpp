@@ -80,6 +80,7 @@ class arrayView {
   // member functions
   T2 Sum() const { return std::accumulate(begin_, end_, T2(0)); }
   T1 CopyData() const { return T1{begin_, end_, this->NumSpecies()}; }
+  T1 Squared() const { return (*this) * (*this); }
   auto Size() const { return std::distance(begin_, end_); }
   auto begin() const { return begin_; }
   auto end() const { return end_; }

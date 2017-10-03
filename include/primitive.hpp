@@ -150,12 +150,45 @@ class primitive : public varArray {
 // function to calculate conserved variables from primitive variables
 template <typename T>
 conserved PrimToCons(const T &state, const unique_ptr<eos> &eqnState,
-                     const unique_ptr<thermodynamic> &thermo);
+                     const unique_ptr<thermodynamic> &thermo) {
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+  conserved cv(state.Size(), state.NumSpecies());
+  for (auto ii = 0; ii < cv.NumSpecies(); ++ii) {
+    cv[ii] = state[ii];
+  }
+  const auto rho = state.Rho();
+  cv[cv.MomentumXIndex()] = rho * state.U();
+  cv[cv.MomentumYIndex()] = rho * state.V();
+  cv[cv.MomentumZIndex()] = rho * state.W();
+  cv[cv.EnergyIndex()] = rho * state.Energy(eqnState, thermo);
+  for (auto ii = 0; ii < cv.NumTurbulence(); ++ii) {
+    cv[cv.TurbulenceIndex() + ii] = rho * state.TurbN(ii);
+  }
+  return cv;
+}
+
+// function to take in a genArray of updates to the conservative
+// variables, and update the primitive variables with it.
+// this is used in the implicit solver
 template <typename T>
-primitive UpdatePrimWithCons(const T &, const unique_ptr<eos> &,
-                             const unique_ptr<thermodynamic> &,
-                             const varArrayView &,
-                             const unique_ptr<turbModel> &);
+primitive UpdatePrimWithCons(const T &state, const unique_ptr<eos> &eqnState,
+                             const unique_ptr<thermodynamic> &thermo,
+                             const varArrayView &du,
+                             const unique_ptr<turbModel> &turb) {
+  // eqnState -- equation of state
+  // du -- updates to conservative variables
+  // turb -- turbulence model
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+
+  // convert primitive to conservative and update
+  const auto consUpdate = state.ConsVars(eqnState, thermo) + du;
+  return primitive(consUpdate, eqnState, thermo, turb);
+}
+                               
 
 
 // ---------------------------------------------------------------------------

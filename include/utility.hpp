@@ -129,19 +129,8 @@ template <typename T>
 double StencilWidth(const T &, const int &, const int &);
 
 template <typename T>
-T Derivative2nd(const double &, const double &, const double &,
+auto Derivative2nd(const double &, const double &, const double &,
                 const T &, const T &, const T &);
-
-primitive Beta0(const double &, const double &, const double &,
-               const primitive &, const primitive &, const primitive &);
-primitive Beta1(const double &, const double &, const double &,
-               const primitive &, const primitive &, const primitive &);
-primitive Beta2(const double &, const double &, const double &,
-               const primitive &, const primitive &, const primitive &);
-primitive BetaIntegral(const primitive &, const primitive &, const double &,
-                      const double &);
-primitive BetaIntegral(const primitive &, const primitive &, const double &,
-                      const double &, const double &);
 
 tensor<double> CalcVelGradTSL(const primitive&, const primitive&,
                               const vector3d<double>&, const double&);
@@ -153,7 +142,7 @@ kdtree CalcTreeFromCloud(const string &, const input &,
 // ---------------------------------------------------------------------------
 // inline function definitions
 template <typename T>
-T Derivative2nd(const double &x_0, const double &x_1, const double &x_2,
+auto Derivative2nd(const double &x_0, const double &x_1, const double &x_2,
                 const T &y_0, const T &y_1, const T &y_2) {
   const auto fwdDiff1stOrder = (y_2 - y_1) / (0.5 * (x_2 + x_1));
   const auto bckDiff1stOrder = (y_1 - y_0) / (0.5 * (x_1 + x_0));

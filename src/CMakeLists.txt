@@ -45,7 +45,6 @@ set(sources
   primitive.cpp
   procBlock.cpp
   range.cpp
-  reconstruction.cpp
   resid.cpp
   slices.cpp
   source.cpp
