@@ -1903,7 +1903,7 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
                trans->InvNondimScaling();
           mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
                 trans->InvNondimScaling();
-          state = wallData_[wallDataInd].WallState(ii, jj, kk, eqnState);
+          wallData_[wallDataInd].WallState(ii, jj, kk, eqnState, state);
           tempViscFlux.CalcWallLawFlux(
               wallData_[wallDataInd].WallShearStress(ii, jj, kk),
               wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
@@ -2212,7 +2212,7 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
                trans->InvNondimScaling();
           mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
                 trans->InvNondimScaling();
-          state = wallData_[wallDataInd].WallState(ii, jj, kk, eqnState);
+          wallData_[wallDataInd].WallState(ii, jj, kk, eqnState, state);
           tempViscFlux.CalcWallLawFlux(
               wallData_[wallDataInd].WallShearStress(ii, jj, kk),
               wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
@@ -2522,7 +2522,7 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
                trans->InvNondimScaling();
           mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
                 trans->InvNondimScaling();
-          state = wallData_[wallDataInd].WallState(ii, jj, kk, eqnState);
+          wallData_[wallDataInd].WallState(ii, jj, kk, eqnState, state);
           tempViscFlux.CalcWallLawFlux(
               wallData_[wallDataInd].WallShearStress(ii, jj, kk),
               wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),

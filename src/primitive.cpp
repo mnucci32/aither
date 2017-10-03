@@ -27,6 +27,7 @@
 #include "utility.hpp"
 #include "wallLaw.hpp"
 #include "wallData.hpp"
+#include "conserved.hpp"
 
 using std::cout;
 using std::endl;

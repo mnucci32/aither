@@ -1,13 +1,16 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+double WallMassFraction(const int &ii, const int &jj, const int &kk,
+                        const int &ss) const;
+Copyright(C) 2015 - 17 Michael Nucci(michael.nucci @gmail.com)
 
-    Aither is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+                            Aither is free software
+    : you can redistribute it and /
+    or modify it under the terms of the GNU General Public License as published
+    by the Free Software Foundation,
+    either version 3 of the License,
+    or (at your option) any later version.
 
-    Aither is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
 
@@ -99,8 +102,8 @@ class wallData {
   double WallFrictionVelocity(const int &ii, const int &jj,
                               const int &kk) const;
   vector3d<double> WallVelocity() const {return bcData_->Velocity();}
-  primitive WallState(const int &ii, const int &jj, const int &kk,
-                     const unique_ptr<eos> &eqnState) const;
+  void WallState(const int &ii, const int &jj, const int &kk,
+                 const unique_ptr<eos> &eqnState, primitive &wState) const;
   int WallVarsSize() const { return data_.Size(); }
   void PackWallData(char *(&), const int &, int &, const MPI_Datatype &) const;
   void PackSize(int &, const MPI_Datatype &) const;
