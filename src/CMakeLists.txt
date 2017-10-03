@@ -48,7 +48,6 @@ set(sources
   resid.cpp
   slices.cpp
   source.cpp
-  spectralRadius.cpp
   thermodynamic.cpp
   transport.cpp
   turbulence.cpp

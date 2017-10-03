@@ -28,14 +28,14 @@
 #include "vector3d.hpp"  // vector3d
 #include "tensor.hpp"  // tensor
 #include "arrayView.hpp"  // primitiveView
+#include "matrix.hpp"  // squareMatrix
+#include "transport.hpp"  // transport
 
 using std::string;
 using std::unique_ptr;
 
 // forward class declaration
 class primitive;
-class transport;
-class squareMatrix;
 
 class turbModel {
   const string eddyViscMethod_;
@@ -600,33 +600,141 @@ class turbWale : public turbModel {
 };
 
 
-
+// --------------------------------------------------------------------------
 // function declarations
 template <typename T>
-double EddyViscUnlimited(const T &state);
+double EddyViscUnlimited(const T &state) {
+  // state -- primitive variables
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
+  return state.Rho() * state.Tke() / state.Omega();
+}
+
+// function to calculate inviscid spectral radius
+// df_dq = [vel (dot) area   0
+//                0          vel (dot) area]
 template <typename T>
 double InviscidCellSpectralRadius(const T &state,
                                   const unitVec3dMag<double> &fAreaL,
-                                  const unitVec3dMag<double> &fAreaR);
+                                  const unitVec3dMag<double> &fAreaR) {
+  // state -- primitive variables
+  // fAreaL -- face area for left face
+  // fAreaR -- face area for right face
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+
+  auto normAvg = (0.5 * (fAreaL.UnitVector() +
+                         fAreaR.UnitVector())).Normalize();
+  auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
+  return fabs(state.Velocity().DotProd(normAvg)) * fMag;
+}
 
 template <typename T>
-squareMatrix InviscidConvectiveJacobian(const T &state,
-                                        const unitVec3dMag<double> &fArea);
-template <typename T>
-squareMatrix InviscidDissipativeJacobian(const T &state,
-                                         const unitVec3dMag<double> &fArea);
+squareMatrix InviscidConvectiveJacobian(
+    const T &state, const unitVec3dMag<double> &fArea) {
+  // state -- primitive variables at face
+  // fArea -- face area
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
+  const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
+  const auto diag = velNorm * fArea.Mag();
+  squareMatrix jacobian(2);
+  jacobian(0, 0) = diag;
+  jacobian(1, 1) = diag;
+  return jacobian;
+}
+
+template <typename T>
+squareMatrix InviscidDissipativeJacobian(
+    const T &state, const unitVec3dMag<double> &fArea) {
+  // state -- primitive variables at face
+  // fArea -- face area
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+
+  const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
+  const auto diag = fabs(velNorm) * fArea.Mag();
+  squareMatrix jacobian(2);
+  jacobian(0, 0) = diag;
+  jacobian(1, 1) = diag;
+  return jacobian;
+}
+
+template <typename T>
+double ViscousFaceSpectralRadius(const T &state,
+                                  const unitVec3dMag<double> &fArea,
+                                  const double &mu,
+                                  const unique_ptr<transport> &trans,
+                                  const double &dist, const double &mut,
+                                  const double &sigmaK) {
+  // state -- primitive variables
+  // fArea -- face area
+  // mu -- laminar viscosity
+  // trans -- viscous transport model
+  // dist -- distance from cell center to cell center
+  // mut -- turbulent viscosity
+  // f1 -- first blending coefficient
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+  auto length = fArea.Mag() / dist;
+  return ViscousSpectralRadius(state, length, mu, trans, mut, sigmaK);
+}
+
+// function to calculate viscous spectral radius
+// dfv_dq = [ (area / vol) * (nu + sigmaStar * nut)    0
+//                           0                (area / vol) * (nu + sigma * nut)]
+template <typename T>
+double ViscousSpectralRadius(const T &state,
+                             const double &length, const double &mu,
+                             const unique_ptr<transport> &trans,
+                             const double &mut, const double &coeff) {
+  // state -- primitive variables
+  // fAreaL -- face area for left face
+  // fAreaR -- face area for right face
+  // mu -- laminar viscosity
+  // trans -- viscous transport model
+  // vol -- cell volume
+  // mut -- turbulent viscosity
+  // f1 -- first blending coefficient
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+  return trans->NondimScaling() * length / state.Rho() * (mu + coeff * mut);
+}
+
+// member function to calculate viscous flux jacobian
+// dfv_dq = [ (nu + sigmaStar * nut) / dist           0               ]
+//          [             0                  (nu + sigma * nut) / dist]
 template <typename T>
 squareMatrix ViscousFluxJacobian(const T &state,
                                  const unitVec3dMag<double> &fArea,
                                  const double &mu,
                                  const unique_ptr<transport> &trans,
                                  const double &dist, const double &mut,
-                                 const double &sigmaK, const double &sigmaW);
-template <typename T>
-double ViscousSpectralRadius(const T &state,
-                             const double &length, const double &mu,
-                             const unique_ptr<transport> &trans,
-                             const double &mut, const double &coeff);
+                                 const double &sigmaK, const double &sigmaW) {
+  // state -- primitive variables
+  // fArea -- face area
+  // mu -- laminar viscosity
+  // trans -- viscous transport model
+  // dist -- distance from cell center to cell center across face
+  // mut -- turbulent viscosity
+  // f1 -- first blending coefficient
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+
+  auto length = fArea.Mag() / dist;
+  squareMatrix jacobian(2);
+  jacobian(0, 0) = ViscousSpectralRadius(state, length, mu, trans, mut, sigmaK);
+  jacobian(1, 1) = ViscousSpectralRadius(state, length, mu, trans, mut, sigmaW);
+  return jacobian;
+}
+
 #endif
