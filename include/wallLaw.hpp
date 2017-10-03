@@ -23,6 +23,7 @@
 #include "vector3d.hpp"
 #include "tensor.hpp"
 #include "primitive.hpp"
+#include "arrayView.hpp"
 
 using std::unique_ptr;
 
@@ -76,13 +77,14 @@ class wallLaw {
 
  public:
   // constructor
-  wallLaw(const double &k, const double &c, const primitive &s, const double &d,
+  template <typename T>
+  wallLaw(const double &k, const double &c, const T &s, const double &d,
           const bool &isRANS)
       : isRANS_(isRANS),
         vonKarmen_(k),
         wallConst_(c),
         wallDist_(d),
-        state_(s),
+        state_(s.begin(), s.end(), s.NumSpecies()),
         yplus0_(std::exp(-k * c)),
         beta_(0.0),
         gamma_(0.0),
@@ -96,7 +98,11 @@ class wallLaw {
         muW_(0.0),
         mutW_(0.0),
         kW_(0.0),
-        recoveryFactor_(0.0) {}
+        recoveryFactor_(0.0) {
+    static_assert(std::is_same<primitive, T>::value ||
+                      std::is_same<primitiveView, T>::value,
+                  "T requires primitive or primativeView type");
+  }
 
   // move constructor and assignment operator
   wallLaw(wallLaw&&) = default;

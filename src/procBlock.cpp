@@ -38,6 +38,7 @@
 #include "wallData.hpp"
 #include "reconstruction.hpp"
 #include "spectralRadius.hpp"
+#include "ghostStates.hpp"
 
 using std::cout;
 using std::endl;

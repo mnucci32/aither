@@ -54,7 +54,6 @@ using std::unique_ptr;
 // forward class declarations
 class input;
 class turbModel;
-struct wallVars;
 
 class primitive : public varArray {
  public:
@@ -198,22 +197,46 @@ conserved primitive::ConsVars(const unique_ptr<eos> &eqnState,
   return PrimToCons((*this), eqnState, thermo);
 }
 
-// function to return the state of the appropriate ghost cell
-template <typename T>
-primitive GetGhostState(const T &, const string &, const vector3d<double> &,
-                        const double &, const int &, const input &, const int &,
-                        const unique_ptr<eos> &,
-                        const unique_ptr<thermodynamic> &,
-                        const unique_ptr<transport> &,
-                        const unique_ptr<turbModel> &, wallVars &, const int &,
-                        const double & = 0.0, const primitive & = {0, 0},
-                        const vector3d<double> & = {},
-                        const tensor<double> & = {}, const double & = 0.0,
-                        const double & = 0.0);
-
 ostream &operator<<(ostream &os, const primitive &);
 
+// function to calculate the Roe averaged state
 template <typename T1, typename T2>
-primitive RoeAveragedState(const T1&, const T2&);
+primitive RoeAveragedState(const T1 &left, const T2 &right) {
+  static_assert(std::is_same<primitive, T1>::value ||
+                    std::is_same<primitiveView, T1>::value,
+                "T1 requires primitive or primativeView type");
+  static_assert(std::is_same<primitive, T2>::value ||
+                    std::is_same<primitiveView, T2>::value,
+                "T2 requires primitive or primativeView type");
+                
+  // compute Rho averaged quantities
+  primitive rhoState(left.Size(), left.NumSpecies());
+  // density ratio
+  const auto denRatio = sqrt(right.Rho() / left.Rho());
+  // Roe averaged density
+  for (auto ii = 0; ii < rhoState.NumSpecies(); ++ii) {
+    rhoState[ii] = left.RhoN(ii) * denRatio;
+  }
+  // Roe averaged velocities - u, v, w
+  rhoState[rhoState.MomentumXIndex()] =
+      (left.U() + denRatio * right.U()) / (1.0 + denRatio);
+  rhoState[rhoState.MomentumYIndex()] =
+      (left.V() + denRatio * right.V()) / (1.0 + denRatio);
+  rhoState[rhoState.MomentumZIndex()] =
+      (left.W() + denRatio * right.W()) / (1.0 + denRatio);
+
+  // Roe averaged pressure
+  rhoState[rhoState.EnergyIndex()] =
+      (left.P() + denRatio * right.P()) / (1.0 + denRatio);
+
+  // Roe averaged turbulence variables
+  for (auto ii = 0; ii < rhoState.NumTurbulence(); ++ii) {
+    rhoState[rhoState.TurbulenceIndex() + ii] =
+        (left.TurbN(ii) + denRatio * right.TurbN(ii)) / (1.0 + denRatio);
+  }
+
+  return rhoState;
+}
+
 
 #endif

@@ -15,12 +15,9 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <iostream>
-#include <vector>
-#include <array>
 #include <string>
 #include <memory>
 #include <cmath>
-#include <algorithm>  // max
 #include "primitive.hpp"
 #include "input.hpp"               // input
 #include "turbulence.hpp"          // turbModel
@@ -37,83 +34,6 @@ using std::max;
 using std::min;
 using std::unique_ptr;
 
-template <typename T, typename TT>
-primitive::primitive(const T &cons, const unique_ptr<eos> &eqnState,
-                     const unique_ptr<thermodynamic> &thermo,
-                     const unique_ptr<turbModel> &turb) {
-  // cons -- array of conserved variables
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // turb -- turbulence model
-
-  *this = primitive(cons.Size(), cons.NumSpecies());
-
-  for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
-    (*this)[ii] = cons.SpeciesN(ii);
-  }
-  
-  const auto rho = cons.SpeciesSum();
-  (*this)[this->MomentumXIndex()] = cons.MomentumX() / rho;
-  (*this)[this->MomentumYIndex()] = cons.MomentumY() / rho;
-  (*this)[this->MomentumZIndex()] = cons.MomentumZ() / rho;
-  
-  const auto energy = cons.Energy() / rho;
-  (*this)[this->EnergyIndex()] =
-      eqnState->PressFromEnergy(thermo, rho, energy, this->Velocity().Mag());
-
-  for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
-    (*this)[this->TurbulenceIndex() + ii] = cons.TurbulenceN(ii) / rho;
-  }
-
-  // Adjust turbulence variables to be above minimum if necessary
-  this->LimitTurb(turb);
-}
-
-// member function to initialize a state with nondimensional values
-void primitive::NondimensionalInitialize(const unique_ptr<eos> &eqnState,
-                                        const input &inp,
-                                        const unique_ptr<transport> &trans,
-                                        const int &parBlock,
-                                        const unique_ptr<turbModel> &turb) {
-  // get initial condition state for parent block
-  auto ic = inp.ICStateForBlock(parBlock);
-  auto massFracs = ic.MassFractions();
-
-  // DEBUG -- need to make sure species are going into correct index
-  auto ii = 0;
-  for (auto &mf : massFracs) {
-    (*this)[ii] = mf.second * ic.Density();
-    ii++;
-  }
-
-  (*this)[this->MomentumXIndex()] = ic.Velocity().X();
-  (*this)[this->MomentumYIndex()] = ic.Velocity().Y();
-  (*this)[this->MomentumZIndex()] = ic.Velocity().Z();
-
-  (*this)[this->EnergyIndex()] = ic.Pressure();
-  
-  if (this->HasTurbulenceData()) {
-    // Initialize turbulence quantities based off of specified turublence
-    // intensity and eddy viscosity ratio. This is the default for
-    // STAR-CCM+
-    this->ApplyFarfieldTurbBC(this->Velocity(), ic.TurbulenceIntensity(),
-                              ic.EddyViscosityRatio(), trans, eqnState, turb);
-  }
-}
-
-// operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const primitive &prim) {
-  for (auto rr = 0; rr < prim.Size(); rr++) {
-    os << prim[rr] << endl;
-  }
-  return os;
-}
-
-primitive primitive::UpdateWithConsVars(
-    const unique_ptr<eos> &eqnState, const unique_ptr<thermodynamic> &thermo,
-    const varArrayView &du, const unique_ptr<turbModel> &turb) const {
-  return UpdatePrimWithCons((*this), eqnState, thermo, du, turb);
-}
 
 // member function to return the state of the appropriate ghost cell
 /*
@@ -146,9 +66,9 @@ primitive GetGhostState(
     const input &inputVars, const int &tag, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
     const unique_ptr<turbModel> &turb, wallVars &wVars, const int &layer,
-    const double &dt, const primitive &stateN,
-    const vector3d<double> &pressGrad, const tensor<double> &velGrad,
-    const double &avgMach, const double &maxMach) {
+    const double &dt = 0.0, const primitive &stateN = {0, 0},
+    const vector3d<double> &pressGrad = {}, const tensor<double> &velGrad = {},
+    const double &avgMach = 0.0, const double &maxMach = 0.0) {
   // interior -- primitive state at interior cell
   // bcType -- type of boundary condition to supply ghost cell for
   // areaVec -- unit area vector of boundary face
@@ -174,8 +94,7 @@ primitive GetGhostState(
   // bordering the boundary
 
   // set ghost state equal to boundary state to start
-  auto ghost =
-      std::is_same<primitive, T>::value ? interior : interior.CopyData();
+  primitive ghost(interior.begin(), interior.end(), interior.NumSpecies());
 
   // face area vector (should always point out of domain)
   // at lower surface normal should point out of domain for ghost cell calc
@@ -408,8 +327,7 @@ primitive GetGhostState(
     } else if (machInt >= 1.0 && velIntNorm >= 0.0) {  // supersonic outflow
       // ----------------------------------------------
       // characteristics all leave the domain, so use interior values for both
-      // riemann invariants
-      ghost = interior;
+      // riemann invariants (do nothing)
     } else if (machInt < 1.0 && velIntNorm < 0.0) {  // subsonic inflow
       // ----------------------------------------------
       // characteristics go in both directions, use interior values for plus
@@ -721,7 +639,8 @@ primitive GetGhostState(
     // check for supersonic flow
     if (ghost.Velocity().DotProd(normArea) / ghost.SoS(thermo, eqnState) >=
         1.0) {
-      ghost = interior;
+      ghost =
+          primitive(interior.begin(), interior.end(), interior.NumSpecies());
     }
 
     // extrapolate from boundary to ghost cell
@@ -748,42 +667,4 @@ primitive GetGhostState(
   }
 
   return ghost;
-}
-
-// member function to apply farfield turbulence boundary conditions
-// using the method in STAR-CCM+ involving turbulence intensity and
-// eddy viscosity ratio
-void primitive::ApplyFarfieldTurbBC(const vector3d<double> &vel,
-                                   const double &turbInten,
-                                   const double &viscRatio,
-                                   const unique_ptr<transport> &trans,
-                                   const unique_ptr<eos> &eqnState,
-                                   const unique_ptr<turbModel> &turb) {
-  // vel -- reference velocity (nondimensionalized)
-  // turbInten -- turbulence intensity at farfield
-  // viscRatio -- eddy viscosity ratio at farfield
-  // trans -- viscous transport model
-  // eqnState -- equation of state
-  // turb --  turbulence model
-
-  (*this)[this->TurbulenceIndex()] = 1.5 * pow(turbInten * vel.Mag(), 2.0);
-  (*this)[this->TurbulenceIndex() + 1] = this->Rho() * this->Tke() /
-      (viscRatio * trans->Viscosity(this->Temperature(eqnState)));
-  this->LimitTurb(turb);
-}
-
-void primitive::LimitTurb(const unique_ptr<turbModel> &turb) {
-  // Adjust turbulence variables to be above minimum if necessary
-  for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
-    (*this)[this->TurbulenceIndex() + ii] =
-        max((*this)[TurbulenceIndex() + ii], turb->TurbMinN(ii));
-  }
-}
-
-// return element by element absolute value
-primitive primitive::Abs() const {
-  auto abs = *this;
-  std::transform(std::begin(*this), std::end(*this), std::begin(abs),
-                 [](const double &val) { return fabs(val); });
-  return abs;
 }
