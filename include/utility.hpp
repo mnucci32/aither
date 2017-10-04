@@ -142,6 +142,19 @@ kdtree CalcTreeFromCloud(const string &, const input &,
 // ---------------------------------------------------------------------------
 // inline function definitions
 template <typename T>
+double StencilWidth(const T &cellWidth, const int &start, const int &end) {
+  auto width = 0.0;
+  if (end > start) {
+    width = std::accumulate(std::begin(cellWidth) + start,
+                            std::begin(cellWidth) + end, 0.0);
+  } else if (start > end) {  // width is negative
+    width = -1.0 * std::accumulate(std::begin(cellWidth) + end,
+                                   std::begin(cellWidth) + start, 0.0);
+  }
+  return width;
+}
+
+template <typename T>
 auto Derivative2nd(const double &x_0, const double &x_1, const double &x_2,
                 const T &y_0, const T &y_1, const T &y_2) {
   const auto fwdDiff1stOrder = (y_2 - y_1) / (0.5 * (x_2 + x_1));

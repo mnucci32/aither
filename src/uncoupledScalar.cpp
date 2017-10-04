@@ -14,26 +14,11 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include <type_traits>
 #include "uncoupledScalar.hpp"
-#include "varArray.hpp"
 
 using std::cout;
 using std::endl;
 using std::cerr;
-
-// member functions
-// member function to multiply the scalars with a varArray
-template <typename T, typename TT>
-T uncoupledScalar::ArrayMult(T arr) const {
-  for (auto ii = 0; ii < arr.TurbulenceIndex(); ++ii) {
-    arr[ii] *= flowVar_;
-  }
-  for (auto ii = arr.TurbulenceIndex(); ii < arr.Size(); ++ii) {
-    arr[ii] *= turbVar_;
-  }
-  return arr;
-}
 
 // non-member functions
 // ----------------------------------------------------------------------------

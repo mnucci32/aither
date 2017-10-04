@@ -150,8 +150,7 @@ class procBlock {
                            const unique_ptr<thermodynamic> &,
                            const unique_ptr<turbModel> &, const int &,
                            const int &, const int &);
-  template <typename T>
-  void RK4TimeAdvance(const T &, const unique_ptr<eos> &,
+  void RK4TimeAdvance(const conservedView &, const unique_ptr<eos> &,
                       const unique_ptr<thermodynamic> &,
                       const unique_ptr<turbModel> &, const int &, const int &,
                       const int &, const int &);
@@ -594,10 +593,66 @@ class procBlock {
   ~procBlock() noexcept {}
 };
 
+// ----------------------------------------------------------------------------
 // function definitions
 template <typename T>
-T PadWithGhosts(const T &, const int &);
+void procBlock::AddToResidual(const int &ii, const int &jj, const int &kk,
+                              const T &arr) {
+  static_assert(std::is_base_of<varArray, T>::value, "T must be varArray type");
+  MSG_ASSERT(arr.BlockSize() == residual_.BlockSize(),
+             "array block size must match residual block size");
+  for (auto bb = 0; bb < residual_.BlockSize(); ++bb) {
+    residual_(ii, jj, kk, bb) += arr[bb];
+  }
+}
 
+template <typename T>
+void procBlock::SubtractFromResidual(const int &ii, const int &jj,
+                                     const int &kk, const T &arr) {
+  static_assert(std::is_base_of<varArray, T>::value, "T must be varArray type");
+  MSG_ASSERT(arr.BlockSize() == residual_.BlockSize(),
+             "array block size must match residual block size");
+  for (auto bb = 0; bb < residual_.BlockSize(); ++bb) {
+    residual_(ii, jj, kk, bb) -= arr[bb];
+  }
+}
+
+/* Function to pad a multiArray3d with a specified number of ghost cells
+           ___ ___ ___ ___ ___ ___ ___ ___
+          | E | E | G | G | G | G | E | E |
+          |___|___|___|___|___|___|___|___|
+          | E | E | G | G | G | G | E | E |
+          |___|___|___|___|___|___|___|___|
+          | G | G | X | X | X | X | G | G |
+          |___|___|___|___|___|___|___|___|
+          | G | G | X | X | X | X | G | G |
+          |___|___|___|___|___|___|___|___|
+          | E | E | G | G | G | G | E | E |
+          |___|___|___|___|___|___|___|___|
+          | E | E | G | G | G | G | E | E |
+          |___|___|___|___|___|___|___|___|
+
+In the above diagram, the cells marked with an "X" represent physical cells. The
+entire diagram represents the block (in 2D) padded with 2 layers of ghost cells.
+The cells marked with "G" are regualar ghost cells. The cells marked with "E" are
+ghost cells located along one of the 12 edges that form a plot3d block. In 3D
+there are also "corner" cells located at the 8 corners that form the plot3d block.
+These cells are not used though. There is a place in the vector for them to make
+accessing the padded vector of cells the same as for a plot3d block without ghost
+cells.
+*/
+template <typename T>
+T PadWithGhosts(const T &var, const int &numGhosts) {
+  // var -- vector of variables to pad (no ghost cells included)
+  // numGhosts -- number of layers of ghost cells to pad var with
+  // T should be multiArray3d or blkMultiArray3d type
+
+  // initialize added array
+  T padBlk(var.NumI(), var.NumJ(), var.NumK(), numGhosts, var.BlockSize());
+
+  padBlk.Insert(var.RangeI(), var.RangeJ(), var.RangeK(), var);
+  return padBlk;
+}
 
 #endif
 

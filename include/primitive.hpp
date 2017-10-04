@@ -145,6 +145,40 @@ class primitive : public varArray {
 };
 
 // ---------------------------------------------------------------------------
+// constructors
+template <typename T, typename TT>
+primitive::primitive(const T &cons, const unique_ptr<eos> &eqnState,
+                     const unique_ptr<thermodynamic> &thermo,
+                     const unique_ptr<turbModel> &turb) {
+  // cons -- array of conserved variables
+  // eqnState -- equation of state
+  // thermo -- thermodynamic model
+  // turb -- turbulence model
+
+  *this = primitive(cons.Size(), cons.NumSpecies());
+
+  for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
+    (*this)[ii] = cons.SpeciesN(ii);
+  }
+  
+  const auto rho = cons.SpeciesSum();
+  (*this)[this->MomentumXIndex()] = cons.MomentumX() / rho;
+  (*this)[this->MomentumYIndex()] = cons.MomentumY() / rho;
+  (*this)[this->MomentumZIndex()] = cons.MomentumZ() / rho;
+  
+  const auto energy = cons.Energy() / rho;
+  (*this)[this->EnergyIndex()] =
+      eqnState->PressFromEnergy(thermo, rho, energy, this->Velocity().Mag());
+
+  for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
+    (*this)[this->TurbulenceIndex() + ii] = cons.TurbulenceN(ii) / rho;
+  }
+
+  // Adjust turbulence variables to be above minimum if necessary
+  this->LimitTurb(turb);
+}
+
+// ---------------------------------------------------------------------------
 // non member functions
 // function to calculate conserved variables from primitive variables
 template <typename T>

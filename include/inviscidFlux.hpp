@@ -162,6 +162,58 @@ void inviscidFlux::ConstructFromPrim(const T &state,
   }
 }
 
+template <typename T1, typename T2>
+void inviscidFlux::AUSMFlux(const T1 &left, const T2 &right,
+                            const unique_ptr<eos> &eqnState,
+                            const unique_ptr<thermodynamic> &thermo,
+                            const vector3d<double> &area,
+                            const double &sos, const double &mPlusLBar,
+                            const double &mMinusRBar, const double &pPlus,
+                            const double &pMinus) {
+  static_assert(std::is_same<primitive, T1>::value ||
+                    std::is_same<primitiveView, T1>::value,
+                "T1 requires primitive or primativeView type");
+  static_assert(std::is_same<primitive, T2>::value ||
+                    std::is_same<primitiveView, T2>::value,
+                "T2 requires primitive or primativeView type");
+
+  // calculate left flux
+  const auto vl = mPlusLBar * sos;
+  for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
+    (*this)[ii] = left.RhoN(ii) * vl;
+  }
+  auto rhoL = left.Rho();
+  (*this)[this->MomentumXIndex()] =
+      rhoL * vl * left.U() + pPlus * left.P() * area.X();
+  (*this)[this->MomentumYIndex()] =
+      rhoL * vl * left.V() + pPlus * left.P() * area.Y();
+  (*this)[this->MomentumZIndex()] =
+      rhoL * vl * left.W() + pPlus * left.P() * area.Z();
+  (*this)[this->EnergyIndex()] =
+      left.Rho() * vl * left.Enthalpy(eqnState, thermo);
+  for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
+    (*this)[this->TurbulenceIndex() + ii] = rhoL * vl * left.TurbulenceN(ii);
+  }
+
+  // calculate right flux (add contribution)
+  const auto vr = mMinusRBar * sos;
+  for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
+    (*this)[ii] = right.RhoN(ii) * vr;
+  }
+  auto rhoR = right.Rho();
+  (*this)[this->MomentumXIndex()] +=
+      rhoR * vr * right.U() + pMinus * right.P() * area.X();
+  (*this)[this->MomentumYIndex()] +=
+      rhoR * vr * right.V() + pMinus * right.P() * area.Y();
+  (*this)[this->MomentumZIndex()] +=
+      rhoR * vr * right.W() + pMinus * right.P() * area.Z();
+  (*this)[this->EnergyIndex()] +=
+      rhoR * vr * right.Enthalpy(eqnState, thermo);
+  for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
+    (*this)[this->TurbulenceIndex() + ii] = rhoR * vr * right.TurbulenceN(ii);
+  }
+}
+
 
 // ----------------------------------------------------------------------------
 // function definitions

@@ -776,19 +776,6 @@ vector<double> LagrangeCoeff(const vector<double> &cellWidth,
   return coeffs;
 }
 
-template <typename T>
-double StencilWidth(const T &cellWidth, const int &start, const int &end) {
-  auto width = 0.0;
-  if (end > start) {
-    width = std::accumulate(std::begin(cellWidth) + start,
-                            std::begin(cellWidth) + end, 0.0);
-  } else if (start > end) {  // width is negative
-    width = -1.0 * std::accumulate(std::begin(cellWidth) + end,
-                                   std::begin(cellWidth) + start, 0.0);
-  }
-  return width;
-}
-
 // function to calculate the velocity gradients at a cell face using the Thin
 // Shear Layer approximation
 tensor<double> CalcVelGradTSL(const primitive &left, const primitive &right,

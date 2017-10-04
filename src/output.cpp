@@ -748,28 +748,6 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   cout << "Done with restart file" << endl << endl;
 }
 
-template<typename T>
-void WriteBlockDims(ofstream &outFile, const vector<T> &vars,
-                    int numVars) {
-  // write number of blocks to file
-  auto numBlks = static_cast<int>(vars.size());
-  outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
-
-  // loop over all blocks and write out imax, jmax, kmax, numVars
-  for (auto &blk : vars) {
-    auto dumInt = blk.NumI();
-    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = blk.NumJ();
-    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = blk.NumK();
-    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    
-    if (numVars > 0) {
-      outFile.write(reinterpret_cast<char *>(&numVars), sizeof(numVars));
-    }
-  }
-}
-
 
 // function to write out plot3d meta data for Paraview
 void WriteMeta(const input &inp, const int &iter) {

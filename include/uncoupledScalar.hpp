@@ -70,21 +70,28 @@ class uncoupledScalar {
     turbVar_ = 0.0;
   }
 
-  template <typename T, 
+  template <typename T,
             typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
-  T ArrayMult(T) const;
-  template <
-      typename T,
-      typename = std::enable_if_t<std::is_same<varArrayView, T>::value ||
-                                  std::is_same<primitiveView, T>::value ||
-                                  std::is_same<conservedView, T>::value ||
-                                  std::is_same<residualView, T>::value>>
+  T ArrayMult(T arr) const {
+    for (auto ii = 0; ii < arr.TurbulenceIndex(); ++ii) {
+      arr[ii] *= flowVar_;
+    }
+    for (auto ii = arr.TurbulenceIndex(); ii < arr.Size(); ++ii) {
+      arr[ii] *= turbVar_;
+    }
+    return arr;
+  }
+  template <typename T,
+            typename = std::enable_if_t<std::is_same<varArrayView, T>::value ||
+                                        std::is_same<primitiveView, T>::value ||
+                                        std::is_same<conservedView, T>::value ||
+                                        std::is_same<residualView, T>::value>>
   auto ArrayMult(const T &arrView) const {
     auto arr = arrView.CopyData();
     return this->ArrayMult(arr);
   }
 
-  inline uncoupledScalar & operator+=(const uncoupledScalar &);
+  inline uncoupledScalar &operator+=(const uncoupledScalar &);
   inline uncoupledScalar & operator-=(const uncoupledScalar &);
   inline uncoupledScalar & operator*=(const uncoupledScalar &);
   inline uncoupledScalar & operator/=(const uncoupledScalar &);

@@ -206,6 +206,30 @@ class turbModel {
   virtual ~turbModel() noexcept {}
 };
 
+template <typename T>
+double turbModel::FaceSpectralRadius(
+    const T &state, const unitVec3dMag<double> &fArea, const double &mu,
+    const unique_ptr<transport> &trans, const double &dist, const double &mut,
+    const double &f1, const bool &positive) const {
+  // state -- primitive variables
+  // fArea -- face area
+  // mu -- laminar viscosity
+  // trans -- viscous transport model
+  // dist -- distance from cell center to cell center
+  // mut -- turbulent viscosity
+  // f1 -- first blending coefficient
+  // positive -- flag to add or subtract inviscid dissipation
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+                
+  auto specRad = this->InviscidFaceSpecRad(state, fArea, positive);
+  specRad += this->ViscFaceSpecRad(state, fArea, mu, trans, dist, mut, f1);
+  return specRad;
+}
+
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 class turbNone : public turbModel {
  public:
   // constructor
@@ -271,6 +295,8 @@ class turbNone : public turbModel {
   ~turbNone() noexcept {}
 };
 
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 class turbKWWilcox : public turbModel {
   const double gamma_ = 0.52;
   const double betaStar_ = 0.09;
@@ -382,6 +408,8 @@ class turbKWWilcox : public turbModel {
   ~turbKWWilcox() noexcept {}
 };
 
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 class turbKWSst : public turbModel {
   const double betaStar_ = 0.09;
   const double sigmaK1_ = 0.85;
@@ -510,7 +538,8 @@ class turbKWSst : public turbModel {
   virtual ~turbKWSst() noexcept {}
 };
 
-
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 class turbSstDes : public turbKWSst {
   const double cdes1_ = 0.78;
   const double cdes2_ = 0.61;
@@ -556,7 +585,8 @@ class turbSstDes : public turbKWSst {
   ~turbSstDes() noexcept {}
 };
 
-
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 class turbWale : public turbModel {
   const double cw_ = 0.544;
 
@@ -600,6 +630,7 @@ class turbWale : public turbModel {
 };
 
 
+// ---------------------------------------------------------------------------
 // --------------------------------------------------------------------------
 // function declarations
 template <typename T>
@@ -632,6 +663,7 @@ double InviscidCellSpectralRadius(const T &state,
   return fabs(state.Velocity().DotProd(normAvg)) * fMag;
 }
 
+// function to calculate convective portion of inviscid flux jacobian
 template <typename T>
 squareMatrix InviscidConvectiveJacobian(
     const T &state, const unitVec3dMag<double> &fArea) {
@@ -649,6 +681,7 @@ squareMatrix InviscidConvectiveJacobian(
   return jacobian;
 }
 
+// function to calculate dissipative portion of inviscid flux jacobian
 template <typename T>
 squareMatrix InviscidDissipativeJacobian(
     const T &state, const unitVec3dMag<double> &fArea) {
@@ -666,6 +699,7 @@ squareMatrix InviscidDissipativeJacobian(
   return jacobian;
 }
 
+// function to calculate the viscous face spectral radius
 template <typename T>
 double ViscousFaceSpectralRadius(const T &state,
                                   const unitVec3dMag<double> &fArea,

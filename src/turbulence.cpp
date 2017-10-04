@@ -167,29 +167,6 @@ double turbModel::CellSpectralRadius(
   return specRad;
 }
 
-template <typename T>
-double turbModel::FaceSpectralRadius(
-    const T &state, const unitVec3dMag<double> &fArea, const double &mu,
-    const unique_ptr<transport> &trans, const double &dist, const double &mut,
-    const double &f1, const bool &positive) const {
-  // state -- primitive variables
-  // fArea -- face area
-  // mu -- laminar viscosity
-  // trans -- viscous transport model
-  // dist -- distance from cell center to cell center
-  // mut -- turbulent viscosity
-  // f1 -- first blending coefficient
-  // positive -- flag to add or subtract inviscid dissipation
-  static_assert(std::is_same<primitive, T>::value ||
-                    std::is_same<primitiveView, T>::value,
-                "T requires primitive or primativeView type");
-                
-  auto specRad = this->InviscidFaceSpecRad(state, fArea, positive);
-  specRad += this->ViscFaceSpecRad(state, fArea, mu, trans, dist, mut, f1);
-  return specRad;
-}
-
-
 // member function to calculate inviscid flux jacobian
 // v = vel (dot) area
 // df_dq = [v +/- |v|     0     ]
