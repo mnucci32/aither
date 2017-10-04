@@ -57,7 +57,7 @@ ____________________|___________
 
 Currently the following boundary conditions are supported: slipWall,
 viscousWall, characteristic, stagnationInlet, pressureOutlet, subsonicInflow,
-subsonicOutflow, supersonicInflow, supersonicOutflow
+subsonicOutflow, supersonicInflow, supersonicOutflow, inflow
 */
 template <typename T>
 primitive GetGhostState(

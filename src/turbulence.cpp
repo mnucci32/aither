@@ -237,12 +237,15 @@ double turbModel::InviscidFaceSpecRad(const primitive &state,
   // state -- primitive variables
   // fArea -- face area
   // positive -- add or subtract dissipation term
-
-  const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
-  // returning absolute value because it is expected that spectral radius is
-  // positive
-  return positive ? 0.5 * fArea.Mag() * fabs(velNorm + fabs(velNorm)) :
-      0.5 * fArea.Mag() * fabs(velNorm - fabs(velNorm));
+  return InviscidFaceSpectralRadius(state, fArea, positive);
+}
+double turbModel::InviscidFaceSpecRad(const primitiveView &state,
+                                      const unitVec3dMag<double> &fArea,
+                                      const bool &positive) const {
+  // state -- primitive variables
+  // fArea -- face area
+  // positive -- add or subtract dissipation term
+  return InviscidFaceSpectralRadius(state, fArea, positive);
 }
 
 // member function to calculate viscous flux jacobian for models with no

@@ -648,7 +648,7 @@ T PadWithGhosts(const T &var, const int &numGhosts) {
   // T should be multiArray3d or blkMultiArray3d type
 
   // initialize added array
-  T padBlk(var.NumI(), var.NumJ(), var.NumK(), numGhosts, var.BlockSize());
+  T padBlk(var.NumI(), var.NumJ(), var.NumK(), numGhosts, var.BlockInfo());
 
   padBlk.Insert(var.RangeI(), var.RangeJ(), var.RangeK(), var);
   return padBlk;

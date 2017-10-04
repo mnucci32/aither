@@ -27,6 +27,7 @@
 #include <vector>    // vector
 #include <string>    // string
 #include <memory>    // unique_ptr
+#include <utility>   // pair
 #include <type_traits>
 #include "mpi.h"
 #include "vector3d.hpp"
@@ -63,6 +64,9 @@ class multiArray3d {
       data_(bs * (ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng)),
       numI_(ii + 2 * ng), numJ_(jj + 2 * ng), numK_(kk + 2 * ng),
       numGhosts_(ng), blkSize_(bs) {}
+  multiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
+               const std::pair<int, int> &info)
+      : multiArray3d(ii, jj, kk, ng, info.first) {}
   multiArray3d() : multiArray3d(0, 0, 0, 0, 1) {}
 
   // move constructor and assignment operator
@@ -77,7 +81,10 @@ class multiArray3d {
   int Size() const {return data_.size();}
   int BlockSize() const { return blkSize_; }
   int NumBlocks() const {return this->Size() / this->BlockSize();}
-  bool IsEmpty() const {return data_.empty();}
+  virtual std::pair<int, int> BlockInfo() const {
+    return std::make_pair(this->BlockSize(), 0);
+  }
+  bool IsEmpty() const { return data_.empty(); }
   int NumI() const {return numI_;}
   int NumJ() const {return numJ_;}
   int NumK() const {return numK_;}
@@ -357,7 +364,7 @@ auto SliceArray(const T &parent, const range &ir, const range &jr,
   }
 
   // slices always have 0 ghost cells
-  T arr(ir.Size(), jr.Size(), kr.Size(), 0, parent.BlockSize());
+  T arr(ir.Size(), jr.Size(), kr.Size(), 0, parent.BlockInfo());
 
   // s is for index of sliced array, p is for index of parent array
   for (int ks = arr.StartK(), kp = kr.Start(); ks < arr.EndK(); ks++, kp++) {

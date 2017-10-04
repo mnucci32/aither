@@ -78,8 +78,9 @@ class blkMultiArray3d : public multiArray3d<double> {
                   const int &bs, const int &ns)
       : multiArray3d<double>(ii, jj, kk, ng, bs), numSpecies_(ns) {}
   blkMultiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
-                  const int &bs)
-      : blkMultiArray3d(ii, jj, kk, ng, bs, 0) {}
+                  const std::pair<int, int> &info)
+      : multiArray3d<double>(ii, jj, kk, ng, info),
+        numSpecies_(info.second) {}
   blkMultiArray3d() : multiArray3d<double>(), numSpecies_(0) {}
 
   // move constructor and assignment operator
@@ -91,6 +92,10 @@ class blkMultiArray3d : public multiArray3d<double> {
   blkMultiArray3d &operator=(const blkMultiArray3d &) = default;
 
   // member functions
+  std::pair<int, int> BlockInfo() const override {
+    return std::make_pair(this->BlockSize(), numSpecies_);
+  }
+
   template <typename T2>
   void InsertBlock(const int &ii, const int &jj, const int &kk, const T2 &arr) {
     static_assert(std::is_same<T, T2>::value ||

@@ -3745,7 +3745,7 @@ void procBlock::SwapStateSliceMPI(const connection &inter, const int &rank,
   // rank -- processor rank
   // MPI_cellData -- MPI datatype for passing varArray types
 
-  state_.SwapSliceMPI(inter, rank, MPI_cellData);
+  state_.SwapSliceMPI(inter, rank, MPI_DOUBLE);
 }
 
 void procBlock::SwapTurbSliceMPI(const connection &inter, const int &rank) {
@@ -4720,10 +4720,10 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
   MPI_Pack_size(5, MPI_CXX_BOOL, MPI_COMM_WORLD,
                 &tempSize);  // add size for bools in class procBlock
   sendBufSize += tempSize;
-  MPI_Pack_size(state_.Size(), MPI_cellData, MPI_COMM_WORLD,
+  MPI_Pack_size(state_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for states
   sendBufSize += tempSize;
-  MPI_Pack_size(consVarsNm1_.Size(), MPI_cellData, MPI_COMM_WORLD,
+  MPI_Pack_size(consVarsNm1_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for solution n-1
   sendBufSize += tempSize;
   MPI_Pack_size(center_.Size(), MPI_vec3d, MPI_COMM_WORLD,
@@ -4809,10 +4809,10 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
            &position, MPI_COMM_WORLD);
   MPI_Pack(&isMultiLevelTime_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
            &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_cellData, sendBuffer,
+  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_DOUBLE, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
   if (isMultiLevelTime_) {
-    MPI_Pack(&(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_cellData,
+    MPI_Pack(&(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
   MPI_Pack(&(*std::begin(center_)), center_.Size(), MPI_vec3d, sendBuffer,
@@ -4910,11 +4910,11 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
 
   // unpack vector data into allocated vectors
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(state_)),
-             state_.Size(), MPI_cellData,
+             state_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack states
   if (isMultiLevelTime_) {
     MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(consVarsNm1_)),
-               consVarsNm1_.Size(), MPI_cellData,
+               consVarsNm1_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack sol n-1
   }
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(center_)),
@@ -5051,15 +5051,15 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
   // unpack vector data into allocated vectors
   auto position = 0;
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(state_)),
-             state_.Size(), MPI_cellData,
+             state_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack states
   if (isMultiLevelTime_) {
     MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(consVarsNm1_)),
-               consVarsNm1_.Size(), MPI_cellData,
+               consVarsNm1_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack states
   }
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(residual_)),
-             residual_.Size(), MPI_cellData,
+             residual_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack residuals
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(dt_)),
              dt_.Size(), MPI_DOUBLE,
@@ -5147,15 +5147,15 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
   // determine size of buffer to send
   auto sendBufSize = 0;
   auto tempSize = 0;
-  MPI_Pack_size(state_.Size(), MPI_cellData, MPI_COMM_WORLD,
+  MPI_Pack_size(state_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for states
   sendBufSize += tempSize;
   if (isMultiLevelTime_) {
-    MPI_Pack_size(consVarsNm1_.Size(), MPI_cellData, MPI_COMM_WORLD,
+    MPI_Pack_size(consVarsNm1_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                   &tempSize);  // add size for sol n-1
     sendBufSize += tempSize;
   }
-  MPI_Pack_size(residual_.Size(), MPI_cellData, MPI_COMM_WORLD,
+  MPI_Pack_size(residual_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for residuals
   sendBufSize += tempSize;
   MPI_Pack_size(dt_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
@@ -5231,13 +5231,13 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
 
   // pack data to send into buffer
   auto position = 0;
-  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_cellData, sendBuffer,
+  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_DOUBLE, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
   if (isMultiLevelTime_) {
-    MPI_Pack(&(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_cellData,
+    MPI_Pack(&(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
-  MPI_Pack(&(*std::begin(residual_)), residual_.Size(), MPI_cellData,
+  MPI_Pack(&(*std::begin(residual_)), residual_.Size(), MPI_DOUBLE,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(dt_)), dt_.Size(), MPI_DOUBLE, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);

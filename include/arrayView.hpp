@@ -94,7 +94,7 @@ class arrayView {
   int EnergyIndex() const { return energyIndex_; }
   int TurbulenceIndex() const { return turbulenceIndex_; }
   T2 SpeciesSum() const {
-    return std::accumulate(begin_, end_ + this->NumSpecies(), T2(0));
+    return std::accumulate(begin_, begin_ + this->NumSpecies(), T2(0));
   }
   const T2 &SpeciesN(const int &ii) const {
     MSG_ASSERT(ii < momentumIndex_, "requesting species variable out of range");

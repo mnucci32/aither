@@ -101,6 +101,9 @@ class turbModel {
   virtual double InviscidFaceSpecRad(const primitive &state,
                                      const unitVec3dMag<double> &fArea,
                                      const bool &positive) const;
+  virtual double InviscidFaceSpecRad(const primitiveView &state,
+                                     const unitVec3dMag<double> &fArea,
+                                     const bool &positive) const;
   virtual squareMatrix ViscousJacobian(const primitive &state,
                                        const unitVec3dMag<double> &fArea,
                                        const double &mu,
@@ -267,6 +270,11 @@ class turbNone : public turbModel {
     return 0.0;
   }
   double InviscidFaceSpecRad(const primitive &state,
+                             const unitVec3dMag<double> &fArea,
+                             const bool &postive) const override {
+    return 0.0;
+  }
+  double InviscidFaceSpecRad(const primitiveView &state,
                              const unitVec3dMag<double> &fArea,
                              const bool &postive) const override {
     return 0.0;
@@ -662,6 +670,25 @@ double InviscidCellSpectralRadius(const T &state,
   auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
   return fabs(state.Velocity().DotProd(normAvg)) * fMag;
 }
+
+template <typename T>
+double InviscidFaceSpectralRadius(const T &state,
+                                  const unitVec3dMag<double> &fArea,
+                                  const bool &positive) {
+  // state -- primitive variables
+  // fArea -- face area
+  // positive -- add or subtract dissipation term
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+
+  const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
+  // returning absolute value because it is expected that spectral radius is
+  // positive
+  return positive ? 0.5 * fArea.Mag() * fabs(velNorm + fabs(velNorm)) :
+      0.5 * fArea.Mag() * fabs(velNorm - fabs(velNorm));
+}
+
 
 // function to calculate convective portion of inviscid flux jacobian
 template <typename T>
