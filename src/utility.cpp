@@ -691,7 +691,7 @@ vector<vector3d<int>> HyperplaneReorder(const int &imax, const int &jmax,
         for (auto ii = 0; ii < imax; ii++) {
           if (ii + jj + kk == pp) {  // if sum of ii, jj, and kk equals pp than
                                      // point is on hyperplane pp
-            reorder.push_back(vector3d<int>(ii, jj, kk));
+            reorder.emplace_back(ii, jj, kk);
           }
         }
       }

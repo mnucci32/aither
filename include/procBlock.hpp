@@ -184,8 +184,8 @@ class procBlock {
   procBlock& operator=(const procBlock&) = default;
 
   // member functions
-  int NumCells() const { return residual_.Size(); }
-  int NumCellsGhosts() const { return state_.Size(); }
+  int NumCells() const { return residual_.NumBlocks(); }
+  int NumCellsGhosts() const { return state_.NumBlocks(); }
   int NumEquations() const { return residual_(0, 0, 0).Size(); }
   int NumSpecies() const { return residual_(0, 0, 0).NumSpecies(); }
   int NumI() const { return residual_.NumI(); }
