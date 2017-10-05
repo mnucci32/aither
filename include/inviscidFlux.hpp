@@ -401,7 +401,7 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
 
   // calculate dissipation term ( eigenvector * wave speed * wave strength)
   varArray dissipation(left.Size(), left.NumSpecies());
-  for (auto ii = 0; ii < dissipation.Size(); ii++) {
+  for (auto ii = 0; ii < dissipation.Size(); ++ii) {
     // contribution from left acoustic wave
     // contribution from entropy wave
     // contribution from right acoustic wave
@@ -409,11 +409,13 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
     // contribution from turbulent wave 1
     // contribution from turbulent wave 2
     dissipation[ii] = waveSpeed[0] * waveStrength[0] * lAcousticEigV[ii] +
-        waveSpeed[1] * waveStrength[1] * entropyEigV[ii] +
-        waveSpeed[2] * waveStrength[2] * rAcousticEigV[ii] +
-        waveSpeed[3] * waveStrength[3] * shearEigV[ii] +
-        waveSpeed[4] * waveStrength[4] * tkeEigV[ii] +
-        waveSpeed[5] * waveStrength[5] * omgEigV[ii];
+                      waveSpeed[1] * waveStrength[1] * entropyEigV[ii] +
+                      waveSpeed[2] * waveStrength[2] * rAcousticEigV[ii] +
+                      waveSpeed[3] * waveStrength[3] * shearEigV[ii];
+    if (dissipation.HasTurbulenceData()) {
+      dissipation[ii] += waveSpeed[4] * waveStrength[4] * tkeEigV[ii] +
+                         waveSpeed[5] * waveStrength[5] * omgEigV[ii];
+    }
   }
 
   // calculate left/right physical flux

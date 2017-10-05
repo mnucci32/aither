@@ -837,7 +837,7 @@ void procBlock::UpdateBlock(const input &inputVars, const unique_ptr<eos> &eos,
 
         // if any residual is larger than previous residual, a new linf
         // residual is found
-        for (auto ll = 0; ll < NUMVARS; ll++) {
+        for (auto ll = 0; ll < inputVars.NumEquations(); ll++) {
           if (this->Residual(ii, jj, kk, ll) > linf.Linf()) {
             linf.UpdateMax(this->Residual(ii, jj, kk, ll),
                            parBlock_, ii, jj, kk, ll + 1);

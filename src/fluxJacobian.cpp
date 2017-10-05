@@ -109,8 +109,9 @@ varArray RusanovScalarOffDiagonal(
       0.5 * fArea.Mag() * ConvectiveFluxUpdate(state, stateUpdate, eqnState,
                                                thermo, fArea.UnitVector());
   // zero out turbulence quantities b/c spectral radius is like full jacobian
-  fluxChange[5] = 0.0;
-  fluxChange[6] = 0.0;
+  for (auto ii = 0; ii < fluxChange.NumTurbulence(); ++ii) {
+    fluxChange[fluxChange.TurbulenceIndex() + ii] = 0.0;
+  }
 
   // can't use stored cell spectral radius b/c it has contributions from i, j, k
   const uncoupledScalar specRad(

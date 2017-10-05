@@ -913,7 +913,7 @@ void PrintResiduals(const input &inp, residual &residL2First,
     residL2First = residL2;
   // if within first 5 iterations reset normalization
   } else if ((nn < 5) && mm == 0 && !inp.IsRestart()) {
-    for (auto cc = 0; cc < NUMVARS; cc++) {
+    for (auto cc = 0; cc < residL2.Size(); cc++) {
       if (residL2[cc] > residL2First[cc]) {
         residL2First[cc] = residL2[cc];
       }
