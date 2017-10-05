@@ -27,8 +27,8 @@ class conserved : public varArray {
   // constructor
   conserved(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies) {}
-  conserved(const vector<const double>::iterator &b,
-            const vector<const double>::iterator &e, const int &numSpecies)
+  conserved(const vector<double>::const_iterator &b,
+            const vector<double>::const_iterator &e, const int &numSpecies)
       : varArray(b, e, numSpecies) {}
 
   // member functions

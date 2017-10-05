@@ -67,8 +67,8 @@ class primitive : public varArray {
                                         std::is_same<conservedView, T>::value>>
   primitive(const T &, const unique_ptr<eos> &,
             const unique_ptr<thermodynamic> &, const unique_ptr<turbModel> &);
-  primitive(const vector<const double>::iterator &b,
-            const vector<const double>::iterator &e, const int &numSpecies)
+  primitive(const vector<double>::const_iterator &b,
+            const vector<double>::const_iterator &e, const int &numSpecies)
       : varArray(b, e, numSpecies) {}
 
   // move constructor and assignment operator

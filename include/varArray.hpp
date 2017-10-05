@@ -50,13 +50,13 @@ class varArray {
   varArray(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies, 0.0) {}
   varArray() : varArray(0, 0) {}
-  varArray(const vector<const double>::iterator &b, const vector<const double>::iterator &e,
-           const int &numSpecies)
+  varArray(const vector<double>::const_iterator &b,
+           const vector<double>::const_iterator &e, const int &numSpecies)
       : data_(b, e),
         momentumIndex_(numSpecies),
         energyIndex_(momentumIndex_ + 3),
         turbulenceIndex_(energyIndex_ + 1) {
-    MSG_ASSERT(data_.size() > numSpecies && data.size() >= 5,
+    MSG_ASSERT(data_.size() > numSpecies && data_.size() >= 5,
                "number of equations should be greater than number of species");
   }
 
@@ -548,8 +548,8 @@ class residual : public varArray {
   // constructor
   residual(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies) {}
-  residual(const vector<const double>::iterator &b, 
-           const vector<const double>::iterator &e, const int &numSpecies)
+  residual(const vector<double>::const_iterator &b, 
+           const vector<double>::const_iterator &e, const int &numSpecies)
       : varArray(b, e, numSpecies) {}
 
   // move constructor and assignment operator

@@ -53,16 +53,16 @@ class arrayView {
   static_assert(std::is_arithmetic<T2>::value,
                 "arrayView<T1, T2> requires T2 to be an arithmetic type!");
 
-  typename vector<const T2>::iterator begin_;
-  typename vector<const T2>::iterator end_;
+  typename vector<T2>::const_iterator begin_;
+  typename vector<T2>::const_iterator end_;
   int momentumIndex_;
   int energyIndex_;
   int turbulenceIndex_;
 
  public:
   // constructor
-  arrayView(const typename vector<const T2>::iterator &b,
-            const typename vector<const T2>::iterator &e, const int &numSpecies)
+  arrayView(const typename vector<T2>::const_iterator &b,
+            const typename vector<T2>::const_iterator &e, const int &numSpecies)
       : begin_(b),
         end_(e),
         momentumIndex_(numSpecies),
