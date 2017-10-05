@@ -1200,7 +1200,7 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
 
   // check that number of cells to insert matches
   auto blkCell = inter.Dir1LenFirst() * inter.Dir2LenFirst() * d3;
-  if (blkCell != array.Size()) {
+  if (blkCell != array.NumBlocks()) {
     cerr << "ERROR: Error in multiArray3d<T>::PutSlice(). Number of cells "
             "being inserted does not match designated space to insert." << endl;
     cerr << "Direction 1, 2, 3 of multiArray3d<T> to insert into: "
