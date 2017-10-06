@@ -199,6 +199,15 @@ class blkMultiArray3d : public multiArray3d<double> {
     return (*this)[this->GetBlkLoc1D(ii, jj, kk) + bb];
   }
 
+  void ClearResize(const int &ii, const int &jj, const int &kk,
+                   const int &ng, const int &bs, const int &ns) {
+    *this = blkMultiArray3d<T>(ii, jj, kk, ng, bs, ns);
+  }
+  void ClearResize(const int &ii, const int &jj, const int &kk, const int &ng,
+                   const int &bs, const int &ns, const T &val) {
+    *this = blkMultiArray3d<T>(ii, jj, kk, ng, bs, ns, val);
+  }
+
   // destructor
   ~blkMultiArray3d() noexcept {}
 };
