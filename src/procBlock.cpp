@@ -1485,14 +1485,14 @@ double procBlock::LUSGS_Backward(
         this->SolDeltaMmN(ii, jj, kk, inp, eqnState, thermo);
 
     // calculate update
-    auto xold = x(ii, jj, kk);
+    const auto xold = x.GetCopy(ii, jj, kk);
     if (sweep > 0 || inp.MatrixRequiresInitialization()) {
       x.InsertBlock(ii, jj, kk,
                     aInv(ii, jj, kk)
                         .ArrayMult(-thetaInv * residual_(ii, jj, kk) +
                                    solDeltaNm1 - solDeltaMmN + L - U));
     } else {
-      x.InsertBlock(ii, jj, kk, x(ii, jj, kk) - aInv(ii, jj, kk).ArrayMult(U));
+      x.InsertBlock(ii, jj, kk, xold - aInv(ii, jj, kk).ArrayMult(U));
     }
     const auto error = x(ii, jj, kk) - xold;
     l2Error += error * error;

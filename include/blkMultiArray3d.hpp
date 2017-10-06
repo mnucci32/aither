@@ -154,6 +154,12 @@ class blkMultiArray3d : public multiArray3d<double> {
   template <typename TT>
   void PutSlice(const TT &, const connection &, const int &);
 
+  T GetCopy(const int &ii, const int &jj, const int &kk) const {
+    auto start = this->GetBlkLoc1D(ii, jj, kk);
+    return {this->begin() + start, this->begin() + start + this->BlockSize(),
+            numSpecies_};
+  }
+
   // operator overloads
   arrayView<T, double> operator()(const int &ii, const int &jj,
                                   const int &kk) const {
