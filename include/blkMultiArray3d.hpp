@@ -147,6 +147,12 @@ class blkMultiArray3d : public multiArray3d<double> {
   void Insert(const string &, int, range, range, const TT &,
               const string = "cell", const int = 0);
 
+  template <typename TT>
+  void SwapSlice(const connection &conn, TT &array);
+  void SwapSliceMPI(const connection &conn, const int &rank,
+                    const MPI_Datatype &MPI_arrData, const int tag = 1);
+  template <typename TT>
+  void PutSlice(const TT &, const connection &, const int &);
 
   // operator overloads
   arrayView<T, double> operator()(const int &ii, const int &jj,
@@ -339,5 +345,58 @@ void blkMultiArray3d<T>::Insert(const string &dir, int dirInd, range dir1,
   // type -- surface type of dir
   InsertArray((*this), dir, dirInd, dir1, dir2, arr, id, type);
 }
+
+/* Function to swap slice using MPI. This is similar to the SwapSlice
+   function, but is called when the neighboring procBlocks are on different
+   processors.
+*/
+template <typename T>
+void blkMultiArray3d<T>::SwapSliceMPI(const connection &conn, const int &rank,
+                                      const MPI_Datatype &MPI_arrData,
+                                      const int tag) {
+  // conn -- connection boundary information
+  // rank -- processor rank
+  // MPI_arrData -- MPI datatype for passing data in *this
+  // tag -- id for MPI swap (default 1)
+  SwapSliceParallel((*this), conn, rank, MPI_arrData, tag);
+}
+
+/* Function to swap ghost cells between two blocks at an connection
+boundary. Slices are removed from the physical cells (extending into ghost cells
+at the edges) of one block and inserted into the ghost cells of its partner
+block. The reverse is also true. The slices are taken in the coordinate system
+orientation of their parent block.
+
+   Interior Cells    Ghost Cells               Ghost Cells   Interior Cells
+   ________ ______|________ _________       _______________|_______ _________
+Ui-3/2   Ui-1/2   |    Uj+1/2    Uj+3/2  Ui-3/2    Ui-1/2  |    Uj+1/2    Uj+3/2
+  |        |      |        |         |     |        |      |       |         |
+  | Ui-1   |  Ui  |  Uj    |  Uj+1   |     |  Ui-1  |   Ui |  Uj   |  Uj+1   |
+  |        |      |        |         |     |        |      |       |         |
+  |________|______|________|_________|     |________|______|_______|_________|
+                  |                                        |
+
+The above diagram shows the resulting values after the ghost cell swap. The
+logic ensures that the ghost cells at the connection boundary exactly match
+their partner block as if there were no separation in the grid.
+*/
+template <typename T>
+template <typename TT>
+void blkMultiArray3d<T>::SwapSlice(const connection &conn, TT &array) {
+  // conn -- connection boundary information
+  // array -- second array involved in connection boundary
+  SwapSliceLocal((*this), conn, array);
+}
+
+template <typename T>
+template <typename TT>
+void blkMultiArray3d<T>::PutSlice(const TT &array, const connection &inter,
+                                  const int &d3) {
+  // array -- array to insert into *this
+  // inter -- connection data structure defining patches and orientation
+  // d3 -- distance of direction normal to patch to insert
+  InsertSlice((*this), array, inter, d3);
+}
+
 
 #endif

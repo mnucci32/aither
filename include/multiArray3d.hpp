@@ -150,11 +150,14 @@ class multiArray3d {
   void Insert(const string &, int, range, range, const TT &,
               const string = "cell", const int = 0);
 
-  void Fill(const multiArray3d<T> &);
-  void PutSlice(const multiArray3d<T> &, const connection &, const int &);
+  template <typename TT>
+  void Fill(const TT &);
+  template <typename TT>
+  void PutSlice(const TT &, const connection &, const int &);
   void SwapSliceMPI(const connection &, const int &, const MPI_Datatype &,
                     const int = 1);
-  void SwapSlice(const connection &, multiArray3d<T> &);
+  template <typename TT>
+  void SwapSlice(const connection &, TT &);
 
   void Zero(const T &z) { std::fill(this->begin(), this->end(), z); }
   void Zero() { this->Zero(T()); }
@@ -712,6 +715,160 @@ void InsertArray(T &parent, const string &dir, int dirInd, range dir1,
   }
 }
 
+/* Function to swap ghost cells between two blocks at an connection
+boundary. Slices are removed from the physical cells (extending into ghost cells
+at the edges) of one block and inserted into the ghost cells of its partner
+block. The reverse is also true. The slices are taken in the coordinate system
+orientation of their parent block.
+
+   Interior Cells    Ghost Cells               Ghost Cells   Interior Cells
+   ________ ______|________ _________       _______________|_______ _________
+Ui-3/2   Ui-1/2   |    Uj+1/2    Uj+3/2  Ui-3/2    Ui-1/2  |    Uj+1/2    Uj+3/2
+  |        |      |        |         |     |        |      |       |         |
+  | Ui-1   |  Ui  |  Uj    |  Uj+1   |     |  Ui-1  |   Ui |  Uj   |  Uj+1   |
+  |        |      |        |         |     |        |      |       |         |
+  |________|______|________|_________|     |________|______|_______|_________|
+                  |                                        |
+
+The above diagram shows the resulting values after the ghost cell swap. The
+logic ensures that the ghost cells at the connection boundary exactly match
+their partner block as if there were no separation in the grid.
+*/
+template <typename T>
+void SwapSliceLocal(T &array1, const connection &conn, T &array2) {
+  // array1 -- first array involved in connection boundary
+  // conn -- connection boundary information
+  // array2 -- second array involved in connection boundary
+
+  // Get indices for slice coming from first block to swap
+  auto is1 = 0, ie1 = 0;
+  auto js1 = 0, je1 = 0;
+  auto ks1 = 0, ke1 = 0;
+
+  conn.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, array1.GhostLayers());
+
+  // Get indices for slice coming from second block to swap
+  auto is2 = 0, ie2 = 0;
+  auto js2 = 0, je2 = 0;
+  auto ks2 = 0, ke2 = 0;
+
+  conn.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, array2.GhostLayers());
+
+  // get slices to swap
+  auto slice1 = array1.Slice({is1, ie1}, {js1, je1}, {ks1, ke1});
+  auto slice2 = array2.Slice({is2, ie2}, {js2, je2}, {ks2, ke2});
+
+  // change connections to work with slice and ghosts
+  connection conn1 = conn;
+  connection conn2 = conn;
+  conn1.AdjustForSlice(false, array1.GhostLayers());
+  conn2.AdjustForSlice(true, array2.GhostLayers());
+
+  // put slices in proper blocks
+  array1.PutSlice(slice2, conn2, array2.GhostLayers());
+  array2.PutSlice(slice1, conn1, array1.GhostLayers());
+}
+
+/* Function to swap slice using MPI. This is similar to the SwapSlice
+   function, but is called when the neighboring procBlocks are on different
+   processors.
+*/
+template <typename T>
+void SwapSliceParallel(T &array, const connection &conn, const int &rank,
+                       const MPI_Datatype &MPI_arrData, const int tag) {
+  // array -- array on local processor to swap
+  // conn -- connection boundary information
+  // rank -- processor rank
+  // MPI_arrData -- MPI datatype for passing data in *this
+  // tag -- id for MPI swap (default 1)
+
+  // Get indices for slice coming from block to swap
+  auto is = 0, ie = 0;
+  auto js = 0, je = 0;
+  auto ks = 0, ke = 0;
+
+  if (rank == conn.RankFirst()) {  // local block first in connection
+    conn.FirstSliceIndices(is, ie, js, je, ks, ke, array.GhostLayers());
+  } else if (rank == conn.RankSecond()) {  // local block second in connection
+    conn.SecondSliceIndices(is, ie, js, je, ks, ke, array.GhostLayers());
+  } else {
+    cerr << "ERROR: Error in SwapSliceParallel(). Processor rank does "
+            "not match either of connection ranks!" << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // get local state slice to swap
+  auto slice = array.Slice({is, ie}, {js, je}, {ks, ke});
+
+  // swap state slices with partner block
+  slice.PackSwapUnpackMPI(conn, MPI_arrData, rank, tag);
+
+  // change connections to work with slice and ghosts
+  auto connAdj = conn;
+
+  // change connections to work with slice and ghosts
+  // block to insert into is first in connection
+  if (rank == conn.RankFirst()) {
+    connAdj.AdjustForSlice(true, array.GhostLayers());
+  } else {  // block to insert into is second in connection, so pass swapped
+            // version
+    connAdj.AdjustForSlice(false, array.GhostLayers());
+  }
+
+  // insert state slice into procBlock
+  array.PutSlice(slice, connAdj, array.GhostLayers());
+}
+
+template <typename T>
+void InsertSlice(T &array1, const T &array2, const connection &inter,
+                 const int &d3) {
+  // array1 -- array to accept data
+  // array2 -- array to insert into array1
+  // inter -- connection data structure defining patches and orientation
+  // d3 -- distance of direction normal to patch to insert
+
+  // check that number of cells to insert matches
+  auto blkCell = inter.Dir1LenFirst() * inter.Dir2LenFirst() * d3;
+  if (blkCell != array2.NumBlocks()) {
+    cerr << "ERROR: Error in InsertSlice(). Number of cells "
+            "being inserted does not match designated space to insert." << endl;
+    cerr << "Direction 1, 2, 3 of array to insert into: "
+         << inter.Dir1LenFirst() << ", " << inter.Dir2LenFirst() << ", "
+         << d3 << endl;
+    cerr << "Direction I, J, K of array3d to insert: " << array2.NumI()
+         << ", " << array2.NumJ() << ", " << array2.NumK() << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // adjust insertion indices if patch borders another connection on the same
+  // surface of the block
+  const auto adjS1 =
+      (inter.Dir1StartInterBorderFirst()) ? array1.GhostLayers() : 0;
+  const auto adjE1 =
+      (inter.Dir1EndInterBorderFirst()) ? array1.GhostLayers() : 0;
+  const auto adjS2 =
+      (inter.Dir2StartInterBorderFirst()) ? array1.GhostLayers() : 0;
+  const auto adjE2 =
+      (inter.Dir2EndInterBorderFirst()) ? array1.GhostLayers() : 0;
+
+  // loop over cells to insert
+  for (auto l3 = 0; l3 < d3; l3++) {
+    for (auto l2 = adjS2; l2 < inter.Dir2LenFirst() - adjE2; l2++) {
+      for (auto l1 = adjS1; l1 < inter.Dir1LenFirst() - adjE1; l1++) {
+        // get acceptor and inserter indices
+        auto indA =
+            GetSwapLoc(l1, l2, l3, array1.GhostLayers(), inter, d3, true);
+        auto indI =
+            GetSwapLoc(l1, l2, l3, array2.GhostLayers(), inter, d3, false);
+
+        // assign cell data
+        array1.InsertBlock(indA[0], indA[1], indA[2],
+                           array2(indI[0], indI[1], indI[2]));
+      }
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // member function definitions
 
@@ -1079,7 +1236,8 @@ void multiArray3d<T>::Insert(const string &dir, int dirInd, range dir1,
 // the data can now be accessed with the i, j, k indices from *this
 // if this is not wanted SameSizeResize or SameSizeResizeGhosts can be used
 template <typename T>
-void multiArray3d<T>::Fill(const multiArray3d<T> &arr) {
+template <typename TT>
+void multiArray3d<T>::Fill(const TT &arr) {
   // arr -- array to insert into this one
 
   // check that given array is same size
@@ -1192,45 +1350,13 @@ ostream &operator<<(ostream &os, const multiArray3d<T> &arr) {
 }
 
 template <typename T>
-void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
-                               const connection &inter, const int &d3) {
+template <typename TT>
+void multiArray3d<T>::PutSlice(const TT &array, const connection &inter,
+                               const int &d3) {
   // array -- array to insert into *this
   // inter -- connection data structure defining patches and orientation
   // d3 -- distance of direction normal to patch to insert
-
-  // check that number of cells to insert matches
-  auto blkCell = inter.Dir1LenFirst() * inter.Dir2LenFirst() * d3;
-  if (blkCell != array.NumBlocks()) {
-    cerr << "ERROR: Error in multiArray3d<T>::PutSlice(). Number of cells "
-            "being inserted does not match designated space to insert." << endl;
-    cerr << "Direction 1, 2, 3 of multiArray3d<T> to insert into: "
-         << inter.Dir1LenFirst() << ", " << inter.Dir2LenFirst() << ", "
-         << d3 << endl;
-    cerr << "Direction I, J, K of multiArray3d<T> to insert: " << array.NumI()
-         << ", " << array.NumJ() << ", " << array.NumK() << endl;
-    exit(EXIT_FAILURE);
-  }
-
-  // adjust insertion indices if patch borders another connection on the same
-  // surface of the block
-  const auto adjS1 = (inter.Dir1StartInterBorderFirst()) ? numGhosts_ : 0;
-  const auto adjE1 = (inter.Dir1EndInterBorderFirst()) ? numGhosts_ : 0;
-  const auto adjS2 = (inter.Dir2StartInterBorderFirst()) ? numGhosts_ : 0;
-  const auto adjE2 = (inter.Dir2EndInterBorderFirst()) ? numGhosts_ : 0;
-
-  // loop over cells to insert
-  for (auto l3 = 0; l3 < d3; l3++) {
-    for (auto l2 = adjS2; l2 < inter.Dir2LenFirst() - adjE2; l2++) {
-      for (auto l1 = adjS1; l1 < inter.Dir1LenFirst() - adjE1; l1++) {
-        // get acceptor and inserter indices
-        auto indA = GetSwapLoc(l1, l2, l3, numGhosts_, inter, d3, true);
-        auto indI = GetSwapLoc(l1, l2, l3, array.numGhosts_, inter, d3, false);
-
-        // assign cell data
-        (*this)(indA[0], indA[1], indA[2]) = array(indI[0], indI[1], indI[2]);
-      }
-    }
-  }
+  InsertSlice((*this), array, inter, d3);
 }
 
 /*Member function to pack an array into a buffer, swap it with its
@@ -1312,42 +1438,7 @@ void multiArray3d<T>::SwapSliceMPI(const connection &conn, const int &rank,
   // rank -- processor rank
   // MPI_arrData -- MPI datatype for passing data in *this
   // tag -- id for MPI swap (default 1)
-
-  // Get indices for slice coming from block to swap
-  auto is = 0, ie = 0;
-  auto js = 0, je = 0;
-  auto ks = 0, ke = 0;
-
-  if (rank == conn.RankFirst()) {  // local block first in connection
-    conn.FirstSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
-  } else if (rank == conn.RankSecond()) {  // local block second in connection
-    conn.SecondSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
-  } else {
-    cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Processor rank does "
-            "not match either of connection ranks!" << endl;
-    exit(EXIT_FAILURE);
-  }
-
-  // get local state slice to swap
-  auto slice = this->Slice({is, ie}, {js, je}, {ks, ke});
-
-  // swap state slices with partner block
-  slice.PackSwapUnpackMPI(conn, MPI_arrData, rank, tag);
-
-  // change connections to work with slice and ghosts
-  auto connAdj = conn;
-
-  // change connections to work with slice and ghosts
-  // block to insert into is first in connection
-  if (rank == conn.RankFirst()) {
-    connAdj.AdjustForSlice(true, numGhosts_);
-  } else {  // block to insert into is second in connection, so pass swapped
-            // version
-    connAdj.AdjustForSlice(false, numGhosts_);
-  }
-
-  // insert state slice into procBlock
-  this->PutSlice(slice, connAdj, numGhosts_);
+  SwapSliceParallel((*this), conn, rank, MPI_arrData, tag);
 }
 
 /* Function to swap ghost cells between two blocks at an connection
@@ -1370,38 +1461,11 @@ logic ensures that the ghost cells at the connection boundary exactly match
 their partner block as if there were no separation in the grid.
 */
 template <typename T>
-void multiArray3d<T>::SwapSlice(const connection &conn,
-                                multiArray3d<T> &array) {
+template <typename TT>
+void multiArray3d<T>::SwapSlice(const connection &conn, TT &array) {
   // conn -- connection boundary information
   // array -- second array involved in connection boundary
-
-  // Get indices for slice coming from first block to swap
-  auto is1 = 0, ie1 = 0;
-  auto js1 = 0, je1 = 0;
-  auto ks1 = 0, ke1 = 0;
-
-  conn.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, numGhosts_);
-
-  // Get indices for slice coming from second block to swap
-  auto is2 = 0, ie2 = 0;
-  auto js2 = 0, je2 = 0;
-  auto ks2 = 0, ke2 = 0;
-
-  conn.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, array.GhostLayers());
-
-  // get slices to swap
-  auto slice1 = this->Slice({is1, ie1}, {js1, je1}, {ks1, ke1});
-  auto slice2 = array.Slice({is2, ie2}, {js2, je2}, {ks2, ke2});
-
-  // change connections to work with slice and ghosts
-  connection conn1 = conn;
-  connection conn2 = conn;
-  conn1.AdjustForSlice(false, numGhosts_);
-  conn2.AdjustForSlice(true, array.GhostLayers());
-
-  // put slices in proper blocks
-  this->PutSlice(slice2, conn2, array.GhostLayers());
-  array.PutSlice(slice1, conn1, numGhosts_);
+  SwapSliceLocal((*this), conn, array);
 }
 
 
