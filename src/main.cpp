@@ -190,20 +190,19 @@ int main(int argc, char *argv[]) {
   }
 
   // Set MPI datatypes
-  MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-      MPI_connection, MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar,
-      MPI_tensorDouble, MPI_wallData;
-  SetDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-                  MPI_connection, MPI_DOUBLE_5INT, MPI_vec3dMag,
-                  MPI_uncoupledScalar, MPI_tensorDouble, MPI_wallData);
+  MPI_Datatype MPI_vec3d, MPI_procBlockInts, MPI_connection, MPI_DOUBLE_5INT,
+      MPI_vec3dMag, MPI_uncoupledScalar, MPI_tensorDouble, MPI_wallData;
+  SetDataTypesMPI(MPI_vec3d, MPI_procBlockInts, MPI_connection, MPI_DOUBLE_5INT,
+                  MPI_vec3dMag, MPI_uncoupledScalar, MPI_tensorDouble,
+                  MPI_wallData);
 
   // Send number of procBlocks to all processors
   SendNumProcBlocks(decomp.NumBlocksOnAllProc(), numProcBlock);
 
   // Send procBlocks to appropriate processor
-  auto localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock,
-                                         MPI_cellData, MPI_vec3d, MPI_vec3dMag,
-                                         MPI_wallData, inp);
+  auto localStateBlocks =
+      SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_vec3d, MPI_vec3dMag,
+                     MPI_wallData, inp);
 
   // Update auxillary variables (temperature, viscosity, etc), cell widths
   for (auto &block : localStateBlocks) {
@@ -263,9 +262,8 @@ int main(int argc, char *argv[]) {
   }
 
   // Send/recv solutions - necessary to get wall distances
-  GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
-                MPI_uncoupledScalar, MPI_vec3d, MPI_tensorDouble, MPI_wallData,
-                inp);
+  GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_uncoupledScalar,
+                MPI_vec3d, MPI_tensorDouble, MPI_wallData, inp);
 
   ofstream resFile;
   if (rank == ROOTP) {
@@ -311,7 +309,7 @@ int main(int argc, char *argv[]) {
     for (auto mm = 0; mm < inp.NonlinearIterations(); mm++) {
       // Get boundary conditions for all blocks
       GetBoundaryConditions(localStateBlocks, inp, eqnState, thermo, trans,
-                            turb, connections, rank, MPI_cellData);
+                            turb, connections, rank);
 
       // Calculate residual (RHS)
       CalcResidual(localStateBlocks, mainDiagonal, trans, thermo, eqnState, inp,
@@ -328,7 +326,7 @@ int main(int argc, char *argv[]) {
       if (inp.IsImplicit()) {
         matrixResid = ImplicitUpdate(
             localStateBlocks, mainDiagonal, inp, eqnState, thermo, trans, turb,
-            mm, residL2, residLinf, connections, rank, MPI_cellData);
+            mm, residL2, residLinf, connections, rank);
       } else {  // explicit time integration
         ExplicitUpdate(localStateBlocks, inp, eqnState, thermo, trans, turb, mm,
                        residL2, residLinf);
@@ -364,9 +362,8 @@ int main(int argc, char *argv[]) {
     // write out function file
     if (inp.WriteOutput(nn) || inp.WriteRestart(nn)) {
       // Send/recv solutions
-      GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
-                    MPI_uncoupledScalar, MPI_vec3d, MPI_tensorDouble,
-                    MPI_wallData, inp);
+      GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_uncoupledScalar,
+                    MPI_vec3d, MPI_tensorDouble, MPI_wallData, inp);
 
       if (rank == ROOTP && inp.WriteOutput(nn)) {
         cout << "writing out function file at iteration "
@@ -400,9 +397,9 @@ int main(int argc, char *argv[]) {
   }
 
   // Free datatypes previously created
-  FreeDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-                   MPI_connection, MPI_DOUBLE_5INT, MPI_vec3dMag,
-                   MPI_uncoupledScalar, MPI_tensorDouble, MPI_wallData);
+  FreeDataTypesMPI(MPI_vec3d, MPI_procBlockInts, MPI_connection,
+                   MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar,
+                   MPI_tensorDouble, MPI_wallData);
 
   MPI_Finalize();
 

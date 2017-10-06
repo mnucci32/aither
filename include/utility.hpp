@@ -68,7 +68,7 @@ void GetBoundaryConditions(vector<procBlock> &, const input &,
                            const unique_ptr<thermodynamic> &,
                            const unique_ptr<transport> &,
                            const unique_ptr<turbModel> &, vector<connection> &,
-                           const int &, const MPI_Datatype &);
+                           const int &);
 
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
 void CalcWallDistance(vector<procBlock> &, const kdtree &);
@@ -87,12 +87,10 @@ double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
                       const unique_ptr<thermodynamic> &,
                       const unique_ptr<transport> &,
                       const unique_ptr<turbModel> &, const int &, residual &,
-                      resid &, const vector<connection> &, const int &,
-                      const MPI_Datatype &);
+                      resid &, const vector<connection> &, const int &);
 
 void SwapImplicitUpdate(vector<blkMultiArray3d<varArray>> &,
-                        const vector<connection> &, const int &,
-                        const MPI_Datatype &, const int &);
+                        const vector<connection> &, const int &, const int &);
 void SwapTurbVars(vector<procBlock> &, const vector<connection> &, const int &,
                   const int &);
 void SwapWallDist(vector<procBlock> &, const vector<connection> &, const int &,

@@ -500,7 +500,7 @@ class procBlock {
   void Join(const procBlock &, const string &, vector<boundarySurface> &);
 
   void SwapStateSlice(const connection &, procBlock &);
-  void SwapStateSliceMPI(const connection &, const int &, const MPI_Datatype &);
+  void SwapStateSliceMPI(const connection &, const int &);
   void SwapTurbSlice(const connection &, procBlock &);
   void SwapTurbSliceMPI(const connection &, const int &);
   void SwapWallDistSlice(const connection &, procBlock &);
@@ -511,16 +511,14 @@ class procBlock {
                                        const MPI_Datatype &);
 
   void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
-                       const MPI_Datatype &, const MPI_Datatype &) const;
+                       const MPI_Datatype &) const;
   void RecvUnpackGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
-                         const MPI_Datatype &, const MPI_Datatype &,
-                         const input &);
+                         const MPI_Datatype &, const input &);
   void PackSendSolMPI(const MPI_Datatype &, const MPI_Datatype &,
-                      const MPI_Datatype &, const MPI_Datatype &,
-                      const MPI_Datatype &) const;
+                      const MPI_Datatype &, const MPI_Datatype &) const;
   void RecvUnpackSolMPI(const MPI_Datatype &, const MPI_Datatype &,
                         const MPI_Datatype &, const MPI_Datatype &,
-                        const MPI_Datatype &, const input &);
+                        const input &);
 
   void UpdateAuxillaryVariables(const unique_ptr<eos> &,
                                 const unique_ptr<transport> &,

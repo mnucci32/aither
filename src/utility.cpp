@@ -266,8 +266,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
                            const unique_ptr<thermodynamic> &thermo,
                            const unique_ptr<transport> &trans,
                            const unique_ptr<turbModel> &turb,
-                           vector<connection> &connections, const int &rank,
-                           const MPI_Datatype &MPI_cellData) {
+                           vector<connection> &connections, const int &rank) {
   // states -- vector of all procBlocks in the solution domain
   // inp -- all input variables
   // eqnState -- equation of state
@@ -275,7 +274,6 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
   // trans -- viscous transport model
   // connections -- vector of connection boundary types
   // rank -- processor rank
-  // MPI_cellData -- data type to pass varArray
 
   // loop over all blocks and assign inviscid ghost cells
   for (auto &state : states) {
@@ -290,10 +288,10 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
           conn, states[conn.LocalBlockSecond()]);
     } else if (conn.RankFirst() == rank) {
       // rank matches rank of first side of connection, swap over mpi
-      states[conn.LocalBlockFirst()].SwapStateSliceMPI(conn, rank, MPI_cellData);
+      states[conn.LocalBlockFirst()].SwapStateSliceMPI(conn, rank);
     } else if (conn.RankSecond() == rank) {
       // rank matches rank of second side of connection, swap over mpi
-      states[conn.LocalBlockSecond()].SwapStateSliceMPI(conn, rank, MPI_cellData);
+      states[conn.LocalBlockSecond()].SwapStateSliceMPI(conn, rank);
     }
     // if rank doesn't match either side of connection, then do nothing and
     // move on to the next connection
@@ -411,8 +409,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
                       const unique_ptr<transport> &trans,
                       const unique_ptr<turbModel> &turb, const int &mm,
                       residual &residL2, resid &residLinf,
-                      const vector<connection> &connections, const int &rank,
-                      const MPI_Datatype &MPI_cellData) {
+                      const vector<connection> &connections, const int &rank) {
   // blocks -- vector of procBlocks on current processor
   // mainDiagonal -- main diagonal of A matrix for all blocks on processor
   // inp -- input variables
@@ -453,7 +450,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
     // start sweeps through domain
     for (auto ii = 0; ii < inp.MatrixSweeps(); ii++) {
       // swap updates for ghost cells
-      SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
+      SwapImplicitUpdate(du, connections, rank, numG);
 
       // forward lu-sgs sweep
       for (auto bb = 0U; bb < blocks.size(); bb++) {
@@ -462,7 +459,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
       }
 
       // swap updates for ghost cells
-      SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
+      SwapImplicitUpdate(du, connections, rank, numG);
 
       // backward lu-sgs sweep
       for (auto bb = 0U; bb < blocks.size(); bb++) {
@@ -474,7 +471,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   } else if (inp.MatrixSolver() == "dplur" || inp.MatrixSolver() == "bdplur") {
     for (auto ii = 0; ii < inp.MatrixSweeps(); ii++) {
       // swap updates for ghost cells
-      SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
+      SwapImplicitUpdate(du, connections, rank, numG);
 
       for (auto bb = 0U; bb < blocks.size(); bb++) {
         // Calculate correction (du)
@@ -509,12 +506,10 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
 void SwapImplicitUpdate(vector<blkMultiArray3d<varArray>> &du,
                         const vector<connection> &connections, const int &rank,
-                        const MPI_Datatype &MPI_cellData,
                         const int &numGhosts) {
   // du -- implicit update in conservative variables
   // conn -- connection boundary conditions
   // rank -- processor rank
-  // MPI_cellData -- datatype to pass varArray
   // numGhosts -- number of ghost cells
 
   // loop over all connections and swap connection updates when necessary
@@ -524,10 +519,10 @@ void SwapImplicitUpdate(vector<blkMultiArray3d<varArray>> &du,
       du[conn.LocalBlockFirst()].SwapSlice(conn, du[conn.LocalBlockSecond()]);
     } else if (conn.RankFirst() == rank) {
       // rank matches rank of first side of connection, swap over mpi
-      du[conn.LocalBlockFirst()].SwapSliceMPI(conn, rank, MPI_cellData);
+      du[conn.LocalBlockFirst()].SwapSliceMPI(conn, rank, MPI_DOUBLE);
     } else if (conn.RankSecond() == rank) {
       // rank matches rank of second side of connection, swap over mpi
-      du[conn.LocalBlockSecond()].SwapSliceMPI(conn, rank, MPI_cellData);
+      du[conn.LocalBlockSecond()].SwapSliceMPI(conn, rank, MPI_DOUBLE);
     }
     // if rank doesn't match either side of connection, then do nothing and
     // move on to the next connection

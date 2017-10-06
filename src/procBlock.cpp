@@ -3739,12 +3739,9 @@ void procBlock::SwapEddyViscAndGradientSlice(const connection &inter,
 function, but is called when the neighboring procBlocks are on different
 processors.
 */
-void procBlock::SwapStateSliceMPI(const connection &inter, const int &rank,
-                                  const MPI_Datatype &MPI_cellData) {
+void procBlock::SwapStateSliceMPI(const connection &inter, const int &rank) {
   // inter -- connection boundary information
   // rank -- processor rank
-  // MPI_cellData -- MPI datatype for passing varArray types
-
   state_.SwapSliceMPI(inter, rank, MPI_DOUBLE);
 }
 
@@ -4701,11 +4698,9 @@ void procBlock::PutStateSlice(const blkMultiArray3d<primitive> &slice,
 
 /*Member function to pack and send procBlock geometry data to appropriate
  * processor. */
-void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
-                                const MPI_Datatype &MPI_vec3d,
+void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
                                 const MPI_Datatype &MPI_vec3dMag,
                                 const MPI_Datatype &MPI_wallData) const {
-  // MPI_cellData -- MPI data type for cell data
   // MPI_vec3d -- MPI data type for a vector3d
   // MPI_vec3dMag -- MPI data type for a unitVect3dMag
   // MPI_vec3dMag -- MPI data type for a wallData
@@ -4845,12 +4840,10 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
            MPI_COMM_WORLD);
 }
 
-void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
-                                  const MPI_Datatype &MPI_vec3d,
+void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_vec3d,
                                   const MPI_Datatype &MPI_vec3dMag,
                                   const MPI_Datatype &MPI_wallData,
                                   const input &inp) {
-  // MPI_cellData -- MPI data type for cell data
   // MPI_vec3d -- MPI data type for a vector3d
   // MPI_vec3dMag -- MPI data type for a unitVect3dMag
   // MPI_wallData --  MPI data type for a wallData
@@ -5016,13 +5009,11 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
 
 /*Member function to receive and unpack procBlock state data. This is used to
  * gather the solution on the ROOT processor to write out the solution. */
-void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
-                                 const MPI_Datatype &MPI_uncoupledScalar,
+void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
                                  const MPI_Datatype &MPI_vec3d,
                                  const MPI_Datatype &MPI_tensorDouble,
                                  const MPI_Datatype &MPI_wallData,
                                  const input &inp) {
-  // MPI_cellData -- MPI data type for cell data
   // MPI_uncoupledScalar -- MPI data type for uncoupledScalar
   // MPI_vec3d -- MPI data type for vector3d<double>
   // MPI_tensorDouble -- MPI data taype for tensor<double>
@@ -5133,12 +5124,10 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
 /*Member function to pack and send procBlock state data to the ROOT proecessor.
  * This is used to gather the solution on the ROOT processor to write out the
  * solution. */
-void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
-                               const MPI_Datatype &MPI_uncoupledScalar,
+void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
                                const MPI_Datatype &MPI_vec3d,
                                const MPI_Datatype &MPI_tensorDouble,
                                const MPI_Datatype &MPI_wallData) const {
-  // MPI_cellData -- MPI data type for cell data
   // MPI_uncoupledScalar -- MPI data type for uncoupledScalar
   // MPI_vec3d -- MPI data type for vector3d<double>
   // MPI_tensorDouble -- MPI data taype for tensor<double>
