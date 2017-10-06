@@ -198,7 +198,7 @@ void inviscidFlux::AUSMFlux(const T1 &left, const T2 &right,
   // calculate right flux (add contribution)
   const auto vr = mMinusRBar * sos;
   for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
-    (*this)[ii] = right.RhoN(ii) * vr;
+    (*this)[ii] += right.RhoN(ii) * vr;
   }
   auto rhoR = right.Rho();
   (*this)[this->MomentumXIndex()] +=
@@ -210,7 +210,7 @@ void inviscidFlux::AUSMFlux(const T1 &left, const T2 &right,
   (*this)[this->EnergyIndex()] +=
       rhoR * vr * right.Enthalpy(eqnState, thermo);
   for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
-    (*this)[this->TurbulenceIndex() + ii] = rhoR * vr * right.TurbulenceN(ii);
+    (*this)[this->TurbulenceIndex() + ii] += rhoR * vr * right.TurbulenceN(ii);
   }
 }
 
