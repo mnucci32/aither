@@ -161,7 +161,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
 
 // constructor -- allocate space for procBlock
 procBlock::procBlock(const int &ni, const int &nj, const int &nk,
-                     const int &numEqns, const int &numSpecies, const int &numG,
+                     const int &numG, const int &numEqns, const int &numSpecies,
                      const bool &isViscous, const bool &isTurbulent,
                      const bool &isRANS, const bool &storeTimeN,
                      const bool &isMultiLevelInTime) {
