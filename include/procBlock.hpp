@@ -412,7 +412,8 @@ class procBlock {
   void ResetResidWS();
   void ResetGradients();
   void ResetTurbVars();
-  void CleanResizeVecs(const int &, const int &, const int &, const int &);
+  void CleanResizeVecs(const int &, const int &, const int &, const int &,
+                       const int &, const int &);
 
   void InitializeStates(const input &, const unique_ptr<eos> &,
                         const unique_ptr<transport> &,

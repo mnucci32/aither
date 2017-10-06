@@ -4899,7 +4899,8 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_vec3d,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
 
   // clean and resize the vectors in the class to
-  this->CleanResizeVecs(numI, numJ, numK, numGhosts_);
+  this->CleanResizeVecs(numI, numJ, numK, numGhosts_, inp.NumEquations(),
+                        inp.NumSpecies());
 
   // unpack vector data into allocated vectors
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(state_)),
@@ -4948,18 +4949,19 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_vec3d,
 /*Member function to zero and resize the vectors in a procBlock to their
  * appropriate size given the i, j, and k dimensions.*/
 void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
-                                const int &numK, const int &numGhosts) {
+                                const int &numK, const int &numGhosts,
+                                const int &numEqns, const int &numSpecies) {
   // numI -- i-dimension to resize to (no ghosts)
   // numJ -- j-dimension to resize to (no ghosts)
   // numK -- k-dimension to resize to (no ghosts)
   // numGhosts -- number of ghost cells
 
-  state_.ClearResize(numI, numJ, numK, numGhosts);
+  state_.ClearResize(numI, numJ, numK, numGhosts, numEqns, numSpecies);
   if (storeTimeN_) {
-    consVarsN_.ClearResize(numI, numJ, numK, 0);
+    consVarsN_.ClearResize(numI, numJ, numK, 0, numEqns, numSpecies);
   }
   if (isMultiLevelTime_) {
-    consVarsNm1_.ClearResize(numI, numJ, numK, 0);
+    consVarsNm1_.ClearResize(numI, numJ, numK, 0, numEqns, numSpecies);
   }
 
   center_.ClearResize(numI, numJ, numK, numGhosts);
@@ -4980,7 +4982,7 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
 
   wallDist_.ClearResize(numI, numJ, numK, numGhosts, DEFAULTWALLDIST);
 
-  residual_.ClearResize(numI, numJ, numK, 0);
+  residual_.ClearResize(numI, numJ, numK, 0, numEqns, numSpecies);
   specRadius_.ClearResize(numI, numJ, numK, 0);
   dt_.ClearResize(numI, numJ, numK, 0);
 
