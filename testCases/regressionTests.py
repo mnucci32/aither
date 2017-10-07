@@ -159,7 +159,6 @@ class regressionTest:
 
         if (returnCode == 0):
             print("Simulation completed with no errors")
-            self.passed = True
         else:
             print("ERROR: Simulation terminated with errors")
         duration = datetime.datetime.now() - start
@@ -168,6 +167,7 @@ class regressionTest:
         passed, resids, truth = self.CompareResiduals(returnCode)
         if all(passed):
             print("All tests for", self.caseName, "PASSED!")
+            self.passed = True
         else:
             print("Tests for", self.caseName, "FAILED!")
             print("Residuals should be:", truth)
