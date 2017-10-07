@@ -327,12 +327,11 @@ class multiArray3d {
     return lhs /= s;
   }
 
-  virtual void ClearResize(const int &ii, const int &jj, const int &kk,
-                           const int &ng) {
+  void ClearResize(const int &ii, const int &jj, const int &kk, const int &ng) {
     *this = multiArray3d<T>(ii, jj, kk, ng, blkSize_);
   }
-  virtual void ClearResize(const int &ii, const int &jj, const int &kk,
-                           const int &ng, const T &val) {
+  void ClearResize(const int &ii, const int &jj, const int &kk, const int &ng,
+                   const T &val) {
     *this = multiArray3d<T>(ii, jj, kk, ng, blkSize_, val);
   }
 
