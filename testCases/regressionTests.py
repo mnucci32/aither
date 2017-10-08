@@ -39,7 +39,7 @@ class regressionTest:
         self.percentTolerance = 0.01
         self.isRestart = False
         self.restartFile = "none"
-        self.passed = False
+        self.passedStatus = "none"
 
     def SetRegressionCase(self, name):
         self.caseName = name
@@ -53,11 +53,8 @@ class regressionTest:
     def Processors(self):
         return self.procs
 
-    def Passed(self):
-        if self.passed:
-          return "PASSED"
-        else:
-          return "FAILED"
+    def PassedStatus(self):
+        return self.passedStatus
 
     def SetResiduals(self, resid):
         self.residuals = resid
@@ -159,19 +156,20 @@ class regressionTest:
 
         if (returnCode == 0):
             print("Simulation completed with no errors")
+            # test residuals for pass/fail
+            passed, resids, truth = self.CompareResiduals(returnCode)
+            if all(passed):
+                print("All tests for", self.caseName, "PASSED!")
+                self.passedStatus = "PASSED"
+            else:
+                print("Tests for", self.caseName, "FAILED!")
+                print("Residuals should be:", truth)
+                print("Residuals are:", resids)
+                self.passedStatus = "MISMATCH"
         else:
             print("ERROR: Simulation terminated with errors")
+            self.passedStatus = "ERRORS"
         duration = datetime.datetime.now() - start
-
-        # test residuals for pass/fail
-        passed, resids, truth = self.CompareResiduals(returnCode)
-        if all(passed) and returnCode == 0:
-            print("All tests for", self.caseName, "PASSED!")
-            self.passed = True
-        else:
-            print("Tests for", self.caseName, "FAILED!")
-            print("Residuals should be:", truth)
-            print("Residuals are:", resids)
 
         print("Test Duration:", duration)
         print("---------- End Test:", self.caseName, "----------")
@@ -485,20 +483,20 @@ def main():
     else:
         print("ERROR: Some tests failed")
         print("--------------------------------------------------")
-        print("subsonicCylinder:", subCyl.Passed())
-        print("multiblockCylinder:", multiCyl.Passed())
-        print("shockTube:", shockTube.Passed())
-        print("shockTubeRestart:", shockTubeRestart.Passed())
-        print("supersonicWedge:", supWedge.Passed())
-        print("transonicBump:", transBump.Passed())
-        print("viscousFlatPlate:", viscPlate.Passed())
-        print("turbulentFlatPlate:", turbPlate.Passed())
-        print("rae2822:", rae2822.Passed())
-        print("couette:", couette.Passed())
-        print("wallLaw:", wallLaw.Passed())
-        print("thermallyPerfect:", thermallyPerfect.Passed())
-        print("uniform:", uniform.Passed())
-        print("convectingVortex:", vortex.Passed())
+        print("subsonicCylinder:", subCyl.PassedStatus())
+        print("multiblockCylinder:", multiCyl.PassedStatus())
+        print("shockTube:", shockTube.PassedStatus())
+        print("shockTubeRestart:", shockTubeRestart.PassedStatus())
+        print("supersonicWedge:", supWedge.PassedStatus())
+        print("transonicBump:", transBump.PassedStatus())
+        print("viscousFlatPlate:", viscPlate.PassedStatus())
+        print("turbulentFlatPlate:", turbPlate.PassedStatus())
+        print("rae2822:", rae2822.PassedStatus())
+        print("couette:", couette.PassedStatus())
+        print("wallLaw:", wallLaw.PassedStatus())
+        print("thermallyPerfect:", thermallyPerfect.PassedStatus())
+        print("uniform:", uniform.PassedStatus())
+        print("convectingVortex:", vortex.PassedStatus())
         sys.exit(1)
 
 
