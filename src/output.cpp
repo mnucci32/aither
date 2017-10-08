@@ -524,8 +524,9 @@ void WriteRestart(const vector<procBlock> &splitVars,
   outFile.write(reinterpret_cast<char *>(&numSpecies), sizeof(numSpecies));
 
   // write residual values
-  outFile.write(const_cast<char *>(reinterpret_cast<const char *>(&residL2First)),
-                sizeof(residL2First));
+  outFile.write(
+      const_cast<char *>(reinterpret_cast<const char *>(&residL2First[0])),
+      residL2First.Size() * sizeof(residL2First[0]));
 
   // variables to write to restart file
   vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
@@ -675,7 +676,8 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   cout << "Number of species: " << numSpecies << endl;
 
   // read the residuals to normalize by
-  fName.read(reinterpret_cast<char *>(&residL2First), sizeof(residL2First));
+  fName.read(reinterpret_cast<char *>(&residL2First[0]),
+             residL2First.Size() * sizeof(residL2First[0]));
 
   // read the number of blocks
   auto numBlks = 0;
