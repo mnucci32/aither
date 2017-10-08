@@ -165,7 +165,7 @@ class regressionTest:
 
         # test residuals for pass/fail
         passed, resids, truth = self.CompareResiduals(returnCode)
-        if all(passed):
+        if all(passed) and returnCode == 0:
             print("All tests for", self.caseName, "PASSED!")
             self.passed = True
         else:
