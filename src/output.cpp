@@ -519,6 +519,10 @@ void WriteRestart(const vector<procBlock> &splitVars,
   auto numEqns = inp.NumEquations();
   outFile.write(reinterpret_cast<char *>(&numEqns), sizeof(numEqns));
 
+  // write number of species
+  auto numSpecies = inp.NumSpecies();
+  outFile.write(reinterpret_cast<char *>(&numSpecies), sizeof(numSpecies));
+
   // write residual values
   outFile.write(const_cast<char *>(reinterpret_cast<const char *>(&residL2First)),
                 sizeof(residL2First));
@@ -664,6 +668,12 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   fName.read(reinterpret_cast<char *>(&numEqns), sizeof(numEqns));
   cout << "Number of equations: " << numEqns << endl;
 
+  // read the number of species
+  // DEBUG -- need to know which species these are
+  auto numSpecies = 0;
+  fName.read(reinterpret_cast<char *>(&numSpecies), sizeof(numSpecies));
+  cout << "Number of species: " << numSpecies << endl;
+
   // read the residuals to normalize by
   fName.read(reinterpret_cast<char *>(&residL2First), sizeof(residL2First));
 
@@ -705,9 +715,9 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   cout << "Reading solution from time n..." << endl;
   vector<blkMultiArray3d<primitive>> solN(numBlks);
   for (auto ii = 0U; ii < solN.size(); ++ii) {
-    solN[ii] = ReadSolFromRestart(fName, inp, eqnState, thermo, trans, turb,
-                                  restartVars, gridSizes[ii].X(),
-                                  gridSizes[ii].Y(), gridSizes[ii].Z());
+    solN[ii] = ReadSolFromRestart(
+        fName, inp, eqnState, thermo, trans, turb, restartVars,
+        gridSizes[ii].X(), gridSizes[ii].Y(), gridSizes[ii].Z(), numSpecies);
   }
   // decompose solution
   decomp.DecompArray(solN);
@@ -722,9 +732,9 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
       cout << "Reading solution from time n-1..." << endl;
       vector<blkMultiArray3d<conserved>> solNm1(numBlks);
       for (auto ii = 0U; ii < solNm1.size(); ++ii) {
-        solNm1[ii] = ReadSolNm1FromRestart(fName, inp, eqnState, trans, turb,
-                                           restartVars, gridSizes[ii].X(),
-                                           gridSizes[ii].Y(), gridSizes[ii].Z());
+        solNm1[ii] = ReadSolNm1FromRestart(
+            fName, inp, eqnState, trans, turb, restartVars, gridSizes[ii].X(),
+            gridSizes[ii].Y(), gridSizes[ii].Z(), numSpecies);
       }
       // decompose solution
       decomp.DecompArray(solNm1);
@@ -1041,10 +1051,7 @@ blkMultiArray3d<primitive> ReadSolFromRestart(
     ifstream &resFile, const input &inp, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
     const unique_ptr<turbModel> &turb, const vector<string> &restartVars,
-    const int &numI, const int &numJ, const int &numK) {
-  // DEBUG -- restart currently only supporting single species
-  constexpr auto numSpecies = 1;
-
+    const int &numI, const int &numJ, const int &numK, const int &numSpecies) {
   // intialize multiArray3d
   blkMultiArray3d<primitive> sol(numI, numJ, numK, 0, restartVars.size(),
                                  numSpecies);
@@ -1101,10 +1108,7 @@ blkMultiArray3d<conserved> ReadSolNm1FromRestart(
     ifstream &resFile, const input &inp, const unique_ptr<eos> &eqnState,
     const unique_ptr<transport> &trans, const unique_ptr<turbModel> &turb,
     const vector<string> &restartVars, const int &numI, const int &numJ,
-    const int &numK) {
-  // DEBUG -- restart currently only supporting single species
-  constexpr auto numSpecies = 1;
-
+    const int &numK, const int &numSpecies) {
   // intialize multiArray3d
   blkMultiArray3d<conserved> sol(numI, numJ, numK, 0, restartVars.size(),
                                  numSpecies);

@@ -208,6 +208,10 @@ class blkMultiArray3d : public multiArray3d<double> {
     *this = blkMultiArray3d<T>(ii, jj, kk, ng, bs, ns, val);
   }
 
+  auto GrowI() const { return GrowInI(*this); }
+  auto GrowJ() const { return GrowInJ(*this); }
+  auto GrowK() const { return GrowInK(*this); }
+  
   // destructor
   ~blkMultiArray3d() noexcept {}
 };

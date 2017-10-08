@@ -88,11 +88,11 @@ blkMultiArray3d<primitive> ReadSolFromRestart(
     ifstream &, const input &, const unique_ptr<eos> &,
     const unique_ptr<thermodynamic> &, const unique_ptr<transport> &,
     const unique_ptr<turbModel> &, const vector<string> &, const int &,
-    const int &, const int &);
+    const int &, const int &, const int &);
 blkMultiArray3d<conserved> ReadSolNm1FromRestart(
     ifstream &, const input &, const unique_ptr<eos> &,
     const unique_ptr<transport> &, const unique_ptr<turbModel> &,
-    const vector<string> &, const int &, const int &, const int &);
+    const vector<string> &, const int &, const int &, const int &, const int &);
 
 void WriteResiduals(const input &, residual &, const residual &, const resid &,
                     const double &, const int &, const int &, ostream &);

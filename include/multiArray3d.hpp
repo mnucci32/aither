@@ -162,9 +162,9 @@ class multiArray3d {
   void Zero(const T &z) { std::fill(this->begin(), this->end(), z); }
   void Zero() { this->Zero(T()); }
 
-  auto GrowI() const;
-  auto GrowJ() const;
-  auto GrowK() const;
+  auto GrowI() const { return GrowInI(*this); }
+  auto GrowJ() const { return GrowInJ(*this); }
+  auto GrowK() const { return GrowInK(*this); }
 
   void PackSwapUnpackMPI(const connection &, const MPI_Datatype &, const int &,
                          const int = 1);
@@ -538,11 +538,11 @@ void InsertArray(T &parent, const range &ir, const range &jr, const range &kr,
   // kr -- k-index range to take slice [inclusive, exclusive)
   // arr -- array to insert into this one
 
+#ifndef NDEBUG
   // check that given bounds fit in this, sizes match, and that bounds are valid
   if (!ir.IsInside(parent.RangeI()) || !jr.IsInside(parent.RangeJ()) ||
-      !kr.IsInside(parent.RangeK()) ||
-      ir.Size() != arr.RangeI().Size() || jr.Size() != arr.RangeJ().Size() ||
-      kr.Size() != arr.RangeK().Size() ||
+      !kr.IsInside(parent.RangeK()) || ir.Size() != arr.RangeI().Size() ||
+      jr.Size() != arr.RangeJ().Size() || kr.Size() != arr.RangeK().Size() ||
       !ir.IsValid() || !jr.IsValid() || !kr.IsValid()) {
     cerr << "ERROR: Error in InsertArray. Given array does not fit in "
          << "given bounds" << endl
@@ -553,6 +553,7 @@ void InsertArray(T &parent, const range &ir, const range &jr, const range &kr,
          << parent.RangeJ() << ", " << parent.RangeK() << endl;
     exit(EXIT_FAILURE);
   }
+#endif
 
   // s is for index of sliced array, p is for index of parent array
   for (int ks = arr.StartK(), kp = kr.Start(); ks < arr.EndK(); ks++, kp++) {
@@ -827,18 +828,21 @@ void InsertSlice(T &array1, const T &array2, const connection &inter,
   // inter -- connection data structure defining patches and orientation
   // d3 -- distance of direction normal to patch to insert
 
+#ifndef NDEBUG
   // check that number of cells to insert matches
   auto blkCell = inter.Dir1LenFirst() * inter.Dir2LenFirst() * d3;
   if (blkCell != array2.NumBlocks()) {
     cerr << "ERROR: Error in InsertSlice(). Number of cells "
-            "being inserted does not match designated space to insert." << endl;
+            "being inserted does not match designated space to insert."
+         << endl;
     cerr << "Direction 1, 2, 3 of array to insert into: "
-         << inter.Dir1LenFirst() << ", " << inter.Dir2LenFirst() << ", "
-         << d3 << endl;
-    cerr << "Direction I, J, K of array3d to insert: " << array2.NumI()
-         << ", " << array2.NumJ() << ", " << array2.NumK() << endl;
+         << inter.Dir1LenFirst() << ", " << inter.Dir2LenFirst() << ", " << d3
+         << endl;
+    cerr << "Direction I, J, K of array3d to insert: " << array2.NumI() << ", "
+         << array2.NumJ() << ", " << array2.NumK() << endl;
     exit(EXIT_FAILURE);
   }
+#endif
 
   // adjust insertion indices if patch borders another connection on the same
   // surface of the block
@@ -868,6 +872,55 @@ void InsertSlice(T &array1, const T &array2, const connection &inter,
     }
   }
 }
+
+template <typename T>
+auto GrowInI(const T &orig) {
+  T arr(orig.NumINoGhosts() + 1, orig.NumJNoGhosts(), orig.NumKNoGhosts(),
+        orig.GhostLayers(), orig.BlockInfo());
+  for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
+    for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
+      for (auto ii = arr.StartI(); ii < arr.EndI(); ii++) {
+        auto val = (ii == arr.EndI() - 1) ? orig(ii - 1, jj, kk)
+                                          : orig(ii, jj, kk);
+        arr.InsertBlock(ii, jj, kk, val);
+      }
+    }
+  }
+  return arr;
+}
+
+template <typename T>
+auto GrowInJ(const T &orig) {
+  T arr(orig.NumINoGhosts(), orig.NumJNoGhosts() + 1, orig.NumKNoGhosts(),
+        orig.GhostLayers(), orig.BlockInfo());
+  for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
+    for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
+      for (auto ii = arr.StartI(); ii < arr.EndI(); ii++) {
+        auto val = (jj == arr.EndJ() - 1) ? orig(ii, jj - 1, kk)
+                                          : orig(ii, jj, kk);
+        arr.InsertBlock(ii, jj, kk, val);
+      }
+    }
+  }
+  return arr;
+}
+
+template <typename T>
+auto GrowInK(const T &orig) {
+  T arr(orig.NumINoGhosts(), orig.NumJNoGhosts(), orig.NumKNoGhosts() + 1,
+        orig.GhostLayers(), orig.BlockInfo());
+  for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
+    for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
+      for (auto ii = arr.StartI(); ii < arr.EndI(); ii++) {
+        auto val = (kk == arr.EndK() - 1) ? orig(ii, jj, kk - 1)
+                                          : orig(ii, jj, kk);
+        arr.InsertBlock(ii, jj, kk, val);
+      }
+    }
+  }
+  return arr;
+}
+
 
 // ---------------------------------------------------------------------------
 // member function definitions
@@ -1240,67 +1293,24 @@ template <typename TT>
 void multiArray3d<T>::Fill(const TT &arr) {
   // arr -- array to insert into this one
 
+#ifndef NDEBUG
   // check that given array is same size
   if (this->Size() != arr.Size()) {
-    cerr << "ERROR: Error in multiArray3d::Fill. Size of given array " <<
-        "does not match size of array to fill!" << endl;
+    cerr << "ERROR: Error in multiArray3d::Fill. Size of given array "
+         << "does not match size of array to fill!" << endl;
     cerr << "Size of given array is " << arr.NumI() << ", " << arr.NumJ()
          << ", " << arr.NumK() << endl;
     cerr << "With " << arr.GhostLayers() << " ghost cell layers" << endl;
     cerr << "Resulting in a total size of " << arr.Size() << endl;
-    cerr << "Size of array to fill is " << numI_ << ", " << numJ_ <<
-        ", " << numK_ << endl;
+    cerr << "Size of array to fill is " << numI_ << ", " << numJ_ << ", "
+         << numK_ << endl;
     cerr << "With " << numGhosts_ << " ghost cell layers" << endl;
     cerr << "Resulting in a total size of " << this->Size() << endl;
     exit(EXIT_FAILURE);
   }
+#endif
 
   data_ = arr.data_;
-}
-
-template <typename T>
-auto multiArray3d<T>::GrowI() const {
-  multiArray3d<T> arr(this->NumINoGhosts() + 1, this->NumJNoGhosts(),
-                      this->NumKNoGhosts(), numGhosts_);
-  for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
-    for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
-      for (auto ii = arr.StartI(); ii < arr.EndI(); ii++) {
-        arr(ii, jj, kk) = (ii == arr.EndI() - 1) ? (*this)(ii - 1, jj, kk) :
-            (*this)(ii, jj, kk);
-      }
-    }
-  }
-  return arr;
-}
-
-template <typename T>
-auto multiArray3d<T>::GrowJ() const {
-  multiArray3d<T> arr(this->NumINoGhosts(), this->NumJNoGhosts() + 1,
-                      this->NumKNoGhosts(), numGhosts_);
-  for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
-    for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
-      for (auto ii = arr.StartI(); ii < arr.EndI(); ii++) {
-        arr(ii, jj, kk) = (jj == arr.EndJ() - 1) ? (*this)(ii, jj - 1, kk) :
-            (*this)(ii, jj, kk);
-      }
-    }
-  }
-  return arr;
-}
-
-template <typename T>
-auto multiArray3d<T>::GrowK() const {
-  multiArray3d<T> arr(this->NumINoGhosts(), this->NumJNoGhosts(),
-                      this->NumKNoGhosts() + 1, numGhosts_);
-  for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
-    for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
-      for (auto ii = arr.StartI(); ii < arr.EndI(); ii++) {
-        arr(ii, jj, kk) = (kk == arr.EndK() - 1) ? (*this)(ii, jj, kk - 1) :
-            (*this)(ii, jj, kk);
-      }
-    }
-  }
-  return arr;
 }
 
 template <typename T>

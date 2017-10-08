@@ -878,8 +878,10 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
         state[state.MomentumYIndex()] = vVel;
         state[state.MomentumZIndex()] = wVel;
         state[state.EnergyIndex()] = pressure;
-        state[state.TurbulenceIndex()] = tke;
-        state[state.TurbulenceIndex() + 1] = omega;
+        if (state.HasTurbulenceData()) {
+          state[state.TurbulenceIndex()] = tke;
+          state[state.TurbulenceIndex() + 1] = omega;
+        }
         states[count - 2] = state;
       }
     }
