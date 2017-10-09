@@ -109,7 +109,7 @@ Ui+1/2 = Ui + 0.25 * ((Ui - Ui-1) / dM) * ( (1-K) * L  + (1+K) * R * Linv )
 template <typename T>
 primitive FaceReconMUSCL(const T &upwind2, const T &upwind1, const T &downwind1,
                          const double &kappa, const string &lim,
-                         const double &uw, const double &uw2,
+                         const double &uw2, const double &uw,
                          const double &dw) {
   // upwind2 -- upwind cell furthest from the face at which the primitive is
   //            being reconstructed.
@@ -128,8 +128,7 @@ primitive FaceReconMUSCL(const T &upwind2, const T &upwind1, const T &downwind1,
   const auto dPlus = (uw + uw) / (uw + dw);
   const auto dMinus = (uw + uw) / (uw + uw2);
 
-  // divided differences to base limiter on; eps must be listed to left of
-  // primitive
+  // divided differences to base limiter on
   const auto r = (EPS + (downwind1 - upwind1) * dPlus) /
       (EPS + (upwind1 - upwind2) * dMinus);
 
