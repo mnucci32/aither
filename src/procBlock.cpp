@@ -6687,7 +6687,7 @@ blkMultiArray3d<primitive> procBlock::GetGhostStates(
           }
         }
       }
-      avgMach /= bndStates.Size();
+      avgMach /= bndStates.NumBlocks();
     }
   }
 
