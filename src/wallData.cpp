@@ -185,6 +185,7 @@ void wallData::Join(const wallData &upper, const string &dir, bool &joined) {
 
   void wallData::WallState(const int &ii, const int &jj, const int &kk,
                      const unique_ptr<eos> &eqnState, primitive &wState) const {
+    // DEBUG -- update this for multispecies
     MSG_ASSERT(wState.NumSpecies() == 1, "Need to update for multispecies");
     auto rho = this->WallDensity(ii, jj, kk);
     for (auto ii = 0; ii < wState.NumSpecies(); ++ii) {
@@ -193,7 +194,7 @@ void wallData::Join(const wallData &upper, const string &dir, bool &joined) {
     wState[wState.MomentumXIndex()] = this->WallVelocity().X();
     wState[wState.MomentumYIndex()] = this->WallVelocity().Y();
     wState[wState.MomentumZIndex()] = this->WallVelocity().Z();
-    wState[wState.MomentumXIndex()] = this->WallPressure(ii, jj, kk, eqnState);
+    wState[wState.EnergyIndex()] = this->WallPressure(ii, jj, kk, eqnState);
     for (auto ii = 0; ii < wState.NumTurbulence(); ++ii) {
       wState[wState.TurbulenceIndex() + ii] =
           (ii == 0) ? this->WallTke(ii, jj, kk) : this->WallSdr(ii, jj, kk);
