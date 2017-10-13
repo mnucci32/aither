@@ -111,7 +111,6 @@ class squareMatrix {
 template <typename T, typename TT>
 T squareMatrix::ArrayMult(const T &vec, const int pos) const {
   // vec -- vector to multiply with
-
   auto product = vec;
 
   // zero out portion of array that will be written over

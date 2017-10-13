@@ -58,6 +58,7 @@ class turbModel;
 class primitive : public varArray {
  public:
   // constructors
+  primitive() : varArray() {}
   primitive(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies) {}
   primitive(const int &numEqns, const int &numSpecies, const double &val)

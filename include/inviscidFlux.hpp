@@ -54,9 +54,9 @@ class inviscidFlux : public varArray {
 
  public:
   // constructors
+  inviscidFlux() : varArray() {}
   inviscidFlux(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies) {}
-  inviscidFlux() : inviscidFlux(0, 0) {}
   template <typename T>
   inviscidFlux(const T &state, const unique_ptr<eos> &eqnState,
                const unique_ptr<thermodynamic> &thermo,

@@ -115,7 +115,8 @@ class fluxJacobian {
 
   template <typename T,
             typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
-  T ArrayMult(T arr) const {
+  T ArrayMult(const T &orig) const {
+    auto arr = orig;
     if (this->IsScalar()) {
       for (auto ii = 0; ii < arr.TurbulenceIndex(); ++ii) {
         arr[ii] *= flowJacobian_(0, 0);

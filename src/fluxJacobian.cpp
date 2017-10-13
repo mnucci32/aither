@@ -186,7 +186,7 @@ varArray OffDiagonal(
   // input -- input variables
   // positive -- flag to determine whether to add or subtract dissipation
 
-  varArray offDiagonal(update.Size(), update.NumSpecies());
+  varArray offDiagonal;
 
   if (inp.InvFluxJac() == "rusanov") {
     if (inp.IsBlockMatrix()) {

@@ -49,7 +49,7 @@ class varArray {
   }
   varArray(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies, 0.0) {}
-  varArray() : varArray(0, 0) {}
+  varArray() {}
   varArray(const vector<double>::const_iterator &b,
            const vector<double>::const_iterator &e, const int &numSpecies)
       : data_(b, e),

@@ -371,8 +371,8 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
   for (auto kk = fAreaI_.PhysStartK(); kk < fAreaI_.PhysEndK(); kk++) {
     for (auto jj = fAreaI_.PhysStartJ(); jj < fAreaI_.PhysEndJ(); jj++) {
       for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ii++) {
-        primitive faceStateLower(inp.NumEquations(), inp.NumSpecies());
-        primitive faceStateUpper(inp.NumEquations(), inp.NumSpecies());
+        primitive faceStateLower;
+        primitive faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
@@ -509,8 +509,8 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
   for (auto kk = fAreaJ_.PhysStartK(); kk < fAreaJ_.PhysEndK(); kk++) {
     for (auto jj = fAreaJ_.PhysStartJ(); jj < fAreaJ_.PhysEndJ(); jj++) {
       for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ii++) {
-        primitive faceStateLower(inp.NumEquations(), inp.NumSpecies());
-        primitive faceStateUpper(inp.NumEquations(), inp.NumSpecies());
+        primitive faceStateLower;
+        primitive faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
@@ -646,8 +646,8 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
   for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); kk++) {
     for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); jj++) {
       for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ii++) {
-        primitive faceStateLower(inp.NumEquations(), inp.NumSpecies());
-        primitive faceStateUpper(inp.NumEquations(), inp.NumSpecies());
+        primitive faceStateLower;
+        primitive faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
@@ -937,7 +937,7 @@ void procBlock::RK4TimeAdvance(const conservedView &currState,
 // iteration. This is done because the residual and wave
 // speed are accumulated over many function calls.
 void procBlock::ResetResidWS() {
-  residual_.Zero();
+  residual_.Zero(0.0);
   specRadius_.Zero();
 }
 

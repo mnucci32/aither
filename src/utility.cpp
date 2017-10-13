@@ -487,6 +487,10 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   }
 
   // Update blocks and reset main diagonal
+  const auto fluxJacZero =
+      inp.IsBlockMatrix()
+          ? fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations())
+          : fluxJacobian(1, std::max(1, inp.NumTurbEquations()));
   for (auto bb = 0U; bb < blocks.size(); bb++) {
     // Update solution
     blocks[bb].UpdateBlock(inp, eqnState, thermo, trans, du[bb], turb, mm,
@@ -498,7 +502,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
     }
 
     // zero flux jacobians
-    mainDiagonal[bb].Zero();
+    mainDiagonal[bb].Zero(fluxJacZero);
   }
 
   return matrixError;
@@ -704,7 +708,7 @@ void ResizeArrays(const vector<procBlock> &states, const input &inp,
 
   const auto fluxJac = inp.IsBlockMatrix() ?
       fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations()) :
-      fluxJacobian(1, 1);
+      fluxJacobian(1, std::max(1, inp.NumTurbEquations()));
 
   for (auto bb = 0U; bb < states.size(); bb++) {
     jac[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(), states[bb].NumK(),

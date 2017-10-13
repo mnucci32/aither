@@ -132,10 +132,10 @@ primitive FaceReconMUSCL(const T &upwind2, const T &upwind1, const T &downwind1,
   const auto r = (EPS + (downwind1 - upwind1) * dPlus) /
       (EPS + (upwind1 - upwind2) * dMinus);
 
-  primitive limiter(upwind2.Size(), upwind2.NumSpecies());
-  primitive invLimiter(upwind2.Size(), upwind2.NumSpecies());
+  primitive limiter;
+  primitive invLimiter;
   if (lim == "none") {
-    limiter = LimiterNone(limiter.Size(), limiter.NumSpecies());
+    limiter = LimiterNone(r.Size(), r.NumSpecies());
     invLimiter = limiter;
   } else if (lim == "vanAlbada") {
     limiter = LimiterVanAlbada(r);

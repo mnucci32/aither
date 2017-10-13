@@ -42,6 +42,7 @@ struct wallVars;
 class viscousFlux : public varArray {
  public:
   // constructors
+  viscousFlux() : varArray() {}
   viscousFlux(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies) {}
 
