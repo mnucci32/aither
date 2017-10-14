@@ -57,8 +57,7 @@ class fluxJacobian {
   fluxJacobian(const squareMatrix &flow, const squareMatrix &turb)
       : flowJacobian_(flow), turbJacobian_(turb) {}
   fluxJacobian() : fluxJacobian(0.0, 0.0) {}
-  explicit fluxJacobian(const uncoupledScalar &specRad) :
-      fluxJacobian(specRad.FlowVariable(), specRad.TurbVariable()) {}
+  fluxJacobian(const uncoupledScalar &specRad, const bool &hasTurb);
 
   // move constructor and assignment operator
   fluxJacobian(fluxJacobian&&) noexcept = default;

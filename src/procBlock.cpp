@@ -459,7 +459,7 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
                                         inp, turb);
             mainDiagonal(ii, jj, kk) -= fluxJac;
           } else if (inp.IsImplicit()) {
-            mainDiagonal(ii, jj, kk) += fluxJacobian(specRad);
+            mainDiagonal(ii, jj, kk) += fluxJacobian(specRad, isRANS_);
           }
         }
       }
@@ -596,7 +596,7 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
                                         inp, turb);
             mainDiagonal(ii, jj, kk) -= fluxJac;
           } else if (inp.IsImplicit()) {
-            mainDiagonal(ii, jj, kk) += fluxJacobian(specRad);
+            mainDiagonal(ii, jj, kk) += fluxJacobian(specRad, isRANS_);
           }
         }
       }
@@ -733,7 +733,7 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
                                         inp, turb);
             mainDiagonal(ii, jj, kk) -= fluxJac;
           } else if (inp.IsImplicit()) {
-            mainDiagonal(ii, jj, kk) += fluxJacobian(specRad);
+            mainDiagonal(ii, jj, kk) += fluxJacobian(specRad, isRANS_);
           }
         }
       }
@@ -2000,7 +2000,7 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
             mainDiagonal(ii, jj, kk) += fluxJac;
           } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-            mainDiagonal(ii, jj, kk) += fluxJacobian(2.0 * specRad);
+            mainDiagonal(ii, jj, kk) += fluxJacobian(2.0 * specRad, isRANS_);
           }
         }
       }
@@ -2311,7 +2311,7 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
             mainDiagonal(ii, jj, kk) += fluxJac;
           } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-            mainDiagonal(ii, jj, kk) += fluxJacobian(2.0 * specRad);
+            mainDiagonal(ii, jj, kk) += fluxJacobian(2.0 * specRad, isRANS_);
           }
         }
       }
@@ -2620,7 +2620,7 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
             mainDiagonal(ii, jj, kk) += fluxJac;
           } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-            mainDiagonal(ii, jj, kk) += fluxJacobian(2.0 * specRad);
+            mainDiagonal(ii, jj, kk) += fluxJacobian(2.0 * specRad, isRANS_);
           }
         }
       }
@@ -6463,7 +6463,7 @@ void procBlock::CalcSrcTerms(const unique_ptr<transport> &trans,
           mainDiagonal(ii, jj, kk).SubtractFromTurbJacobian(srcJac);
         } else if (inp.IsImplicit()) {
           const uncoupledScalar srcJacScalar(0.0, turbSpecRad);
-          mainDiagonal(ii, jj, kk) -= fluxJacobian(srcJacScalar);
+          mainDiagonal(ii, jj, kk) -= fluxJacobian(srcJacScalar, isRANS_);
         }
       }
     }

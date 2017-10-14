@@ -54,6 +54,16 @@ fluxJacobian::fluxJacobian(const int &flowSize, const int &turbSize) {
   turbJacobian_ = squareMatrix(turbSize);
 }
 
+fluxJacobian::fluxJacobian(const uncoupledScalar &specRad,
+                           const bool &hasTurb) {
+  flowJacobian_ = squareMatrix(1);
+  flowJacobian_ += specRad.FlowVariable();
+
+  if (hasTurb) {
+    turbJacobian_ = squareMatrix(1);
+    turbJacobian_ += specRad.TurbVariable();
+  }
+}
 
 // member functions
 bool fluxJacobian::IsScalar() const {
