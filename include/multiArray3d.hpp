@@ -131,13 +131,14 @@ class multiArray3d {
   auto end() noexcept {return data_.end();}
   const auto end() const noexcept {return data_.end();}
 
-  auto Slice(const range &, const range &, const range &) const;
-  auto Slice(const string &, const range &, const bool = false) const;
-  auto Slice(const string &, int, int, const bool = false,
-             const string = "cell", const bool = false,
-             const bool = false) const;
-  auto Slice(const string &, int, range, range, const string = "cell",
-             const int = 0) const;
+  multiArray3d<T> Slice(const range &, const range &, const range &) const;
+  multiArray3d<T> Slice(const string &, const range &,
+                        const bool = false) const;
+  multiArray3d<T> Slice(const string &, int, int, const bool = false,
+                        const string = "cell", const bool = false,
+                        const bool = false) const;
+  multiArray3d<T> Slice(const string &, int, range, range,
+                        const string = "cell", const int = 0) const;
 
   template <typename TT>
   void Insert(const range &, const range &, const range &, const TT &);
@@ -162,9 +163,9 @@ class multiArray3d {
   void Zero(const T &z) { std::fill(this->begin(), this->end(), z); }
   void Zero() { this->Zero(T()); }
 
-  auto GrowI() const { return GrowInI(*this); }
-  auto GrowJ() const { return GrowInJ(*this); }
-  auto GrowK() const { return GrowInK(*this); }
+  multiArray3d<T> GrowI() const { return GrowInI(*this); }
+  multiArray3d<T> GrowJ() const { return GrowInJ(*this); }
+  multiArray3d<T> GrowK() const { return GrowInK(*this); }
 
   void PackSwapUnpackMPI(const connection &, const MPI_Datatype &, const int &,
                          const int = 1);
@@ -1159,8 +1160,8 @@ inline const multiArray3d<T> operator/(const TT &lhs, multiArray3d<T> rhs) {
 // member function to return a slice of the array
 // this is the main slice function that all other overloaded slice functions call
 template <typename T>
-auto multiArray3d<T>::Slice(const range &ir, const range &jr,
-                            const range &kr) const {
+multiArray3d<T> multiArray3d<T>::Slice(const range &ir, const range &jr,
+                                       const range &kr) const {
   // ir -- i-index range to take slice [inclusive, exclusive)
   // jr -- j-index range to take slice [inclusive, exclusive)
   // kr -- k-index range to take slice [inclusive, exclusive)
@@ -1173,8 +1174,8 @@ auto multiArray3d<T>::Slice(const range &ir, const range &jr,
 // dir is sliced over dirRange. It also has the ability to include or ignore
 // ghost cells in its planar slices
 template <typename T>
-auto multiArray3d<T>::Slice(const string &dir, const range &dirRange,
-                            const bool physOnly) const {
+multiArray3d<T> multiArray3d<T>::Slice(const string &dir, const range &dirRange,
+                                       const bool physOnly) const {
   // dir -- direction of slice
   // dirRange -- range of slice in direction given
   // phsOnly -- flag to only include physical cells in the two directions that
@@ -1185,9 +1186,10 @@ auto multiArray3d<T>::Slice(const string &dir, const range &dirRange,
 // member function to return a slice of the array
 // overload to slice line out of array
 template <typename T>
-auto multiArray3d<T>::Slice(const string &dir, int d2Ind, int d3Ind,
-                            const bool physOnly, const string id,
-                            const bool upper2, const bool upper3) const {
+multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int d2Ind, int d3Ind,
+                                       const bool physOnly, const string id,
+                                       const bool upper2,
+                                       const bool upper3) const {
   // dir -- direction of line slice (direction 1)
   // d2Ind -- index of direction 2
   // d3Ind -- index of direction 3
@@ -1205,8 +1207,9 @@ auto multiArray3d<T>::Slice(const string &dir, int d2Ind, int d3Ind,
 // over a subset of direction 2 & 3. This is useful to slice out a plane that
 // borders a boundary condition patch.
 template <typename T>
-auto multiArray3d<T>::Slice(const string &dir, int dirInd, range dir1,
-                            range dir2, const string id, const int type) const {
+multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int dirInd,
+                                       range dir1, range dir2, const string id,
+                                       const int type) const {
   // dir -- normal direction of planar slice
   // dirInd -- index in normal direction
   // dir1 -- range of direction 1 (direction 3 is normal to slice)
