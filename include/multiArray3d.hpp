@@ -163,9 +163,9 @@ class multiArray3d {
   void Zero(const T &z) { std::fill(this->begin(), this->end(), z); }
   void Zero() { this->Zero(T()); }
 
-  multiArray3d<T> GrowI() const { return GrowInI(*this); }
-  multiArray3d<T> GrowJ() const { return GrowInJ(*this); }
-  multiArray3d<T> GrowK() const { return GrowInK(*this); }
+  multiArray3d<T> GrowI() const;
+  multiArray3d<T> GrowJ() const;
+  multiArray3d<T> GrowK() const;
 
   void PackSwapUnpackMPI(const connection &, const MPI_Datatype &, const int &,
                          const int = 1);
@@ -1360,6 +1360,19 @@ ostream &operator<<(ostream &os, const multiArray3d<T> &arr) {
     }
   }
   return os;
+}
+
+template <typename T>
+multiArray3d<T> multiArray3d<T>::GrowI() const {
+  return GrowInI(*this);
+}
+template <typename T>
+multiArray3d<T> multiArray3d<T>::GrowJ() const {
+  return GrowInJ(*this);
+}
+template <typename T>
+multiArray3d<T> multiArray3d<T>::GrowK() const {
+  return GrowInK(*this);
 }
 
 template <typename T>

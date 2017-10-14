@@ -209,10 +209,10 @@ class blkMultiArray3d : public multiArray3d<double> {
     *this = blkMultiArray3d<T>(ii, jj, kk, ng, bs, ns, val);
   }
 
-  blkMultiArray3d<T> GrowI() const { return GrowInI(*this); }
-  blkMultiArray3d<T> GrowJ() const { return GrowInJ(*this); }
-  blkMultiArray3d<T> GrowK() const { return GrowInK(*this); }
-  
+  blkMultiArray3d<T> GrowI() const;
+  blkMultiArray3d<T> GrowJ() const;
+  blkMultiArray3d<T> GrowK() const;
+
   // destructor
   ~blkMultiArray3d() noexcept {}
 };
@@ -367,6 +367,19 @@ void blkMultiArray3d<T>::Insert(const string &dir, int dirInd, range dir1,
   // id -- id of array being inserted into (i, j, k for faces, cell for cells)
   // type -- surface type of dir
   InsertArray((*this), dir, dirInd, dir1, dir2, arr, id, type);
+}
+
+template <typename T>
+blkMultiArray3d<T> blkMultiArray3d<T>::GrowI() const {
+  return GrowInI(*this);
+}
+template <typename T>
+blkMultiArray3d<T> blkMultiArray3d<T>::GrowJ() const {
+  return GrowInJ(*this);
+}
+template <typename T>
+blkMultiArray3d<T> blkMultiArray3d<T>::GrowK() const {
+  return GrowInK(*this);
 }
 
 /* Function to swap slice using MPI. This is similar to the SwapSlice
