@@ -24,6 +24,7 @@
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
 #include "multiArray3d.hpp"        // multiArray3d
+#include "blkMultiArray3d.hpp"     // blkMultiArray3dd
 #include "tensor.hpp"              // tensor
 #include "macros.hpp"
 
@@ -36,20 +37,15 @@ class eos;
 class transport;
 class thermodynamic;
 class input;
-class genArray;
+class residual;
 class turbModel;
 class fluxJacobian;
 class kdtree;
 class resid;
-class primVars;
+class primitive;
+class varArray;
 
 // function definitions
-template <typename T>
-inline T FaceReconCentral(const T &, const T &, const vector<double> &);
-template <typename T>
-inline T FaceReconCentral4th(const T &, const T &, const T &, const T&,
-                             const vector<double> &);
-
 tensor<double> VectorGradGG(const vector3d<double> &, const vector3d<double> &,
                             const vector3d<double> &, const vector3d<double> &,
                             const vector3d<double> &, const vector3d<double> &,
@@ -72,7 +68,7 @@ void GetBoundaryConditions(vector<procBlock> &, const input &,
                            const unique_ptr<thermodynamic> &,
                            const unique_ptr<transport> &,
                            const unique_ptr<turbModel> &, vector<connection> &,
-                           const int &, const MPI_Datatype &);
+                           const int &);
 
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
 void CalcWallDistance(vector<procBlock> &, const kdtree &);
@@ -84,19 +80,17 @@ void AssignSolToTimeNm1(vector<procBlock> &);
 void ExplicitUpdate(vector<procBlock> &, const input &, const unique_ptr<eos> &,
                     const unique_ptr<thermodynamic> &,
                     const unique_ptr<transport> &,
-                    const unique_ptr<turbModel> &, const int &, genArray &,
+                    const unique_ptr<turbModel> &, const int &, residual &,
                     resid &);
 double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
                       const input &, const unique_ptr<eos> &,
                       const unique_ptr<thermodynamic> &,
                       const unique_ptr<transport> &,
-                      const unique_ptr<turbModel> &, const int &, genArray &,
-                      resid &, const vector<connection> &, const int &,
-                      const MPI_Datatype &);
+                      const unique_ptr<turbModel> &, const int &, residual &,
+                      resid &, const vector<connection> &, const int &);
 
-void SwapImplicitUpdate(vector<multiArray3d<genArray>> &,
-                        const vector<connection> &, const int &,
-                        const MPI_Datatype &, const int &);
+void SwapImplicitUpdate(vector<blkMultiArray3d<varArray>> &,
+                        const vector<connection> &, const int &, const int &);
 void SwapTurbVars(vector<procBlock> &, const vector<connection> &, const int &,
                   const int &);
 void SwapWallDist(vector<procBlock> &, const vector<connection> &, const int &,
@@ -113,10 +107,6 @@ void CalcResidual(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
                   const MPI_Datatype &);
 
 void CalcTimeStep(vector<procBlock> &, const input &);
-
-// void GetSolMMinusN(vector<multiArray3d<genArray>> &, const vector<procBlock> &,
-//                    const vector<multiArray3d<genArray>> &,
-//                    const unique_ptr<eos> &, const input &, const int &);
 
 // function to reorder block by hyperplanes
 vector<vector3d<int>> HyperplaneReorder(const int &, const int &, const int &);
@@ -137,67 +127,33 @@ template <typename T>
 double StencilWidth(const T &, const int &, const int &);
 
 template <typename T>
-T Derivative2nd(const double &, const double &, const double &,
+auto Derivative2nd(const double &, const double &, const double &,
                 const T &, const T &, const T &);
 
-primVars Beta0(const double &, const double &, const double &,
-               const primVars &, const primVars &, const primVars &);
-primVars Beta1(const double &, const double &, const double &,
-               const primVars &, const primVars &, const primVars &);
-primVars Beta2(const double &, const double &, const double &,
-               const primVars &, const primVars &, const primVars &);
-primVars BetaIntegral(const primVars &, const primVars &, const double &,
-                      const double &);
-primVars BetaIntegral(const primVars &, const primVars &, const double &,
-                      const double &, const double &);
-
-tensor<double> CalcVelGradTSL(const primVars&, const primVars&,
+tensor<double> CalcVelGradTSL(const primitive&, const primitive&,
                               const vector3d<double>&, const double&);
 
 kdtree CalcTreeFromCloud(const string &, const input &,
-                         const unique_ptr<transport> &, vector<primVars> &,
+                         const unique_ptr<transport> &, vector<primitive> &,
                          vector<string> &);
 
 // ---------------------------------------------------------------------------
 // inline function definitions
-
-// function to reconstruct cell variables to the face using central
-// differences
 template <typename T>
-T FaceReconCentral(const T &varU, const T &varD,
-                   const vector<double> &cellWidth) {
-  // varU -- variable at the cell center of the upwind cell
-  // varD -- variable at the cell center of the downwind cell
-  // cellWidth -- width of cells in stencil
-
-  // get coefficients
-  const auto coeffs = LagrangeCoeff(cellWidth, 1, 0, 0);
-
-  // reconstruct with central difference
-  return coeffs[0] * varD + coeffs[1] * varU;
-}
-
-// function to reconstruct cell variables to the face using central
-// differences (4th order)
-template <typename T>
-T FaceReconCentral4th(const T &varU2, const T &varU1, const T &varD1,
-                      const T &varD2, const vector<double> &cellWidth) {
-  // varU2 -- variable at the cell center of the second upwind cell
-  // varU1 -- variable at the cell center of the first upwind cell
-  // varD1 -- variable at the cell center of the first downwind cell
-  // varD2 -- variable at the cell center of the second downwind cell
-  // cellWidth -- width of cells in stencil
-
-  // get coefficients
-  const auto coeffs = LagrangeCoeff(cellWidth, 3, 1, 1);
-
-  // reconstruct with central difference
-  return coeffs[0] * varU2 + coeffs[1] * varU1 + coeffs[2] * varD1 +
-      coeffs[3] * varD2;
+double StencilWidth(const T &cellWidth, const int &start, const int &end) {
+  auto width = 0.0;
+  if (end > start) {
+    width = std::accumulate(std::begin(cellWidth) + start,
+                            std::begin(cellWidth) + end, 0.0);
+  } else if (start > end) {  // width is negative
+    width = -1.0 * std::accumulate(std::begin(cellWidth) + end,
+                                   std::begin(cellWidth) + start, 0.0);
+  }
+  return width;
 }
 
 template <typename T>
-T Derivative2nd(const double &x_0, const double &x_1, const double &x_2,
+auto Derivative2nd(const double &x_0, const double &x_1, const double &x_2,
                 const T &y_0, const T &y_1, const T &y_2) {
   const auto fwdDiff1stOrder = (y_2 - y_1) / (0.5 * (x_2 + x_1));
   const auto bckDiff1stOrder = (y_1 - y_0) / (0.5 * (x_1 + x_0));

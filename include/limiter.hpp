@@ -14,17 +14,19 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "uncoupledScalar.hpp"
+#ifndef LIMITERHEADERDEF
+#define LIMITERHEADERDEF
 
-using std::cout;
-using std::endl;
-using std::cerr;
+/* This header contains functions to limit the primitive variables during
+ * reconstruction
+ */
 
-// non-member functions
-// ----------------------------------------------------------------------------
-// operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, uncoupledScalar &scalar) {
-  os << scalar.FlowVariable() << endl;
-  os << scalar.TurbVariable() << endl;
-  return os;
-}
+// forward class declarations
+class primitive;
+
+primitive LimiterVanAlbada(const primitive &);
+primitive LimiterMinmod(const primitive &, const primitive &,
+                        const double &);
+primitive LimiterNone(const int &, const int &);
+
+#endif

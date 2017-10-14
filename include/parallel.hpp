@@ -26,7 +26,7 @@
 #include <string>                  // string
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"
-#include "multiArray3d.hpp"
+#include "blkMultiArray3d.hpp"
 
 using std::vector;
 using std::string;
@@ -104,7 +104,7 @@ class decomposition {
   int SplitHistIndex(const int &a) const {return splitHistIndex_[a];}
   string SplitHistDir(const int &a) const {return splitHistDir_[a];}
   template <typename T>
-  void DecompArray(vector<multiArray3d<T>> &) const;
+  void DecompArray(vector<blkMultiArray3d<T>> &) const;
   void PrintDiagnostics(const vector<plot3dBlock>&) const;
 
   // Destructor
@@ -122,21 +122,20 @@ decomposition CubicDecomposition(vector<plot3dBlock>&,
 void SendNumProcBlocks(const vector<int>&, int&);
 void SendConnections(vector<connection>&, const MPI_Datatype&);
 
-void SetDataTypesMPI(MPI_Datatype&, MPI_Datatype&, MPI_Datatype&, MPI_Datatype&,
-                     MPI_Datatype&, MPI_Datatype&, MPI_Datatype&,
-                     MPI_Datatype&, MPI_Datatype&);
-void FreeDataTypesMPI(MPI_Datatype&, MPI_Datatype&, MPI_Datatype&,
-                      MPI_Datatype&, MPI_Datatype&, MPI_Datatype&,
-                      MPI_Datatype&, MPI_Datatype&, MPI_Datatype&);
+void SetDataTypesMPI(MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
+                     MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
+                     MPI_Datatype &, MPI_Datatype &);
+void FreeDataTypesMPI(MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
+                      MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
+                      MPI_Datatype &, MPI_Datatype &);
 
-vector<procBlock> SendProcBlocks(const vector<procBlock>&, const int&,
-                                 const int&, const MPI_Datatype&,
-                                 const MPI_Datatype&, const MPI_Datatype&,
-                                 const MPI_Datatype&, const input &);
-void GetProcBlocks(vector<procBlock>&, const vector<procBlock>&, const int&,
-                   const MPI_Datatype&, const MPI_Datatype&,
-                   const MPI_Datatype&, const MPI_Datatype&,
-                   const MPI_Datatype&, const input &);
+vector<procBlock> SendProcBlocks(const vector<procBlock> &, const int &,
+                                 const int &, const MPI_Datatype &,
+                                 const MPI_Datatype &, const MPI_Datatype &,
+                                 const input &);
+void GetProcBlocks(vector<procBlock> &, const vector<procBlock> &, const int &,
+                   const MPI_Datatype &, const MPI_Datatype &,
+                   const MPI_Datatype &, const MPI_Datatype &, const input &);
 
 void MaxLinf(resid*, resid*, int*, MPI_Datatype*);
 
@@ -146,7 +145,7 @@ void BroadcastViscFaces(const MPI_Datatype&, vector<vector3d<double>> &);
 
 
 template <typename T>
-void decomposition::DecompArray(vector<multiArray3d<T>> &arr) const {
+void decomposition::DecompArray(vector<blkMultiArray3d<T>> &arr) const {
   // resize vector for split blocks
   arr.resize(this->NumBlocks());
 

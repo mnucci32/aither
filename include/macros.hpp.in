@@ -18,8 +18,6 @@
                          // execute these lines of code
 #define MACROSHEADERDEF  // define the macro
 
-#define NUMVARS 7
-#define NUMFLOWVARS 5
 #define EPS 1.0e-30
 #define ROOTP 0
 #define DEFAULTWALLDIST 1.0e10
@@ -29,5 +27,15 @@
 #ifdef _WIN32
 #define MPI_CXX_BOOL MPI_C_BOOL
 #endif
+
+#ifndef NDEBUG
+#  define MSG_ASSERT(expr, msg) \
+   AssertWithMessage(#expr, expr, __FILE__, __LINE__, msg)
+#else
+#  define MSG_ASSERT(expr, msg) ;
+#endif
+
+void AssertWithMessage(const char *exprStr, bool expr, const char *file, 
+                       int line, const char *msg);
 
 #endif

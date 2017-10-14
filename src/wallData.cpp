@@ -18,7 +18,7 @@
 #include "vector3d.hpp"
 #include "input.hpp"
 #include "eos.hpp"
-#include "primVars.hpp"
+#include "primitive.hpp"
 
 // member functions
 vector3d<double> wallData::WallShearStress(const int &ii, const int &jj,
@@ -183,11 +183,22 @@ void wallData::Join(const wallData &upper, const string &dir, bool &joined) {
   }
 }
 
-  primVars wallData::WallState(const int &ii, const int &jj, const int &kk,
-                     const unique_ptr<eos> &eqnState) const {
-    return primVars(this->WallDensity(ii, jj, kk), this->WallVelocity(),
-                    this->WallPressure(ii, jj, kk, eqnState),
-                    this->WallTke(ii, jj, kk), this->WallSdr(ii, jj, kk));
+  void wallData::WallState(const int &ii, const int &jj, const int &kk,
+                     const unique_ptr<eos> &eqnState, primitive &wState) const {
+    // DEBUG -- update this for multispecies
+    MSG_ASSERT(wState.NumSpecies() == 1, "Need to update for multispecies");
+    auto rho = this->WallDensity(ii, jj, kk);
+    for (auto ii = 0; ii < wState.NumSpecies(); ++ii) {
+      wState[ii] = rho;
+    }
+    wState[wState.MomentumXIndex()] = this->WallVelocity().X();
+    wState[wState.MomentumYIndex()] = this->WallVelocity().Y();
+    wState[wState.MomentumZIndex()] = this->WallVelocity().Z();
+    wState[wState.EnergyIndex()] = this->WallPressure(ii, jj, kk, eqnState);
+    for (auto ii = 0; ii < wState.NumTurbulence(); ++ii) {
+      wState[wState.TurbulenceIndex() + ii] =
+          (ii == 0) ? this->WallTke(ii, jj, kk) : this->WallSdr(ii, jj, kk);
+    }
   }
 
   void wallData::Print(ostream &os) const {

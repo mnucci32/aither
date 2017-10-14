@@ -29,19 +29,20 @@ configure_file (
 set(sources
   main.cpp
   boundaryConditions.cpp
+  conserved.cpp
   eos.cpp
   fluid.cpp
   fluxJacobian.cpp
-  genArray.cpp
   input.cpp
   inputStates.cpp
   inviscidFlux.cpp
   kdtree.cpp
+  limiter.cpp
   matrix.cpp
   output.cpp
   parallel.cpp
   plot3d.cpp
-  primVars.cpp
+  primitive.cpp
   procBlock.cpp
   range.cpp
   resid.cpp
@@ -52,6 +53,7 @@ set(sources
   turbulence.cpp
   uncoupledScalar.cpp
   utility.cpp
+  varArray.cpp
   viscousFlux.cpp
   wallData.cpp
   wallLaw.cpp

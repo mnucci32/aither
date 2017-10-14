@@ -19,7 +19,7 @@
 #include <iostream>  // cout
 #include <algorithm>  // swap
 #include "matrix.hpp"
-#include "genArray.hpp"
+#include "varArray.hpp"
 
 using std::cout;
 using std::endl;
@@ -163,31 +163,6 @@ void squareMatrix::Identity() {
       }
     }
   }
-}
-
-// member function to do matrix/vector multplication
-genArray squareMatrix::ArrayMult(const genArray &vec, const int pos) const {
-  // vec -- vector to multiply with
-
-  auto product = vec;
-
-  // zero out portion of genArray that will be written over
-  if (pos == 0) {
-    for (auto ii = 0; ii < NUMFLOWVARS; ii++) {
-      product[ii] = 0.0;
-    }
-  } else {
-    for (auto ii = pos; ii < NUMVARS; ii++) {
-      product[ii] = 0.0;
-    }
-  }
-
-  for (auto rr = 0; rr < size_; rr++) {
-    for (auto cc = 0; cc < size_; cc++) {
-      product[pos + rr] += (*this)(rr, cc) * vec[pos + cc];
-    }
-  }
-  return product;
 }
 
 // member function to find maximum absolute value on diagonal

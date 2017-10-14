@@ -25,8 +25,8 @@
 using std::ostream;
 using std::vector;
 
-// forward class declarations
-class genArray;
+// forward class declaration
+class varArray;
 
 // class to store a square matrix
 class squareMatrix {
@@ -61,7 +61,9 @@ class squareMatrix {
   void Zero();
   void Identity();
   squareMatrix MatMult(const squareMatrix &) const;
-  genArray ArrayMult(const genArray &, const int = 0) const;
+  template <typename T,
+            typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+  T ArrayMult(const T &, const int = 0) const;
   double MaxAbsValOnDiagonal() const;
 
   // operator overloads
@@ -105,6 +107,31 @@ class squareMatrix {
 
 
 // function declarations
+// member function to do matrix/vector multplication with varArray type
+template <typename T, typename TT>
+T squareMatrix::ArrayMult(const T &vec, const int pos) const {
+  // vec -- vector to multiply with
+  auto product = vec;
+
+  // zero out portion of array that will be written over
+  if (pos == 0) {
+    for (auto ii = 0; ii < vec.TurbulenceIndex(); ii++) {
+      product[ii] = 0.0;
+    }
+  } else {
+    for (auto ii = pos; ii < vec.Size(); ii++) {
+      product[ii] = 0.0;
+    }
+  }
+
+  for (auto rr = 0; rr < size_; rr++) {
+    for (auto cc = 0; cc < size_; cc++) {
+      product[pos + rr] += (*this)(rr, cc) * vec[pos + cc];
+    }
+  }
+  return product;
+}
+
 ostream &operator<<(ostream &os, const squareMatrix &);
 
 // operator overload for addition

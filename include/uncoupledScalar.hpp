@@ -20,6 +20,8 @@
 
 #include <iostream>        // cout
 #include <algorithm>       // max
+#include <type_traits>
+#include "arrayView.hpp"
 
 using std::cout;
 using std::endl;
@@ -27,7 +29,7 @@ using std::cerr;
 using std::ostream;
 
 // forward class declarations
-class genArray;
+class varArray;
 
 // This class holds variables that may be different for each set of
 // equations being solved. For example the spectral radii of the flow
@@ -68,9 +70,28 @@ class uncoupledScalar {
     turbVar_ = 0.0;
   }
 
-  genArray ArrayMult(genArray) const;
+  template <typename T,
+            typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+  T ArrayMult(T arr) const {
+    for (auto ii = 0; ii < arr.TurbulenceIndex(); ++ii) {
+      arr[ii] *= flowVar_;
+    }
+    for (auto ii = arr.TurbulenceIndex(); ii < arr.Size(); ++ii) {
+      arr[ii] *= turbVar_;
+    }
+    return arr;
+  }
+  template <typename T,
+            typename = std::enable_if_t<std::is_same<varArrayView, T>::value ||
+                                        std::is_same<primitiveView, T>::value ||
+                                        std::is_same<conservedView, T>::value ||
+                                        std::is_same<residualView, T>::value>>
+  auto ArrayMult(const T &arrView) const {
+    auto arr = arrView.CopyData();
+    return this->ArrayMult(arr);
+  }
 
-  inline uncoupledScalar & operator+=(const uncoupledScalar &);
+  inline uncoupledScalar &operator+=(const uncoupledScalar &);
   inline uncoupledScalar & operator-=(const uncoupledScalar &);
   inline uncoupledScalar & operator*=(const uncoupledScalar &);
   inline uncoupledScalar & operator/=(const uncoupledScalar &);

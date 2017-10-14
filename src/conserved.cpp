@@ -14,17 +14,22 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "uncoupledScalar.hpp"
+#include <iostream>  // cout
+#include "conserved.hpp"
 
 using std::cout;
 using std::endl;
 using std::cerr;
 
-// non-member functions
-// ----------------------------------------------------------------------------
-// operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, uncoupledScalar &scalar) {
-  os << scalar.FlowVariable() << endl;
-  os << scalar.TurbVariable() << endl;
+// ------------------------------------------------------------------
+// functions for conserved class
+
+// operation overload for << - allows use of cout, cerr, etc.
+ostream &operator<<(ostream &os, const conserved &m) {
+  for (auto rr = 0; rr < m.Size(); rr++) {
+    os << m[rr] << endl;
+  }
   return os;
 }
+
+

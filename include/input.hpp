@@ -200,7 +200,8 @@ class input {
   int NumVarsOutput() const {return outputVariables_.size();}
   int NumWallVarsOutput() const {return wallOutputVariables_.size();}
   int NumEquations() const;
-  int NumFlowEquations() const {return NUMFLOWVARS;}
+  int NumSpecies() const { return 1; }  // DEBUG -- update this
+  int NumFlowEquations() const {return 4 + this->NumSpecies();}
   int NumTurbEquations() const;
 
   void ReadInput(const int &);

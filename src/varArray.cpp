@@ -14,17 +14,31 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "uncoupledScalar.hpp"
+#include <cstdlib>  // exit()
+#include <iostream>  // cout
+#include <cmath>
+#include "varArray.hpp"
+#include "mpi.h"
 
 using std::cout;
 using std::endl;
 using std::cerr;
 
-// non-member functions
-// ----------------------------------------------------------------------------
-// operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, uncoupledScalar &scalar) {
-  os << scalar.FlowVariable() << endl;
-  os << scalar.TurbVariable() << endl;
-  return os;
+// ------------------------------------------------------------------
+// functions for varArray class
+varArray varArray::Squared() const {
+  auto sq = (*this);
+  return sq *= sq;
+}
+
+// member function to sum the residuals from all processors
+void residual::GlobalReduceMPI(const int &rank) {
+  // Get residuals from all processors
+  if (rank == ROOTP) {
+    MPI_Reduce(MPI_IN_PLACE, &(*this)[0], this->Size(), MPI_DOUBLE, MPI_SUM,
+               ROOTP, MPI_COMM_WORLD);
+  } else {
+    MPI_Reduce(&(*this)[0], &(*this)[0], this->Size(), MPI_DOUBLE, MPI_SUM, ROOTP,
+               MPI_COMM_WORLD);
+  }
 }

@@ -91,7 +91,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   restartFrequency_ = 0;  // default to not write restarts
   iterationStart_ = 0;  // default to start from iteration zero
 
-  // default to primative variables
+  // default to primitive variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
   wallOutputVariables_ = {};
 
@@ -542,6 +542,7 @@ void input::ReadInput(const int &rank) {
             "#########################################################" << endl
          << endl;
   }
+  inFile.close();
 }
 
 // member function to calculate the cfl value for the step from the starting,
