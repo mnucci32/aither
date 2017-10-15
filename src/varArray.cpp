@@ -19,6 +19,7 @@
 #include <cmath>
 #include "varArray.hpp"
 #include "mpi.h"
+#include "arrayView.hpp"
 
 using std::cout;
 using std::endl;
@@ -31,6 +32,10 @@ varArray varArray::Squared() const {
   return sq *= sq;
 }
 
+arrayView<varArray, double> varArray::GetView() const {
+  return {this->begin(), this->end(), this->NumSpecies()};
+}
+
 // member function to sum the residuals from all processors
 void residual::GlobalReduceMPI(const int &rank) {
   // Get residuals from all processors
@@ -41,4 +46,8 @@ void residual::GlobalReduceMPI(const int &rank) {
     MPI_Reduce(&(*this)[0], &(*this)[0], this->Size(), MPI_DOUBLE, MPI_SUM, ROOTP,
                MPI_COMM_WORLD);
   }
+}
+
+arrayView<residual, double> residual::GetView() const {
+  return {this->begin(), this->end(), this->NumSpecies()};
 }

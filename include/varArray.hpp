@@ -29,6 +29,10 @@
 using std::ostream;
 using std::vector;
 
+// forward declarations
+template <typename T1, typename T2>
+class arrayView;
+
 // Class to hold an array of variables. Length is equal to number of equations
 // being solved for.
 class varArray {
@@ -118,6 +122,8 @@ class varArray {
   const auto begin() const noexcept {return data_.begin();}
   auto end() noexcept {return data_.end();}
   const auto end() const noexcept {return data_.end();}
+
+  arrayView<varArray, double> GetView() const;
 
   // operator overloads
   const double & operator[](const int &r) const { return data_[r]; }
@@ -563,6 +569,8 @@ class residual : public varArray {
   // member functions
   const double & MassN(const int &ii) const { return this->SpeciesN(ii); }
   void GlobalReduceMPI(const int &);
+
+  arrayView<residual, double> GetView() const;
 
   // destructor
   virtual ~residual() noexcept {}
