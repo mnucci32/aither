@@ -110,6 +110,8 @@ class arrayView {
     return (*this)[turbulenceIndex_ + ii];
   }
 
+  arrayView<T1, T2> GetView() const { return *this; }
+
   // --------------------------------------------------------------------------
   // getters for primitives ---------------------------------------------------
   const T2 &RhoN(const int &ii) const { 
