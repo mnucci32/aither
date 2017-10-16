@@ -104,6 +104,10 @@ class primitive : public varArray {
     return sq *= sq;
   }
 
+  arrayView<primitive, double> GetView() const {
+    return {this->begin(), this->end(), this->NumSpecies()};
+  }
+
   vector3d<double> Velocity() const {
     return {this->U(), this->V(), this->W()};
   }

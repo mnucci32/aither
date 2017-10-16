@@ -42,13 +42,15 @@ class conserved : public varArray {
   const double & RhoOmega() const { return this->TurbulenceN(1); }
   const double & RhoTurbN(const int &ii) const { return this->TurbulenceN(ii); }
 
+  arrayView<conserved, double> GetView() const;
+
   // move constructor and assignment operator
-  conserved(conserved&&) noexcept = default;
-  conserved& operator=(conserved&&) noexcept = default;
+  conserved(conserved &&) noexcept = default;
+  conserved &operator=(conserved &&) noexcept = default;
 
   // copy constructor and assignment operator
-  conserved(const conserved&) = default;
-  conserved& operator=(const conserved&) = default;
+  conserved(const conserved &) = default;
+  conserved &operator=(const conserved &) = default;
 
   // destructor
   ~conserved() noexcept {}

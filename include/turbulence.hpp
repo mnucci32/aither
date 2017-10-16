@@ -56,8 +56,15 @@ class turbModel {
   // member functions
   string EddyViscMethod() const {return eddyViscMethod_;}
   tensor<double> MeanStrainRate(const tensor<double> &) const;
-  virtual double EddyViscNoLim(const primitive &state) const;
-  virtual double EddyViscNoLim(const primitiveView &state) const;
+  template <typename T>
+  double EddyViscNoLim(const T &state) const {
+    static_assert(std::is_same<primitive, T>::value ||
+                      std::is_same<primitiveView, T>::value,
+                  "T requires primitive or primativeView type");
+    auto view = state.GetView();
+    return this->EddyViscosityNoLim(view);
+  }
+  virtual double EddyViscosityNoLim(const primitiveView &state) const;
   virtual double TurbPrandtlNumber() const {return 0.9;}
   virtual double TkeMin() const {return 1.0e-20;}
   virtual double OmegaMin() const {return 1.0e-20;}
@@ -81,91 +88,143 @@ class turbModel {
   virtual double SrcSpecRad(const primitiveView &state,
                             const unique_ptr<transport> &trans, const double &vol,
                             const double &phi = 1.0) const {return 0.0;}
-  virtual squareMatrix InviscidJacobian(const primitive &state,
-                                        const unitVec3dMag<double> &fArea,
-                                        const bool &positive) const;
-  virtual squareMatrix InviscidConvJacobian(
-      const primitive &state, const unitVec3dMag<double> &fArea) const;
-  virtual squareMatrix InviscidConvJacobian(
-      const primitiveView &state, const unitVec3dMag<double> &fArea) const;
-  virtual squareMatrix InviscidDissJacobian(
-      const primitive &state, const unitVec3dMag<double> &fArea) const;
-  virtual squareMatrix InviscidDissJacobian(
-      const primitiveView &state, const unitVec3dMag<double> &fArea) const;
-  virtual double InviscidCellSpecRad(const primitive &state,
-                                     const unitVec3dMag<double> &fAreaL,
-                                     const unitVec3dMag<double> &fAreaR) const;
-  virtual double InviscidCellSpecRad(const primitiveView &state,
-                                     const unitVec3dMag<double> &fAreaL,
-                                     const unitVec3dMag<double> &fAreaR) const;
-  virtual double InviscidFaceSpecRad(const primitive &state,
-                                     const unitVec3dMag<double> &fArea,
-                                     const bool &positive) const;
-  virtual double InviscidFaceSpecRad(const primitiveView &state,
-                                     const unitVec3dMag<double> &fArea,
-                                     const bool &positive) const;
-  virtual squareMatrix ViscousJacobian(const primitive &state,
-                                       const unitVec3dMag<double> &fArea,
-                                       const double &mu,
-                                       const unique_ptr<transport> &trans,
-                                       const double &dist, const double &mut,
-                                       const double &f1) const;
-  virtual squareMatrix ViscousJacobian(const primitiveView &state,
-                                       const unitVec3dMag<double> &fArea,
-                                       const double &mu,
-                                       const unique_ptr<transport> &trans,
-                                       const double &dist, const double &mut,
-                                       const double &f1) const;
-  virtual double ViscCellSpecRad(const primitive &state,
-                                 const unitVec3dMag<double> &fAreaL,
-                                 const unitVec3dMag<double> &fAreaR,
-                                 const double &mu,
-                                 const unique_ptr<transport> &trans,
-                                 const double &vol, const double &mut,
-                                 const double &f1) const {
-    return 0.0;
-  }
-  virtual double ViscCellSpecRad(const primitiveView &state,
-                                 const unitVec3dMag<double> &fAreaL,
-                                 const unitVec3dMag<double> &fAreaR,
-                                 const double &mu,
-                                 const unique_ptr<transport> &trans,
-                                 const double &vol, const double &mut,
-                                 const double &f1) const {
-    return 0.0;
-  }
-  virtual double ViscFaceSpecRad(const primitive &state,
-                                 const unitVec3dMag<double> &fArea,
-                                 const double &mu,
-                                 const unique_ptr<transport> &trans,
-                                 const double &dist, const double &mut,
-                                 const double &f1) const {
-    return 0.0;
-  }
-  virtual double ViscFaceSpecRad(const primitiveView &state,
-                                 const unitVec3dMag<double> &fArea,
-                                 const double &mu,
-                                 const unique_ptr<transport> &trans,
-                                 const double &dist, const double &mut,
-                                 const double &f1) const {
-    return 0.0;
-  }
+
   template <typename T>
-  tensor<double> BoussinesqReynoldsStress(const T &state,
+  squareMatrix InviscidJacobian(const T &state,
+                                const unitVec3dMag<double> &fArea,
+                                const bool &positive) const {
+    static_assert(std::is_same<primitive, T>::value ||
+                      std::is_same<primitiveView, T>::value,
+                  "T requires primitive or primativeView type");
+    auto view = state.GetView();
+    return this->InvJac(view, fArea, positive);
+  }
+  virtual squareMatrix InvJac(const primitiveView &state,
+                              const unitVec3dMag<double> &fArea,
+                              const bool &positive) const;
+  template <typename T>
+  squareMatrix InviscidConvJacobian(const T &state,
+                                    const unitVec3dMag<double> &fArea) const {
+    static_assert(std::is_same<primitive, T>::value ||
+                      std::is_same<primitiveView, T>::value,
+                  "T requires primitive or primativeView type");
+    auto view = state.GetView();
+    return this->InviscidConvectiveJacobian(view, fArea);
+  }
+  virtual squareMatrix InviscidConvectiveJacobian(
+      const primitiveView &state, const unitVec3dMag<double> &fArea) const;
+
+  template <typename T>
+  squareMatrix InviscidDissJacobian(const T &state,
+                                    const unitVec3dMag<double> &fArea) const {
+    static_assert(std::is_same<primitive, T>::value ||
+                      std::is_same<primitiveView, T>::value,
+                  "T requires primitive or primativeView type");
+    auto view = state.GetView();
+    return this->InviscidDissipationJacobian(view, fArea);
+  }
+  virtual squareMatrix InviscidDissipationJacobian(
+      const primitiveView &state, const unitVec3dMag<double> &fArea) const;
+
+  template <typename T>
+  double InviscidCellSpecRad(const T &state, const unitVec3dMag<double> &fAreaL,
+                             const unitVec3dMag<double> &fAreaR) const {
+    static_assert(std::is_same<primitive, T>::value ||
+                      std::is_same<primitiveView, T>::value,
+                  "T requires primitive or primativeView type");
+    auto view = state.GetView();
+    return this->InviscidCellSpectralRadius(view, fAreaL, fAreaR);
+  }
+  virtual double InviscidCellSpectralRadius(
+      const primitiveView &state, const unitVec3dMag<double> &fAreaL,
+      const unitVec3dMag<double> &fAreaR) const;
+
+  template <typename T>
+  double InviscidFaceSpecRad(const T &state, const unitVec3dMag<double> &fArea,
+                             const bool &positive) const {
+    static_assert(std::is_same<primitive, T>::value ||
+                      std::is_same<primitiveView, T>::value,
+                  "T requires primitive or primativeView type");
+    auto view = state.GetView();
+    return this->InviscidFaceSpectralRadius(view, fArea);
+  }
+  virtual double InviscidFaceSpectralRadius(const primitiveView &state,
+                                            const unitVec3dMag<double> &fArea,
+                                            const bool &positive) const;
+
+  template <typename T>
+  squareMatrix ViscousJacobian(const T &state,
+                               const unitVec3dMag<double> &fArea,
+                               const double &mu,
+                               const unique_ptr<transport> &trans,
+                               const double &dist, const double &mut,
+                               const double &f1) const {
+    static_assert(std::is_same<primitive, T>::value ||
+                      std::is_same<primitiveView, T>::value,
+                  "T requires primitive or primativeView type");
+    auto view = state.GetView();
+    return this->ViscJac(view, fArea, mu, trans, dist, mut, f1);
+  }
+  virtual squareMatrix ViscJac(const primitiveView &state,
+                               const unitVec3dMag<double> &fArea,
+                               const double &mu,
+                               const unique_ptr<transport> &trans,
+                               const double &dist, const double &mut,
+                               const double &f1) const;
+
+  template <typename T>
+  double ViscCellSpecRad(const T &state, const unitVec3dMag<double> &fAreaL,
+                         const unitVec3dMag<double> &fAreaR, const double &mu,
+                         const unique_ptr<transport> &trans, const double &vol,
+                         const double &mut, const double &f1) const {
+    static_assert(std::is_same<primitive, T>::value ||
+                      std::is_same<primitiveView, T>::value,
+                  "T requires primitive or primativeView type");
+    auto view = state.GetView();
+    return this->ViscousCellSpectralRadius(view, fAreaL, fAreaR, mu, trans, vol,
+                                           mut, f1);
+  }
+  virtual double ViscousCellSpectralRadius(const primitiveView &state,
+                                           const unitVec3dMag<double> &fAreaL,
+                                           const unitVec3dMag<double> &fAreaR,
+                                           const double &mu,
+                                           const unique_ptr<transport> &trans,
+                                           const double &vol, const double &mut,
+                                           const double &f1) const {
+    return 0.0;
+  }
+
+  template <typename T>
+  double ViscFaceSpecRad(const T &state, const unitVec3dMag<double> &fArea,
+                         const double &mu, const unique_ptr<transport> &trans,
+                         const double &dist, const double &mut,
+                         const double &f1) const {
+    static_assert(std::is_same<primitive, T>::value ||
+                      std::is_same<primitiveView, T>::value,
+                  "T requires primitive or primativeView type");
+    auto view = state.GetView();
+    return this->ViscousFaceSpectralRadius(view, fArea, mu, trans, dist, mut,
+                                           f1);
+  }
+  virtual double ViscousFaceSpectralRadius(
+      const primitiveView &state, const unitVec3dMag<double> &fArea,
+      const double &mu, const unique_ptr<transport> &trans, const double &dist,
+      const double &mut, const double &f1) const {
+    return 0.0;
+  }
+
+  tensor<double> BoussinesqReynoldsStress(const primitiveView &state,
                                           const tensor<double> &velGrad,
                                           const unique_ptr<transport> &trans,
                                           const double &mut) const;
-  template <typename T>
-  double ReynoldsStressDDotVelGrad(const T &state,
+  double ReynoldsStressDDotVelGrad(const primitiveView &state,
                                    const tensor<double> &velGrad,
                                    const unique_ptr<transport> &trans,
                                    const double &mut) const;
-  template <typename T>
-  double TkeDestruction(const T &state, const double &phi = 1.0) const;
-  template <typename T>
-  double OmegaDestruction(const T &state) const;
-  template <typename T>
-  double CrossDiffusion(const T &state,
+  double TkeDestruction(const primitiveView &state,
+                        const double &phi = 1.0) const;
+  double OmegaDestruction(const primitiveView &state) const;
+  double CrossDiffusion(const primitiveView &state,
                         const vector3d<double> &kGrad,
                         const vector3d<double> &wGrad) const;
 
@@ -182,6 +241,7 @@ class turbModel {
                             const unique_ptr<transport> &trans,
                             const double &dist, const double &mut,
                             const double &f1, const bool &positive) const;
+
   virtual squareMatrix CalcTurbSrc(
       const primitiveView &state, const tensor<double> &velGrad,
       const vector3d<double> &kGrad, const vector3d<double> &wGrad,
@@ -209,6 +269,39 @@ class turbModel {
   virtual ~turbModel() noexcept {}
 };
 
+
+// member function to calculate the spectral radius of the turbulence equations
+template <typename T>
+double turbModel::CellSpectralRadius(
+    const T &state, const unitVec3dMag<double> &fAreaL,
+    const unitVec3dMag<double> &fAreaR, const double &mu,
+    const unique_ptr<transport> &trans, const double &vol, const double &mut,
+    const double &f1, const bool &addSrc) const {
+  // state -- primitive variables
+  // fAreaL -- area at left face
+  // fAreaR -- area at right face
+  // mu -- laminar viscosity
+  // trans -- viscous transport model
+  // vol -- cell volume
+  // mut -- turbulent viscosity
+  // f1 -- first blending coefficient
+  // addSrc -- flag to determine if source jacobian spectral radius should be
+  //           included
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+
+  auto specRad = this->InviscidCellSpectralRadius(state, fAreaL, fAreaR);
+  // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
+  specRad += 2.0 * this->ViscousCellSpectralRadius(state, fAreaL, fAreaR, mu,
+                                                   trans, vol, mut, f1);
+  if (addSrc) {
+    // minus sign because source terms are on RHS
+    specRad -= this->SrcSpecRad(state, trans, vol);
+  }
+  return specRad;
+}
+
 template <typename T>
 double turbModel::FaceSpectralRadius(
     const T &state, const unitVec3dMag<double> &fArea, const double &mu,
@@ -226,8 +319,9 @@ double turbModel::FaceSpectralRadius(
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
                 
-  auto specRad = this->InviscidFaceSpecRad(state, fArea, positive);
-  specRad += this->ViscFaceSpecRad(state, fArea, mu, trans, dist, mut, f1);
+  auto specRad = this->InviscidFaceSpectralRadius(state, fArea, positive);
+  specRad +=
+      this->ViscousFaceSpectralRadius(state, fArea, mu, trans, dist, mut, f1);
   return specRad;
 }
 
@@ -255,42 +349,27 @@ class turbNone : public turbModel {
                            const unique_ptr<transport> &trans,
                            const double &length, double &mut, double &f1,
                            double &f2) const override {}
-  double EddyViscNoLim(const primitive &state) const override { return 0.0; }
-  double EddyViscNoLim(const primitiveView &state) const override {
+  double EddyViscosityNoLim(const primitiveView &state) const override {
     return 0.0;
   }
-  double InviscidCellSpecRad(
-      const primitive &state, const unitVec3dMag<double> &fAreaL,
-      const unitVec3dMag<double> &fAreaR) const override {
-    return 0.0;
-  }
-  double InviscidCellSpecRad(
+  double InviscidCellSpectralRadius(
       const primitiveView &state, const unitVec3dMag<double> &fAreaL,
       const unitVec3dMag<double> &fAreaR) const override {
     return 0.0;
   }
-  double InviscidFaceSpecRad(const primitive &state,
-                             const unitVec3dMag<double> &fArea,
-                             const bool &postive) const override {
-    return 0.0;
-  }
-  double InviscidFaceSpecRad(const primitiveView &state,
-                             const unitVec3dMag<double> &fArea,
-                             const bool &postive) const override {
+  double InviscidFaceSpectralRadius(const primitiveView &state,
+                                    const unitVec3dMag<double> &fArea,
+                                    const bool &postive) const override {
     return 0.0;
   }
 
-  squareMatrix InviscidJacobian(const primitive &state,
-                                const unitVec3dMag<double> &fArea,
-                                const bool &positive) const override;
-  squareMatrix InviscidConvJacobian(
-      const primitive &state, const unitVec3dMag<double> &fArea) const override;
-  squareMatrix InviscidConvJacobian(
+  squareMatrix InvJac(const primitiveView &state,
+                      const unitVec3dMag<double> &fArea,
+                      const bool &positive) const override;
+  squareMatrix InviscidConvectiveJacobian(
       const primitiveView &state,
       const unitVec3dMag<double> &fArea) const override;
-  squareMatrix InviscidDissJacobian(
-      const primitive &state, const unitVec3dMag<double> &fArea) const override;
-  squareMatrix InviscidDissJacobian(
+  squareMatrix InviscidDissipationJacobian(
       const primitiveView &state,
       const unitVec3dMag<double> &fArea) const override;
 
@@ -317,18 +396,14 @@ class turbKWWilcox : public turbModel {
 
   // private member functions
   double SigmaD(const vector3d<double>&, const vector3d<double>&) const;
-  template <typename T>
-  double Xw(const T &, const tensor<double> &,
+  double Xw(const primitiveView &, const tensor<double> &,
             const unique_ptr<transport> &) const;
-  template <typename T>
-  double FBeta(const T &, const tensor<double> &,
+  double FBeta(const primitiveView &, const tensor<double> &,
                const unique_ptr<transport> &) const;
-  template <typename T>
-  double Beta(const T &, const tensor<double> &,
+  double Beta(const primitiveView &, const tensor<double> &,
               const unique_ptr<transport> &) const;
   tensor<double> StrainKI(const tensor<double> &) const;
-  template <typename T>
-  double OmegaTilda(const T &, const tensor<double>&,
+  double OmegaTilda(const primitive &, const tensor<double>&,
                     const unique_ptr<transport>&) const;
 
  public:
@@ -361,31 +436,21 @@ class turbKWWilcox : public turbModel {
   bool UseUnlimitedEddyVisc() const override { return true; }
   double SrcSpecRad(const primitiveView &, const unique_ptr<transport> &,
                     const double &, const double & = 1.0) const override;
-  squareMatrix ViscousJacobian(const primitive &,
-                               const unitVec3dMag<double> &,
-                               const double &, const unique_ptr<transport> &,
-                               const double &, const double &,
-                               const double &) const override;
-  squareMatrix ViscousJacobian(const primitiveView &,
-                               const unitVec3dMag<double> &, const double &,
-                               const unique_ptr<transport> &, const double &,
-                               const double &, const double &) const override;
-  double ViscCellSpecRad(const primitive &, const unitVec3dMag<double> &,
-                         const unitVec3dMag<double> &, const double &,
-                         const unique_ptr<transport> &, const double &,
-                         const double &, const double &) const override;
-  double ViscCellSpecRad(const primitiveView &, const unitVec3dMag<double> &,
-                         const unitVec3dMag<double> &, const double &,
-                         const unique_ptr<transport> &, const double &,
-                         const double &, const double &) const override;
-  double ViscFaceSpecRad(const primitive &, const unitVec3dMag<double> &,
-                         const double &, const unique_ptr<transport> &,
-                         const double &, const double &,
-                         const double &) const override;
-  double ViscFaceSpecRad(const primitiveView &, const unitVec3dMag<double> &,
-                         const double &, const unique_ptr<transport> &,
-                         const double &, const double &,
-                         const double &) const override;
+  squareMatrix ViscJac(const primitiveView &, const unitVec3dMag<double> &,
+                       const double &, const unique_ptr<transport> &,
+                       const double &, const double &,
+                       const double &) const override;
+  double ViscousCellSpectralRadius(const primitiveView &,
+                                   const unitVec3dMag<double> &,
+                                   const unitVec3dMag<double> &, const double &,
+                                   const unique_ptr<transport> &,
+                                   const double &, const double &,
+                                   const double &) const override;
+  double ViscousFaceSpectralRadius(const primitiveView &,
+                                   const unitVec3dMag<double> &, const double &,
+                                   const unique_ptr<transport> &,
+                                   const double &, const double &,
+                                   const double &) const override;
 
   squareMatrix TurbSrcJac(const primitiveView &, const double &,
                           const unique_ptr<transport> &, const double &,
@@ -394,8 +459,8 @@ class turbKWWilcox : public turbModel {
   double TurbPrandtlNumber() const override {return prt_;}
   double WallBeta() const override {return beta0_;}
 
-  template <typename T>
-  double TurbLengthScale(const T &state, const unique_ptr<transport> &) const;
+  double TurbLengthScale(const primitiveView &state,
+                         const unique_ptr<transport> &) const;
 
   double Gamma() const {return gamma_;}
   double BetaStar() const override {return betaStar_;}
@@ -435,13 +500,11 @@ class turbKWSst : public turbModel {
   // private member functions
   double F1(const double &, const double &, const double &) const;
   double F2(const double &, const double &) const;
-  template <typename T>
-  double Alpha1(const T &, const unique_ptr<transport> &, const double &) const;
-  template <typename T>
-  double Alpha2(const T &, const unique_ptr<transport> &, const double &,
+  double Alpha1(const primitive &, const unique_ptr<transport> &,
                 const double &) const;
-  template <typename T>
-  double Alpha3(const T &, const double &, const double &) const;
+  double Alpha2(const primitive &, const unique_ptr<transport> &,
+                const double &, const double &) const;
+  double Alpha3(const primitive &, const double &, const double &) const;
 
  public:
   // constructor
@@ -458,13 +521,22 @@ class turbKWSst : public turbModel {
 
   // member functions
   double BlendedCoeff(const double &, const double &, const double &) const;
+
   template <typename T>
-  double CDkw(const T &, const vector3d<double> &,
-              const vector3d<double> &) const;
+  double CDkw(const T &state, const vector3d<double> &kGrad,
+              const vector3d<double> &wGrad) const {
+    static_assert(std::is_same<primitive, T>::value ||
+                      std::is_same<primitiveView, T>::value,
+                  "T requires primitive or primativeView type");
+    return std::max(
+        2.0 * state.Rho() * sigmaW2_ / state.Omega() * kGrad.DotProd(wGrad),
+        1.0e-10);
+  }
+  
   virtual squareMatrix CalcTurbSrc(
       const primitiveView &, const tensor<double> &, const vector3d<double> &,
       const vector3d<double> &, const unique_ptr<transport> &, const double &,
-      const double &, const double &, const double &, const double &, 
+      const double &, const double &, const double &, const double &,
       vector<double> &) const override;
   double EddyVisc(const primitive &, const tensor<double> &,
                   const unique_ptr<transport> &, const double &,
@@ -478,31 +550,21 @@ class turbKWSst : public turbModel {
   virtual double SrcSpecRad(const primitiveView &,
                             const unique_ptr<transport> &, const double &,
                             const double & = 1.0) const override;
-  squareMatrix ViscousJacobian(const primitive &, const unitVec3dMag<double> &,
-                               const double &, const unique_ptr<transport> &,
-                               const double &, const double &,
-                               const double &) const override;
-  squareMatrix ViscousJacobian(const primitiveView &,
-                               const unitVec3dMag<double> &, const double &,
-                               const unique_ptr<transport> &, const double &,
-                               const double &, const double &) const override;
-  double ViscCellSpecRad(const primitive &, const unitVec3dMag<double> &,
-                         const unitVec3dMag<double> &, const double &,
-                         const unique_ptr<transport> &, const double &,
-                         const double &, const double &) const override;
-  double ViscCellSpecRad(const primitiveView &, const unitVec3dMag<double> &,
-                         const unitVec3dMag<double> &, const double &,
-                         const unique_ptr<transport> &, const double &,
-                         const double &, const double &) const override;
-  double ViscFaceSpecRad(const primitive &, const unitVec3dMag<double> &,
-                         const double &, const unique_ptr<transport> &,
-                         const double &, const double &,
-                         const double &) const override;
-  double ViscFaceSpecRad(const primitiveView &,
-                         const unitVec3dMag<double> &,
-                         const double &, const unique_ptr<transport> &,
-                         const double &, const double &,
-                         const double &) const override;
+  squareMatrix ViscJac(const primitiveView &, const unitVec3dMag<double> &,
+                       const double &, const unique_ptr<transport> &,
+                       const double &, const double &,
+                       const double &) const override;
+  double ViscousCellSpectralRadius(const primitiveView &,
+                                   const unitVec3dMag<double> &,
+                                   const unitVec3dMag<double> &, const double &,
+                                   const unique_ptr<transport> &,
+                                   const double &, const double &,
+                                   const double &) const override;
+  double ViscousFaceSpectralRadius(const primitiveView &,
+                                   const unitVec3dMag<double> &, const double &,
+                                   const unique_ptr<transport> &,
+                                   const double &, const double &,
+                                   const double &) const override;
 
   virtual squareMatrix TurbSrcJac(const primitiveView &, const double &,
                                   const unique_ptr<transport> &,
@@ -525,8 +587,8 @@ class turbKWSst : public turbModel {
   double A1() const {return a1_;}
   double BetaStar() const override {return betaStar_;}
   double TkeProd2DestRatio() const {return kProd2Dest_;}
-  template <typename T>
-  double TurbLengthScale(const T &state, const unique_ptr<transport> &) const;
+  double TurbLengthScale(const primitiveView &state,
+                         const unique_ptr<transport> &) const;
 
   // use coefficients from 1 because they are smaller
   // this is used for TSL flux jacobian, so smaller will help increase
@@ -553,9 +615,9 @@ class turbSstDes : public turbKWSst {
   const double cdes2_ = 0.61;
 
   // private member functions
-  template <typename T>
-  double Phi(const T &state, const double &cdes, const double &width,
-             const double &f2, const unique_ptr<transport> &trans) const;
+  double Phi(const primitiveView &state, const double &cdes,
+             const double &width, const double &f2,
+             const unique_ptr<transport> &trans) const;
 
  public:
   // constructor
@@ -641,161 +703,6 @@ class turbWale : public turbModel {
 // ---------------------------------------------------------------------------
 // --------------------------------------------------------------------------
 // function declarations
-template <typename T>
-double EddyViscUnlimited(const T &state) {
-  // state -- primitive variables
-  static_assert(std::is_same<primitive, T>::value ||
-                    std::is_same<primitiveView, T>::value,
-                "T requires primitive or primativeView type");
 
-  return state.Rho() * state.Tke() / state.Omega();
-}
-
-// function to calculate inviscid spectral radius
-// df_dq = [vel (dot) area   0
-//                0          vel (dot) area]
-template <typename T>
-double InviscidCellSpectralRadius(const T &state,
-                                  const unitVec3dMag<double> &fAreaL,
-                                  const unitVec3dMag<double> &fAreaR) {
-  // state -- primitive variables
-  // fAreaL -- face area for left face
-  // fAreaR -- face area for right face
-  static_assert(std::is_same<primitive, T>::value ||
-                    std::is_same<primitiveView, T>::value,
-                "T requires primitive or primativeView type");
-
-  auto normAvg = (0.5 * (fAreaL.UnitVector() +
-                         fAreaR.UnitVector())).Normalize();
-  auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
-  return fabs(state.Velocity().DotProd(normAvg)) * fMag;
-}
-
-template <typename T>
-double InviscidFaceSpectralRadius(const T &state,
-                                  const unitVec3dMag<double> &fArea,
-                                  const bool &positive) {
-  // state -- primitive variables
-  // fArea -- face area
-  // positive -- add or subtract dissipation term
-  static_assert(std::is_same<primitive, T>::value ||
-                    std::is_same<primitiveView, T>::value,
-                "T requires primitive or primativeView type");
-
-  const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
-  // returning absolute value because it is expected that spectral radius is
-  // positive
-  return positive ? 0.5 * fArea.Mag() * fabs(velNorm + fabs(velNorm)) :
-      0.5 * fArea.Mag() * fabs(velNorm - fabs(velNorm));
-}
-
-
-// function to calculate convective portion of inviscid flux jacobian
-template <typename T>
-squareMatrix InviscidConvectiveJacobian(
-    const T &state, const unitVec3dMag<double> &fArea) {
-  // state -- primitive variables at face
-  // fArea -- face area
-  static_assert(std::is_same<primitive, T>::value ||
-                    std::is_same<primitiveView, T>::value,
-                "T requires primitive or primativeView type");
-
-  const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
-  const auto diag = velNorm * fArea.Mag();
-  squareMatrix jacobian(2);
-  jacobian(0, 0) = diag;
-  jacobian(1, 1) = diag;
-  return jacobian;
-}
-
-// function to calculate dissipative portion of inviscid flux jacobian
-template <typename T>
-squareMatrix InviscidDissipativeJacobian(
-    const T &state, const unitVec3dMag<double> &fArea) {
-  // state -- primitive variables at face
-  // fArea -- face area
-  static_assert(std::is_same<primitive, T>::value ||
-                    std::is_same<primitiveView, T>::value,
-                "T requires primitive or primativeView type");
-
-  const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
-  const auto diag = fabs(velNorm) * fArea.Mag();
-  squareMatrix jacobian(2);
-  jacobian(0, 0) = diag;
-  jacobian(1, 1) = diag;
-  return jacobian;
-}
-
-// function to calculate the viscous face spectral radius
-template <typename T>
-double ViscousFaceSpectralRadius(const T &state,
-                                  const unitVec3dMag<double> &fArea,
-                                  const double &mu,
-                                  const unique_ptr<transport> &trans,
-                                  const double &dist, const double &mut,
-                                  const double &sigmaK) {
-  // state -- primitive variables
-  // fArea -- face area
-  // mu -- laminar viscosity
-  // trans -- viscous transport model
-  // dist -- distance from cell center to cell center
-  // mut -- turbulent viscosity
-  // f1 -- first blending coefficient
-  static_assert(std::is_same<primitive, T>::value ||
-                    std::is_same<primitiveView, T>::value,
-                "T requires primitive or primativeView type");
-  auto length = fArea.Mag() / dist;
-  return ViscousSpectralRadius(state, length, mu, trans, mut, sigmaK);
-}
-
-// function to calculate viscous spectral radius
-// dfv_dq = [ (area / vol) * (nu + sigmaStar * nut)    0
-//                           0                (area / vol) * (nu + sigma * nut)]
-template <typename T>
-double ViscousSpectralRadius(const T &state,
-                             const double &length, const double &mu,
-                             const unique_ptr<transport> &trans,
-                             const double &mut, const double &coeff) {
-  // state -- primitive variables
-  // fAreaL -- face area for left face
-  // fAreaR -- face area for right face
-  // mu -- laminar viscosity
-  // trans -- viscous transport model
-  // vol -- cell volume
-  // mut -- turbulent viscosity
-  // f1 -- first blending coefficient
-  static_assert(std::is_same<primitive, T>::value ||
-                    std::is_same<primitiveView, T>::value,
-                "T requires primitive or primativeView type");
-  return trans->NondimScaling() * length / state.Rho() * (mu + coeff * mut);
-}
-
-// member function to calculate viscous flux jacobian
-// dfv_dq = [ (nu + sigmaStar * nut) / dist           0               ]
-//          [             0                  (nu + sigma * nut) / dist]
-template <typename T>
-squareMatrix ViscousFluxJacobian(const T &state,
-                                 const unitVec3dMag<double> &fArea,
-                                 const double &mu,
-                                 const unique_ptr<transport> &trans,
-                                 const double &dist, const double &mut,
-                                 const double &sigmaK, const double &sigmaW) {
-  // state -- primitive variables
-  // fArea -- face area
-  // mu -- laminar viscosity
-  // trans -- viscous transport model
-  // dist -- distance from cell center to cell center across face
-  // mut -- turbulent viscosity
-  // f1 -- first blending coefficient
-  static_assert(std::is_same<primitive, T>::value ||
-                    std::is_same<primitiveView, T>::value,
-                "T requires primitive or primativeView type");
-
-  auto length = fArea.Mag() / dist;
-  squareMatrix jacobian(2);
-  jacobian(0, 0) = ViscousSpectralRadius(state, length, mu, trans, mut, sigmaK);
-  jacobian(1, 1) = ViscousSpectralRadius(state, length, mu, trans, mut, sigmaW);
-  return jacobian;
-}
 
 #endif

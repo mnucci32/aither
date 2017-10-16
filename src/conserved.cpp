@@ -16,6 +16,7 @@
 
 #include <iostream>  // cout
 #include "conserved.hpp"
+#include "arrayView.hpp"
 
 using std::cout;
 using std::endl;
@@ -23,6 +24,11 @@ using std::cerr;
 
 // ------------------------------------------------------------------
 // functions for conserved class
+
+arrayView<conserved, double> conserved::GetView() const {
+  return {this->begin(), this->end(), this->NumSpecies()};
+}
+
 
 // operation overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const conserved &m) {
