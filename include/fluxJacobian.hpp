@@ -70,7 +70,13 @@ class fluxJacobian {
     std::copy(turb.begin(), turb.end(), turbJacobian_.begin());
   }
   fluxJacobian() : fluxJacobian(0.0, 0.0) {}
-  fluxJacobian(const uncoupledScalar &specRad, const bool &hasTurb);
+  fluxJacobian(const uncoupledScalar &specRad, const bool &hasTurb)
+      : fluxJacobian(1, hasTurb ? 1 : 0) {
+    flowJacobian_(0, 0) = specRad.FlowVariable();
+    if (hasTurb) {
+      turbJacobian_(0, 0) = specRad.TurbVariable();
+    }
+  }
 
   // move constructor and assignment operator
   fluxJacobian(fluxJacobian&&) noexcept = default;
@@ -81,8 +87,8 @@ class fluxJacobian {
   fluxJacobian& operator=(const fluxJacobian&) = default;
 
   // member functions
-  squareMatrix FlowJacobian() const {return flowJacobian_;}
-  squareMatrix TurbulenceJacobian() const {return turbJacobian_;}
+  const squareMatrixView & FlowJacobian() const {return flowJacobian_;}
+  const squareMatrixView & TurbulenceJacobian() const {return turbJacobian_;}
 
   void AddToFlowJacobian(const squareMatrix &jac) {flowJacobian_ += jac;}
   void AddToTurbJacobian(const squareMatrix &jac) {turbJacobian_ += jac;}
@@ -367,8 +373,7 @@ void fluxJacobian::InvFluxJacobian(const T &state,
   const auto a3 = thermo->Gamma(t) - 2.0;
 
   // begin jacobian calculation
-  flowJacobian_ = squareMatrix(inp.NumFlowEquations());
-  turbJacobian_ = squareMatrix(inp.NumTurbEquations());
+  *this = fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
 
   // calculate flux derivatives wrt left state
   // column zero
@@ -491,8 +496,7 @@ void fluxJacobian::DelprimitiveDelConservative(
   const auto gammaMinusOne = thermo->Gamma(t) - 1.0;
   const auto invRho = 1.0 / state.Rho();
 
-  flowJacobian_ = squareMatrix(inp.NumFlowEquations());
-  turbJacobian_ = squareMatrix(inp.NumTurbEquations());
+  *this = fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
 
   // assign column 0
   flowJacobian_(0, 0) = 1.0;
@@ -546,9 +550,7 @@ void fluxJacobian::ApproxTSLJacobian(
   static_assert(std::is_same<primitive, T>::value ||
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
-
-  flowJacobian_ = squareMatrix(inp.NumFlowEquations());
-  turbJacobian_ = squareMatrix(inp.NumTurbEquations());
+  *this = fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
 
   const auto t = state.Temperature(eqnState);
   const auto mu = trans->NondimScaling() * lamVisc;

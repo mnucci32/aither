@@ -38,17 +38,6 @@ using std::vector;
 using std::string;
 using std::unique_ptr;
 
-// constructor
-fluxJacobian::fluxJacobian(const uncoupledScalar &specRad,
-                           const bool &hasTurb) {
-  const auto size = hasTurb ? 2 : 1;
-  data_.resize(size);
-  flowJacobian_(0, 0) = specRad.FlowVariable();
-
-  if (hasTurb) {
-    turbJacobian_(0, 0) = specRad.TurbVariable();
-  }
-}
 
 // member functions
 bool fluxJacobian::IsScalar() const {

@@ -85,10 +85,14 @@ class squareMatrixView {
     return *(begin_ + this->GetLoc(r, c));
   }
 
-  inline squareMatrixView & operator+=(const squareMatrixView &);
-  inline squareMatrixView & operator-=(const squareMatrixView &);
-  inline squareMatrixView & operator*=(const squareMatrixView &);
-  inline squareMatrixView & operator/=(const squareMatrixView &);
+  template <typename T>
+  inline squareMatrixView & operator+=(const T &);
+  template <typename T>
+  inline squareMatrixView & operator-=(const T &);
+  template <typename T>
+  inline squareMatrixView & operator*=(const T &);
+  template <typename T>
+  inline squareMatrixView & operator/=(const T &);
 
   inline squareMatrixView & operator+=(const double &);
   inline squareMatrixView & operator-=(const double &);
@@ -164,29 +168,45 @@ T squareMatrixView::ArrayMult(const T &vec, const int pos) const {
 ostream &operator<<(ostream &os, const squareMatrixView &);
 
 // operator overload for addition
-squareMatrixView & squareMatrixView::operator+=(const squareMatrixView &mat) {
-  std::transform(begin_, end_, mat.begin_, begin_,
+template <typename T>
+squareMatrixView & squareMatrixView::operator+=(const T &mat) {
+  static_assert(std::is_same<T, squareMatrix>::value ||
+                    std::is_same<T, squareMatrixView>::value,
+                "T should be squareMatrix type");
+  std::transform(begin_, end_, mat.begin(), begin_,
                  [](auto &lhs, auto &rhs) { return lhs + rhs; });
   return *this;
 }
 
 // operator overload for subtraction
-squareMatrixView & squareMatrixView::operator-=(const squareMatrixView &mat) {
-  std::transform(begin_, end_, mat.begin_, begin_,
+template <typename T>
+squareMatrixView & squareMatrixView::operator-=(const T &mat) {
+  static_assert(std::is_same<T, squareMatrix>::value ||
+                    std::is_same<T, squareMatrixView>::value,
+                "T should be squareMatrix type");
+  std::transform(begin_, end_, mat.begin(), begin_,
                  [](auto &lhs, auto &rhs) { return lhs - rhs; });
   return *this;
 }
 
 // operator overload for elementwise multiplication
-squareMatrixView & squareMatrixView::operator*=(const squareMatrixView &mat) {
-  std::transform(begin_, end_, mat.begin_, begin_,
+template <typename T>
+squareMatrixView & squareMatrixView::operator*=(const T &mat) {
+  static_assert(std::is_same<T, squareMatrix>::value ||
+                    std::is_same<T, squareMatrixView>::value,
+                "T should be squareMatrix type");
+  std::transform(begin_, end_, mat.begin(), begin_,
                  [](auto &lhs, auto &rhs) { return lhs * rhs; });
   return *this;
 }
 
 // operator overload for elementwise multiplication
-squareMatrixView & squareMatrixView::operator/=(const squareMatrixView &mat) {
-  std::transform(begin_, end_, mat.begin_, begin_,
+template <typename T>
+squareMatrixView & squareMatrixView::operator/=(const T &mat) {
+  static_assert(std::is_same<T, squareMatrix>::value ||
+                    std::is_same<T, squareMatrixView>::value,
+                "T should be squareMatrix type");
+  std::transform(begin_, end_, mat.begin(), begin_,
                  [](auto &lhs, auto &rhs) { return lhs / rhs; });
   return *this;
 }
