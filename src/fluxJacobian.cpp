@@ -39,29 +39,14 @@ using std::string;
 using std::unique_ptr;
 
 // constructor
-// if constructed with two doubles, create scalar squareMatrix
-fluxJacobian::fluxJacobian(const double &flow, const double &turb) {
-  flowJacobian_ = squareMatrix(1);
-  flowJacobian_ += flow;
-
-  turbJacobian_ = squareMatrix(1);
-  turbJacobian_ += turb;
-}
-
-// if constructed with two intss, create scalar squareMatrix with given size
-fluxJacobian::fluxJacobian(const int &flowSize, const int &turbSize) {
-  flowJacobian_ = squareMatrix(flowSize);
-  turbJacobian_ = squareMatrix(turbSize);
-}
-
 fluxJacobian::fluxJacobian(const uncoupledScalar &specRad,
                            const bool &hasTurb) {
-  flowJacobian_ = squareMatrix(1);
-  flowJacobian_ += specRad.FlowVariable();
+  const auto size = hasTurb ? 2 : 1;
+  data_.resize(size);
+  flowJacobian_(0, 0) = specRad.FlowVariable();
 
   if (hasTurb) {
-    turbJacobian_ = squareMatrix(1);
-    turbJacobian_ += specRad.TurbVariable();
+    turbJacobian_(0, 0) = specRad.TurbVariable();
   }
 }
 

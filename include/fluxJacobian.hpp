@@ -25,6 +25,7 @@
 #include "tensor.hpp"
 #include "uncoupledScalar.hpp"
 #include "matrix.hpp"
+#include "matrixView.hpp"
 #include "varArray.hpp"
 #include "arrayView.hpp"
 #include "utility.hpp"        // TauNormal
@@ -47,15 +48,27 @@ class turbModel;
 // In the LU-SGS method the jacobians are scalars.
 
 class fluxJacobian {
-  squareMatrix flowJacobian_;
-  squareMatrix turbJacobian_;
+  vector<double> data_;
+  squareMatrixView flowJacobian_;
+  squareMatrixView turbJacobian_;
 
  public:
   // constructors
-  fluxJacobian(const double &flow, const double &turb);
-  fluxJacobian(const int &flowSize, const int &turbSize);
+  fluxJacobian(const int &flowSize, const int &turbSize)
+      : data_(flowSize * flowSize + turbSize * turbSize, 0.0),
+        flowJacobian_(data_.begin(), data_.begin() + flowSize * flowSize,
+                      flowSize),
+        turbJacobian_(flowJacobian_.end(),
+                      flowJacobian_.end() + turbSize * turbSize, turbSize) {}
+  fluxJacobian(const double &flow, const double &turb) : fluxJacobian(1, 1) {
+    flowJacobian_(0, 0) = flow;
+    turbJacobian_(0, 0) = turb;
+  }
   fluxJacobian(const squareMatrix &flow, const squareMatrix &turb)
-      : flowJacobian_(flow), turbJacobian_(turb) {}
+      : fluxJacobian(flow.Size(), turb.Size()) {
+    std::copy(flow.begin(), flow.end(), flowJacobian_.begin());
+    std::copy(turb.begin(), turb.end(), turbJacobian_.begin());
+  }
   fluxJacobian() : fluxJacobian(0.0, 0.0) {}
   fluxJacobian(const uncoupledScalar &specRad, const bool &hasTurb);
 
