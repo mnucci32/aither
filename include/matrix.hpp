@@ -66,6 +66,13 @@ class squareMatrix {
   T ArrayMult(const T &, const int = 0) const;
   double MaxAbsValOnDiagonal() const;
 
+  // provide begin and end so std::begin and std::end can be used
+  // use lower case to conform with std::begin, std::end
+  auto begin() noexcept {return data_.begin();}
+  const auto begin() const noexcept {return data_.begin();}
+  auto end() noexcept {return data_.end();}
+  const auto end() const noexcept {return data_.end();}
+
   // operator overloads
   double & operator()(const int &r, const int &c) {
     return data_[this->GetLoc(r, c)];
