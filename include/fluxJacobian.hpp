@@ -341,7 +341,8 @@ void fluxJacobian::RusanovFluxJacobian(const T &state,
   // compute turbulent dissipation if necessary
   if (inp.IsRANS()) {
     // multiply by 0.5 b/c averaging with convection matrix
-    dissipation.turbJacobian_ = 0.5 * turb->InviscidDissJacobian(state, area);
+    const auto tJac = 0.5 * turb->InviscidDissJacobian(state, area);
+    std::copy(tJac.begin(), tJac.end(), dissipation.turbJacobian_.begin());
   }
 
   positive ? (*this) += dissipation : (*this) -= dissipation;
@@ -426,7 +427,8 @@ void fluxJacobian::InvFluxJacobian(const T &state,
   // turbulent jacobian here
   if (inp.IsRANS()) {
     // multiply by 0.5 b/c averaging with dissipation matrix
-    turbJacobian_ = 0.5 * turb->InviscidConvJacobian(state, area);
+    const auto tJac = 0.5 * turb->InviscidConvJacobian(state, area);
+    std::copy(tJac.begin(), tJac.end(), turbJacobian_.begin());
   }
 }
 
@@ -603,12 +605,15 @@ void fluxJacobian::ApproxTSLJacobian(
 
   fluxJacobian prim2Cons;
   prim2Cons.DelprimitiveDelConservative(state, thermo, eqnState, inp);
-  flowJacobian_ = flowJacobian_.MatMult(prim2Cons.flowJacobian_);
+  const auto product = flowJacobian_.MatMult(prim2Cons.flowJacobian_);
+  std::copy(product.begin(), product.end(), flowJacobian_.begin());
 
   // calculate turbulent jacobian if necessary
   if (inp.IsRANS()) {
-    turbJacobian_ = fac * turb->ViscousJacobian(state, area, lamVisc, trans,
-                                                dist, turbVisc, f1);
+    const auto turbProd =
+        fac *
+        turb->ViscousJacobian(state, area, lamVisc, trans, dist, turbVisc, f1);
+    std::copy(turbProd.begin(), turbProd.end(), turbJacobian_.begin());
     // Don't need to multiply by prim2Cons b/c jacobian is already wrt
     // conservative variables
   }
