@@ -56,10 +56,10 @@ class fluxJacobian {
   // constructors
   fluxJacobian(const int &flowSize, const int &turbSize)
       : data_(flowSize * flowSize + turbSize * turbSize, 0.0),
-        flowJacobian_(data_.begin(), data_.begin() + flowSize * flowSize,
-                      flowSize),
-        turbJacobian_(flowJacobian_.end(),
-                      flowJacobian_.end() + turbSize * turbSize, turbSize) {}
+        flowJacobian_{data_.begin(), data_.begin() + flowSize * flowSize,
+                      flowSize},
+        turbJacobian_{flowJacobian_.end(),
+                      flowJacobian_.end() + turbSize * turbSize, turbSize} {}
   fluxJacobian(const double &flow, const double &turb) : fluxJacobian(1, 1) {
     flowJacobian_(0, 0) = flow;
     turbJacobian_(0, 0) = turb;
@@ -97,7 +97,8 @@ class fluxJacobian {
 
   void MultiplyOnDiagonal(const double &, const bool &);
   void AddOnDiagonal(const double &, const bool &);
-  
+  bool HasTurbulence() const { return turbJacobian_.Size() > 0; }
+
   template <typename T>
   void RusanovFluxJacobian(const T &, const unique_ptr<eos> &,
                            const unique_ptr<thermodynamic> &,

@@ -19,6 +19,8 @@
 
 #include <iostream>
 #include <vector>
+#include <algorithm>
+#include <functional>
 #include "macros.hpp"
 #include "matrix.hpp"
 
@@ -173,8 +175,8 @@ squareMatrixView & squareMatrixView::operator+=(const T &mat) {
   static_assert(std::is_same<T, squareMatrix>::value ||
                     std::is_same<T, squareMatrixView>::value,
                 "T should be squareMatrix type");
-  std::transform(begin_, end_, mat.begin(), begin_,
-                 [](auto &lhs, auto &rhs) { return lhs + rhs; });
+  MSG_ASSERT(this->Size() == mat.Size(), "matrix sizes must be equal");
+  std::transform(begin_, end_, mat.begin(), begin_, std::plus<double>());
   return *this;
 }
 
@@ -184,8 +186,8 @@ squareMatrixView & squareMatrixView::operator-=(const T &mat) {
   static_assert(std::is_same<T, squareMatrix>::value ||
                     std::is_same<T, squareMatrixView>::value,
                 "T should be squareMatrix type");
-  std::transform(begin_, end_, mat.begin(), begin_,
-                 [](auto &lhs, auto &rhs) { return lhs - rhs; });
+  MSG_ASSERT(this->Size() == mat.Size(), "matrix sizes must be equal");
+  std::transform(begin_, end_, mat.begin(), begin_, std::minus<double>());
   return *this;
 }
 
@@ -195,8 +197,8 @@ squareMatrixView & squareMatrixView::operator*=(const T &mat) {
   static_assert(std::is_same<T, squareMatrix>::value ||
                     std::is_same<T, squareMatrixView>::value,
                 "T should be squareMatrix type");
-  std::transform(begin_, end_, mat.begin(), begin_,
-                 [](auto &lhs, auto &rhs) { return lhs * rhs; });
+  MSG_ASSERT(this->Size() == mat.Size(), "matrix sizes must be equal");
+  std::transform(begin_, end_, mat.begin(), begin_, std::multiplies<double>());
   return *this;
 }
 
@@ -206,8 +208,8 @@ squareMatrixView & squareMatrixView::operator/=(const T &mat) {
   static_assert(std::is_same<T, squareMatrix>::value ||
                     std::is_same<T, squareMatrixView>::value,
                 "T should be squareMatrix type");
-  std::transform(begin_, end_, mat.begin(), begin_,
-                 [](auto &lhs, auto &rhs) { return lhs / rhs; });
+  MSG_ASSERT(this->Size() == mat.Size(), "matrix sizes must be equal");
+  std::transform(begin_, end_, mat.begin(), begin_, std::divides<double>());
   return *this;
 }
 
