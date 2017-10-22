@@ -39,7 +39,6 @@ set(sources
   kdtree.cpp
   limiter.cpp
   matrix.cpp
-  matrixView.cpp
   output.cpp
   parallel.cpp
   plot3d.cpp

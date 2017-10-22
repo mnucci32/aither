@@ -20,6 +20,8 @@
 
 #include <iostream>
 #include <vector>
+#include <algorithm>
+#include <functional>
 #include "macros.hpp"
 
 using std::ostream;
@@ -52,26 +54,26 @@ class squareMatrix {
   squareMatrix& operator=(const squareMatrix &) = default;
 
   // member functions
-  int Size() const {return size_;}
-  void SwapRows(const int &, const int &);
-  void Inverse();
-  int FindMaxInCol(const int &, const int &, const int &) const;
-  void RowMultiply(const int &, const int &, const double &);
-  void LinCombRow(const int &, const double &, const int &);
-  void Zero();
-  void Identity();
-  squareMatrix MatMult(const squareMatrix &) const;
-  template <typename T,
-            typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
-  T ArrayMult(const T &, const int = 0) const;
-  double MaxAbsValOnDiagonal() const;
-
   // provide begin and end so std::begin and std::end can be used
   // use lower case to conform with std::begin, std::end
   auto begin() noexcept {return data_.begin();}
   const auto begin() const noexcept {return data_.begin();}
   auto end() noexcept {return data_.end();}
   const auto end() const noexcept {return data_.end();}
+
+  int Size() const {return size_;}
+  void SwapRows(const int &, const int &);
+  void Inverse();
+  int FindMaxInCol(const int &, const int &, const int &) const;
+  void RowMultiply(const int &, const int &, const double &);
+  void LinCombRow(const int &, const double &, const int &);
+  void Zero() { std::fill(this->begin(), this->end(), 0.0); }
+  void Identity();
+  squareMatrix MatMult(const squareMatrix &) const;
+  template <typename T,
+            typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+  T ArrayMult(const T &, const int = 0) const;
+  double MaxAbsValOnDiagonal() const;
 
   // operator overloads
   double & operator()(const int &r, const int &c) {
@@ -143,33 +145,33 @@ ostream &operator<<(ostream &os, const squareMatrix &);
 
 // operator overload for addition
 squareMatrix & squareMatrix::operator+=(const squareMatrix &mat) {
-  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
-    data_[ii] += mat.data_[ii];
-  }
+  MSG_ASSERT(this->Size() == mat.Size(), "matrix sizes must be equal");
+  std::transform(this->begin(), this->end(), mat.begin(), this->begin(),
+                 std::plus<double>());
   return *this;
 }
 
 // operator overload for subtraction
 squareMatrix & squareMatrix::operator-=(const squareMatrix &mat) {
-  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
-    data_[ii] -= mat.data_[ii];
-  }
+  MSG_ASSERT(this->Size() == mat.Size(), "matrix sizes must be equal");
+  std::transform(this->begin(), this->end(), mat.begin(), this->begin(),
+                 std::minus<double>());
   return *this;
 }
 
 // operator overload for elementwise multiplication
 squareMatrix & squareMatrix::operator*=(const squareMatrix &mat) {
-  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
-    data_[ii] *= mat.data_[ii];
-  }
+  MSG_ASSERT(this->Size() == mat.Size(), "matrix sizes must be equal");
+  std::transform(this->begin(), this->end(), mat.begin(), this->begin(),
+                 std::multiplies<double>());
   return *this;
 }
 
 // operator overload for elementwise multiplication
 squareMatrix & squareMatrix::operator/=(const squareMatrix &mat) {
-  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
-    data_[ii] /= mat.data_[ii];
-  }
+  MSG_ASSERT(this->Size() == mat.Size(), "matrix sizes must be equal");
+  std::transform(this->begin(), this->end(), mat.begin(), this->begin(),
+                 std::divides<double>());
   return *this;
 }
 
@@ -192,33 +194,25 @@ inline const squareMatrix operator/(squareMatrix lhs, const squareMatrix &rhs) {
 // operator overloads for double --------------------------------------------
 // operator overload for addition
 squareMatrix & squareMatrix::operator+=(const double &scalar) {
-  for (auto &val : data_) {
-    val += scalar;
-  }
+  for_each(this->begin(), this->end(), [&scalar](auto &val) { val += scalar; });
   return *this;
 }
 
 // operator overload for subtraction
 squareMatrix & squareMatrix::operator-=(const double &scalar) {
-  for (auto &val : data_) {
-    val -= scalar;
-  }
+  for_each(this->begin(), this->end(), [&scalar](auto &val) { val -= scalar; });
   return *this;
 }
 
 // operator overload for multiplication
 squareMatrix & squareMatrix::operator*=(const double &scalar) {
-  for (auto &val : data_) {
-    val *= scalar;
-  }
+  for_each(this->begin(), this->end(), [&scalar](auto &val) { val *= scalar; });
   return *this;
 }
 
 // operator overload for division
 squareMatrix & squareMatrix::operator/=(const double &scalar) {
-  for (auto &val : data_) {
-    val /= scalar;
-  }
+  for_each(this->begin(), this->end(), [&scalar](auto &val) { val /= scalar; });
   return *this;
 }
 
@@ -227,11 +221,7 @@ inline const squareMatrix operator+(const double &lhs, squareMatrix rhs) {
 }
 
 inline const squareMatrix operator-(const double &lhs, squareMatrix rhs) {
-  for (auto rr = 0; rr < rhs.Size(); rr++) {
-    for (auto cc = 0; cc < rhs.Size(); cc++) {
-      rhs(rr, cc) = lhs - rhs(rr, cc);
-    }
-  }
+  for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs - val; });
   return rhs;
 }
 
@@ -240,12 +230,22 @@ inline const squareMatrix operator*(const double &lhs, squareMatrix rhs) {
 }
 
 inline const squareMatrix operator/(const double &lhs, squareMatrix rhs) {
-  for (auto rr = 0; rr < rhs.Size(); rr++) {
-    for (auto cc = 0; cc < rhs.Size(); cc++) {
-      rhs(rr, cc) = lhs / rhs(rr, cc);
+  for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs / val; });
+  return rhs;
+}
+
+// ---------------------------------------------------------------------------
+// function for matrix multiplication
+// using cache efficient implimentation
+template <typename F1, typename F2, typename F3>
+void MatrixMultiply(const F1 &m1, const F2 &m2, const int &size, F3 &result) {
+  for (auto cc = 0; cc < size; ++cc) {
+    for (auto rr = 0; rr < size; ++rr) {
+      for (auto ii = 0; ii < size; ++ii) {
+        result(rr, ii) += m1(rr, cc) * m2(cc, ii);
+      }
     }
   }
-  return rhs;
 }
 
 

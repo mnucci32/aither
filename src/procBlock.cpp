@@ -1038,10 +1038,9 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
         }
 
         // add volume and time term
-        mainDiagonal(ii, jj, kk).MultiplyOnDiagonal(inp.MatrixRelaxation(),
-                                                    isRANS_);
-        mainDiagonal(ii, jj, kk).AddOnDiagonal(diagVolTime, isRANS_);
-        mainDiagonal(ii, jj, kk).Inverse(isRANS_);
+        mainDiagonal(ii, jj, kk).MultiplyOnDiagonal(inp.MatrixRelaxation());
+        mainDiagonal(ii, jj, kk).AddOnDiagonal(diagVolTime);
+        mainDiagonal(ii, jj, kk).Inverse();
       }
     }
   }

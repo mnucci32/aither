@@ -40,17 +40,280 @@ using std::unique_ptr;
 
 
 // member functions
-bool fluxJacobian::IsScalar() const {
-  return (flowJacobian_.Size() > 1) ? false : true;
+// member function to invert matrix using Gauss-Jordan elimination
+void fluxJacobian::FlowInverse() {
+  squareMatrix I(flowSize_);
+  I.Identity();
+
+  for (auto cPivot = 0, r = 0; r < flowSize_; ++r, ++cPivot) {
+    // find pivot row
+    auto rPivot = this->FlowFindMaxInCol(r, cPivot, flowSize_ - 1);
+
+    // swap rows
+    this->FlowSwapRows(r, rPivot);
+    I.SwapRows(r, rPivot);
+
+    if (r != 0) {  // if not first row, need to get rid entries ahead of pivot
+      for (auto ii = 0; ii < cPivot; ++ii) {
+        auto factor = this->FlowJacobian(r, ii) / this->FlowJacobian(ii, ii);
+        this->FlowLinCombRow(ii, factor, r);
+        I.LinCombRow(ii, factor, r);
+      }
+    }
+
+    // normalize row by pivot
+    if (this->FlowJacobian(r, cPivot) == 0.0) {
+      cerr << "ERROR: Singular flow matrix in Gauss-Jordan elimination! Matrix "
+              "(mid inversion) is" << endl << *this << endl;
+      exit(EXIT_FAILURE);
+    }
+    // only normalize entries from pivot and to the right
+    auto normFactor = 1.0 / this->FlowJacobian(r, cPivot);
+    this->FlowRowMultiply(r, cPivot, normFactor);
+    I.RowMultiply(r, 0, normFactor);  // multiply all entries
+  }
+
+  // matrix is now upper triangular, work way back up to identity matrix
+  // start with second to last row
+  for (auto cPivot = flowSize_ - 2, r = flowSize_ - 2; r >= 0; --r, --cPivot) {
+    for (auto ii = flowSize_ - 1; ii > cPivot; --ii) {
+      auto factor = this->FlowJacobian(r, ii);
+      this->FlowLinCombRow(ii, factor, r);
+      I.LinCombRow(ii, factor, r);
+    }
+  }
+
+  // set this matrix equal to its inverse
+  std::copy(I.begin(), I.end(), this->begin());
 }
 
-// function to take the inverse of a flux jacobian
-void fluxJacobian::Inverse(const bool &isRANS) {
-  flowJacobian_.Inverse();
-
-  if (isRANS) {
-    turbJacobian_.Inverse();
+void fluxJacobian::TurbInverse() {
+  MSG_ASSERT(turbSize_ <= 2, "expecting turbulence size < 2");
+  if (turbSize_ == 1) {  // scalar turbulence
+    this->TurbJacobian(0, 0) = 1.0 / this->TurbJacobian(0, 0);
+  } else if (turbSize_ == 2) {  // block jacobian
+    squareMatrix inv(turbSize_);
+    auto det = this->TurbJacobian(0, 0) * this->TurbJacobian(1, 1) -
+               this->TurbJacobian(0, 1) * this->TurbJacobian(1, 0);
+    inv(0, 0) = this->TurbJacobian(1, 1);
+    inv(0, 1) = -this->TurbJacobian(0, 1);
+    inv(0, 1) = -this->TurbJacobian(1, 0);
+    inv(1, 1) = this->TurbJacobian(0, 0);
+    inv *= 1.0 / det;
+    std::copy(inv.begin(), inv.end(), this->beginTurb());
   }
+}
+
+
+void fluxJacobian::FlowMultiplyOnDiagonal(const double &val) {
+  // val -- value to multiply along diagonal
+  for (auto ii = 0; ii < flowSize_; ++ii) {
+    this->FlowJacobian(ii, ii) *= val;
+  }
+}
+void fluxJacobian::TurbMultiplyOnDiagonal(const double &val) {
+  // val -- value to multiply along diagonal
+  for (auto ii = 0; ii < turbSize_; ++ii) {
+    this->TurbJacobian(ii, ii) *= val;
+  }
+}
+
+void fluxJacobian::FlowAddOnDiagonal(const double &val) {
+  // val -- value to multiply along diagonal
+  for (auto ii = 0; ii < flowSize_; ++ii) {
+    this->FlowJacobian(ii, ii) += val;
+  }
+}
+void fluxJacobian::TurbAddOnDiagonal(const double &val) {
+  // val -- value to multiply along diagonal
+  for (auto ii = 0; ii < turbSize_; ++ii) {
+    this->TurbJacobian(ii, ii) += val;
+  }
+}
+
+// member function to swap rows of matrix
+void fluxJacobian::FlowSwapRows(const int &r1, const int &r2) {
+  MSG_ASSERT(r1 < flowSize_ && r2 < flowSize_, "index outside of range");
+  if (r1 != r2) {
+    std::swap_ranges(this->begin() + this->GetFlowLoc(r1, 0),
+                     this->begin() + this->GetFlowLoc(r1, flowSize_),
+                     this->begin() + this->GetFlowLoc(r2, 0));
+  }
+}
+void fluxJacobian::TurbSwapRows(const int &r1, const int &r2) {
+  MSG_ASSERT(r1 < turbSize_ && r2 < turbSize_, "index outside of range");
+  if (r1 != r2) {
+    std::swap_ranges(this->begin() + this->GetTurbLoc(r1, 0),
+                     this->begin() + this->GetTurbLoc(r1, flowSize_),
+                     this->begin() + this->GetTurbLoc(r2, 0));
+  }
+}
+
+// member function to multiply a row by a given factor
+void fluxJacobian::FlowRowMultiply(const int &r, const int &c,
+                                   const double &factor) {
+  MSG_ASSERT(r < flowSize_ && c < flowSize_, "index outside of range");
+  for_each(this->begin() + this->GetFlowLoc(r, c),
+           this->begin() + this->GetFlowLoc(r, flowSize_),
+           [&factor](auto &val) { val *= factor; });
+}
+void fluxJacobian::TurbRowMultiply(const int &r, const int &c,
+                                   const double &factor) {
+  MSG_ASSERT(r < turbSize_ && c < turbSize_, "index outside of range");
+  for_each(this->begin() + this->GetTurbLoc(r, c),
+           this->begin() + this->GetTurbLoc(r, turbSize_),
+           [&factor](auto &val) { val *= factor; });
+}
+
+// member function to add a linear combination of one row to another
+void fluxJacobian::FlowLinCombRow(const int &r1, const double &factor,
+                                  const int &r2) {
+  MSG_ASSERT(r1 < flowSize_ && r2 < flowSize_, "index outside of range");
+  std::transform(
+      this->begin() + this->GetFlowLoc(r2, 0),
+      this->begin() + this->GetFlowLoc(r2, flowSize_),
+      this->begin() + this->GetFlowLoc(r1, 0),
+      this->begin() + this->GetFlowLoc(r2, 0),
+      [&factor](const auto &v1, const auto &v2) { return v1 - factor * v2; });
+}
+void fluxJacobian::TurbLinCombRow(const int &r1, const double &factor,
+                                  const int &r2) {
+  MSG_ASSERT(r1 < turbSize_ && r2 < turbSize_, "index outside of range");
+  std::transform(
+      this->begin() + this->GetTurbLoc(r2, 0),
+      this->begin() + this->GetTurbLoc(r2, turbSize_),
+      this->begin() + this->GetTurbLoc(r1, 0),
+      this->begin() + this->GetTurbLoc(r2, 0),
+      [&factor](const auto &v1, const auto &v2) { return v1 - factor * v2; });
+}
+
+// member function to find maximum absolute value in a given column and range
+// within that column and return the corresponding row indice
+int fluxJacobian::FlowFindMaxInCol(const int &c, const int &start,
+                                   const int &end) const {
+  MSG_ASSERT(start < turbSize_ && end < turbSize_ && c < turbSize_,
+             "index outside of range");
+  auto maxVal = 0.0;
+  auto maxRow = 0;
+  for (auto ii = start; ii <= end; ++ii) {
+    if (fabs(this->FlowJacobian(ii, c)) > maxVal) {
+      maxVal = fabs(this->FlowJacobian(ii, c));
+      maxRow = ii;
+    }
+  }
+  return maxRow;
+}
+int fluxJacobian::TurbFindMaxInCol(const int &c, const int &start,
+                                   const int &end) const {
+  MSG_ASSERT(start < turbSize_ && end < turbSize_ && c < turbSize_,
+             "index outside of range");
+  auto maxVal = 0.0;
+  auto maxRow = 0;
+  for (auto ii = start; ii <= end; ++ii) {
+    if (fabs(this->TurbJacobian(ii, c)) > maxVal) {
+      maxVal = fabs(this->TurbJacobian(ii, c));
+      maxRow = ii;
+    }
+  }
+  return maxRow;
+}
+
+// member function to set matrix to Identity
+void fluxJacobian::FlowIdentity() {
+  for (auto rr = 0; rr < this->FlowSize(); ++rr) {
+    for (auto cc = 0; cc < this->FlowSize(); ++cc) {
+      this->FlowJacobian(rr, cc) = (rr == cc) ? 1.0 : 0.0;
+    }
+  }
+}
+void fluxJacobian::TurbIdentity() {
+  for (auto rr = 0; rr < this->TurbSize(); ++rr) {
+    for (auto cc = 0; cc < this->TurbSize(); ++cc) {
+      this->TurbJacobian(rr, cc) = (rr == cc) ? 1.0 : 0.0;
+    }
+  }
+}
+
+// member function to find maximum absolute value on diagonal
+// this can be used to find the spectral radius of a diagoanl matrix
+double fluxJacobian::FlowMaxAbsValOnDiagonal() const {
+  auto maxVal = 0.0;
+  for (auto ii = 0; ii < flowSize_; ++ii) {
+    maxVal = std::max(fabs(this->FlowJacobian(ii, ii)), maxVal);
+  }
+  return maxVal;
+}
+double fluxJacobian::TurbMaxAbsValOnDiagonal() const {
+  auto maxVal = 0.0;
+  for (auto ii = 0; ii < turbSize_; ++ii) {
+    maxVal = std::max(fabs(this->TurbJacobian(ii, ii)), maxVal);
+  }
+  return maxVal;
+}
+
+void fluxJacobian::AddToFlowJacobian(const squareMatrix &jac) {
+  MSG_ASSERT(flowSize_ == jac.Size(), "matrix sizes don't match");
+  std::transform(this->begin(), this->beginTurb(), jac.begin(), this->begin(),
+                 std::plus<double>());
+}
+void fluxJacobian::SubtractFromFlowJacobian(const squareMatrix &jac) { 
+  MSG_ASSERT(flowSize_ == jac.Size(), "matrix sizes don't match");
+  std::transform(this->begin(), this->beginTurb(), jac.begin(), this->begin(),
+                 std::minus<double>());
+}
+
+void fluxJacobian::AddToTurbJacobian(const squareMatrix &jac) {
+  MSG_ASSERT(turbSize_ == jac.Size(), "matrix sizes don't match");
+  std::transform(this->beginTurb(), this->end(), jac.begin(), this->beginTurb(),
+                 std::plus<double>());
+}
+void fluxJacobian::SubtractFromTurbJacobian(const squareMatrix &jac) {
+  MSG_ASSERT(turbSize_ == jac.Size(), "matrix sizes don't match");
+  std::transform(this->beginTurb(), this->end(), jac.begin(), this->beginTurb(),
+                 std::minus<double>());
+}
+
+void fluxJacobian::MultFlowJacobian(const double &fac) {
+  std::for_each(this->begin(), this->beginTurb(),
+                [&fac](auto &val) { val *= fac; });
+}
+void fluxJacobian::MultTurbJacobian(const double &fac) {
+  std::for_each(this->beginTurb(), this->end(),
+                [&fac](auto &val) { val *= fac; });
+}
+
+fluxJacobian fluxJacobian::FlowMatMult(const fluxJacobian &jac2) const {
+  MSG_ASSERT(this->FlowSize() == jac2.FlowSize(),
+             "Mismatch in flux jacobian size");
+  fluxJacobian result(this->FlowSize(), this->TurbSize());
+  auto f1 = [&](const int &r, const int &c) -> decltype(auto) {
+    return this->FlowJacobian(r, c);
+  };
+  auto f2 = [&](const int &r, const int &c) -> decltype(auto) {
+    return jac2.FlowJacobian(r, c);
+  };
+  auto res = [&](const int &r, const int &c) -> decltype(auto) {
+    return result.FlowJacobian(r, c);
+  };
+  MatrixMultiply(f1, f2, this->FlowSize(), res);
+  return result;
+}
+
+fluxJacobian fluxJacobian::TurbMatMult(const fluxJacobian &jac2) const {
+  MSG_ASSERT(this->TurbSize() == jac2.TurbSize(),
+             "Mismatch in flux jacobian size");
+  fluxJacobian result(this->FlowSize(), this->TurbSize());
+  auto f1 = [&](const int &r, const int &c) -> decltype(auto) {
+    return this->TurbJacobian(r, c);
+  };
+  auto f2 = [&](const int &r, const int &c) -> decltype(auto) {
+    return jac2.TurbJacobian(r, c);
+  };
+  auto res = [&](const int &r, const int &c) -> decltype(auto) {
+    return result.TurbJacobian(r, c);
+  };
+  MatrixMultiply(f1, f2, this->TurbSize(), res);
+  return result;
 }
 
 
@@ -58,8 +321,30 @@ void fluxJacobian::Inverse(const bool &isRANS) {
 // non-member functions
 // ----------------------------------------------------------------------------
 ostream &operator<<(ostream &os, const fluxJacobian &jacobian) {
-  os << jacobian.FlowJacobian() << endl;
-  os << jacobian.TurbulenceJacobian() << endl;
+  // print flow jacobian
+  for (auto rr = 0; rr < jacobian.FlowSize(); ++rr) {
+    for (auto cc = 0; cc < jacobian.FlowSize(); ++cc) {
+      os << jacobian.FlowJacobian(rr, cc);
+      if (cc != (jacobian.FlowSize() - 1)) {
+        os << ", ";
+      } else {
+        os << endl;
+      }
+    }
+  }
+
+  // print turbulence jacobian
+  for (auto rr = 0; rr < jacobian.TurbSize(); ++rr) {
+    for (auto cc = 0; cc < jacobian.TurbSize(); ++cc) {
+      os << jacobian.TurbJacobian(rr, cc);
+      if (cc != (jacobian.TurbSize() - 1)) {
+        os << ", ";
+      } else {
+        os << endl;
+      }
+    }
+  }
+
   return os;
 }
 
@@ -255,33 +540,3 @@ varArray RoeOffDiagonal(
       fluxChange - specRad.ArrayMult(update);
 }
 
-void fluxJacobian::MultiplyOnDiagonal(const double &val,
-                                      const bool &isRANS) {
-  // val -- value to multiply along diagonal
-  // isRANS -- flag identifiying if simulation is turbulent
-
-  for (auto ii = 0; ii < flowJacobian_.Size(); ii++) {
-    flowJacobian_(ii, ii) *= val;
-  }
-
-  if (isRANS) {
-    for (auto ii = 0; ii < turbJacobian_.Size(); ii++) {
-      turbJacobian_(ii, ii) *= val;
-    }
-  }
-}
-
-void fluxJacobian::AddOnDiagonal(const double &val, const bool &isRANS) {
-  // val -- value to multiply along diagonal
-  // isRANS -- flag identifiying if simulation is turbulent
-
-  for (auto ii = 0; ii < flowJacobian_.Size(); ii++) {
-    flowJacobian_(ii, ii) += val;
-  }
-
-  if (isRANS) {
-    for (auto ii = 0; ii < turbJacobian_.Size(); ii++) {
-      turbJacobian_(ii, ii) += val;
-    }
-  }
-}
