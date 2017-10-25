@@ -237,16 +237,8 @@ inline const squareMatrix operator/(const double &lhs, squareMatrix rhs) {
 // ---------------------------------------------------------------------------
 // function for matrix multiplication
 // using cache efficient implimentation
-template <typename F1, typename F2, typename F3>
-void MatrixMultiply(const F1 &m1, const F2 &m2, const int &size, F3 &result) {
-  for (auto cc = 0; cc < size; ++cc) {
-    for (auto rr = 0; rr < size; ++rr) {
-      for (auto ii = 0; ii < size; ++ii) {
-        result(rr, ii) += m1(rr, cc) * m2(cc, ii);
-      }
-    }
-  }
-}
-
+void MatrixMultiply(const vector<double>::const_iterator &matL,
+                    const vector<double>::const_iterator &matR,
+                    const vector<double>::iterator &result, const int &size);
 
 #endif

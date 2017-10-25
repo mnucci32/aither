@@ -30,6 +30,7 @@
 #include "thermodynamic.hpp"  // thermodynamic model
 #include "conserved.hpp"      // conserved
 #include "spectralRadius.hpp"
+#include "matrix.hpp"
 
 using std::cout;
 using std::endl;
@@ -286,16 +287,7 @@ fluxJacobian fluxJacobian::FlowMatMult(const fluxJacobian &jac2) const {
   MSG_ASSERT(this->FlowSize() == jac2.FlowSize(),
              "Mismatch in flux jacobian size");
   fluxJacobian result(this->FlowSize(), this->TurbSize());
-  auto f1 = [&](const int &r, const int &c) -> decltype(auto) {
-    return this->FlowJacobian(r, c);
-  };
-  auto f2 = [&](const int &r, const int &c) -> decltype(auto) {
-    return jac2.FlowJacobian(r, c);
-  };
-  auto res = [&](const int &r, const int &c) -> decltype(auto) {
-    return result.FlowJacobian(r, c);
-  };
-  MatrixMultiply(f1, f2, this->FlowSize(), res);
+  MatrixMultiply(this->begin(), jac2.begin(), result.begin(), this->FlowSize());
   return result;
 }
 
@@ -303,16 +295,8 @@ fluxJacobian fluxJacobian::TurbMatMult(const fluxJacobian &jac2) const {
   MSG_ASSERT(this->TurbSize() == jac2.TurbSize(),
              "Mismatch in flux jacobian size");
   fluxJacobian result(this->FlowSize(), this->TurbSize());
-  auto f1 = [&](const int &r, const int &c) -> decltype(auto) {
-    return this->TurbJacobian(r, c);
-  };
-  auto f2 = [&](const int &r, const int &c) -> decltype(auto) {
-    return jac2.TurbJacobian(r, c);
-  };
-  auto res = [&](const int &r, const int &c) -> decltype(auto) {
-    return result.TurbJacobian(r, c);
-  };
-  MatrixMultiply(f1, f2, this->TurbSize(), res);
+  MatrixMultiply(this->beginTurb(), jac2.beginTurb(), result.beginTurb(),
+                 this->TurbSize());
   return result;
 }
 

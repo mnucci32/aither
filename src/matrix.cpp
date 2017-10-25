@@ -123,16 +123,7 @@ int squareMatrix::FindMaxInCol(const int &c, const int &start,
 squareMatrix squareMatrix::MatMult(const squareMatrix &s2) const {
   MSG_ASSERT(this->Size() == s2.Size(), "matrix size mismatch");
   squareMatrix result(s2.Size());
-  auto m1 = [&](const int &r, const int &c) -> decltype(auto) {
-    return (*this)(r, c);
-  };
-  auto m2 = [&](const int &r, const int &c) -> decltype(auto) {
-    return s2(r, c);
-  };
-  auto res = [&](const int &r, const int &c) -> decltype(auto) {
-    return result(r, c);
-  };
-  MatrixMultiply(m1, m2, this->Size(), res);
+  MatrixMultiply(this->begin(), s2.begin(), result.begin(), this->Size());
   return result;
 }
 
@@ -168,4 +159,21 @@ double squareMatrix::MaxAbsValOnDiagonal() const {
     maxVal = std::max(fabs((*this)(ii, ii)), maxVal);
   }
   return maxVal;
+}
+
+void MatrixMultiply(const vector<double>::const_iterator &matL,
+                    const vector<double>::const_iterator &matR,
+                    const vector<double>::iterator &result, const int &size) {
+  auto GetVal = [&size](const auto &mat, const int &r,
+                        const int &c) -> decltype(auto) {
+    return *(mat + r * size + c);
+  };
+  
+  for (auto cc = 0; cc < size; ++cc) {
+    for (auto rr = 0; rr < size; ++rr) {
+      for (auto ii = 0; ii < size; ++ii) {
+        GetVal(result, rr, ii) += GetVal(matL, rr, cc) * GetVal(matR, cc, ii);
+      }
+    }
+  }
 }
