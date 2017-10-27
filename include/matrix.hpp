@@ -30,6 +30,42 @@ using std::vector;
 // forward class declaration
 class varArray;
 
+// ---------------------------------------------------------------------------
+// matrix functions
+
+// function for matrix multiplication
+// using cache efficient implimentation
+void MatrixMultiply(const vector<double>::const_iterator &matL,
+                    const vector<double>::const_iterator &matR,
+                    const vector<double>::iterator &result, const int &size);
+
+double MaximumAbsValOnDiagonal(const vector<double>::const_iterator &mat,
+                               const int &size);
+
+void IdentityMatrix(const vector<double>::iterator &mat, const int &size);
+
+int FindMaxInColumn(const vector<double>::const_iterator &mat, const int &size,
+                    const int &c, const int &start, const int &end);
+
+void RowMultiplyFactor(const vector<double>::iterator &mat, const int &size,
+                       const int &r, const int &c, const double &factor);
+
+void LinearCombRow(const vector<double>::iterator &mat, const int &size,
+                   const int &r1, const double &factor, const int &r2);
+
+void SwapMatRows(const vector<double>::iterator &mat, const int &size,
+                 const int &r1, const int &r2);
+
+void MatrixInverse(const vector<double>::iterator &mat, const int &size);
+
+void MultiplyFacOnDiagonal(const vector<double>::iterator &mat, const int &size,
+                           const double &val);
+
+void AddFacOnDiagonal(const vector<double>::iterator &mat, const int &size,
+                      const double &val);
+
+// ---------------------------------------------------------------------------                      
+
 // class to store a square matrix
 class squareMatrix {
   int size_;
@@ -62,18 +98,28 @@ class squareMatrix {
   const auto end() const noexcept {return data_.end();}
 
   int Size() const {return size_;}
-  void SwapRows(const int &, const int &);
-  void Inverse();
-  int FindMaxInCol(const int &, const int &, const int &) const;
-  void RowMultiply(const int &, const int &, const double &);
-  void LinCombRow(const int &, const double &, const int &);
+  void SwapRows(const int &r1, const int &r2) {
+    SwapMatRows(this->begin(), size_, r1, r2);
+  }
+  void Inverse() { MatrixInverse(this->begin(), size_); }
+  int FindMaxInCol(const int &c, const int &start, const int &end) const {
+    return FindMaxInColumn(this->begin(), size_, c, start, end);
+  }
+  void RowMultiply(const int &r, const int &c, const double &fac) {
+    RowMultiplyFactor(this->begin(), size_, r, c, fac);
+  }
+  void LinCombRow(const int &r1, const double &fac, const int &r2) {
+    LinearCombRow(this->begin(), size_, r1, fac, r2);
+  }
   void Zero() { std::fill(this->begin(), this->end(), 0.0); }
-  void Identity();
+  void Identity() { IdentityMatrix(this->begin(), size_); }
   squareMatrix MatMult(const squareMatrix &) const;
   template <typename T,
             typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
   T ArrayMult(const T &, const int = 0) const;
-  double MaxAbsValOnDiagonal() const;
+  double MaxAbsValOnDiagonal() const {
+    return MaximumAbsValOnDiagonal(this->begin(), size_);
+  }
 
   // operator overloads
   double & operator()(const int &r, const int &c) {
@@ -234,11 +280,5 @@ inline const squareMatrix operator/(const double &lhs, squareMatrix rhs) {
   return rhs;
 }
 
-// ---------------------------------------------------------------------------
-// function for matrix multiplication
-// using cache efficient implimentation
-void MatrixMultiply(const vector<double>::const_iterator &matL,
-                    const vector<double>::const_iterator &matR,
-                    const vector<double>::iterator &result, const int &size);
 
 #endif

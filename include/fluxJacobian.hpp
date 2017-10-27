@@ -173,38 +173,66 @@ class fluxJacobian {
     this->FlowMultiplyOnDiagonal(fac);
     this->TurbMultiplyOnDiagonal(fac);
   }
-  void FlowMultiplyOnDiagonal(const double &);
-  void TurbMultiplyOnDiagonal(const double &);
-  
+  void FlowMultiplyOnDiagonal(const double &fac) {
+    MultiplyFacOnDiagonal(this->begin(), flowSize_, fac);
+  }
+  void TurbMultiplyOnDiagonal(const double &fac) {
+    MultiplyFacOnDiagonal(this->beginTurb(), turbSize_, fac);
+  }
+
   void AddOnDiagonal(const double &fac) { 
     this->FlowAddOnDiagonal(fac);
     this->TurbAddOnDiagonal(fac);
   }
-  void FlowAddOnDiagonal(const double &);
-  void TurbAddOnDiagonal(const double &);
-  
+  void FlowAddOnDiagonal(const double &fac) {
+    AddFacOnDiagonal(this->begin(), flowSize_, fac);
+  }
+  void TurbAddOnDiagonal(const double &fac) {
+    AddFacOnDiagonal(this->beginTurb(), turbSize_, fac);
+  }
+
   bool HasTurbulence() const { return turbSize_ > 0; }
 
   fluxJacobian FlowMatMult(const fluxJacobian &) const;
   fluxJacobian TurbMatMult(const fluxJacobian &) const;
 
-  void FlowSwapRows(const int &, const int &);
-  void TurbSwapRows(const int &, const int &);
+  void FlowSwapRows(const int &r1, const int &r2) {
+    SwapMatRows(this->begin(), flowSize_, r1, r2);
+  }
+  void TurbSwapRows(const int &r1, const int &r2) {
+    SwapMatRows(this->beginTurb(), turbSize_, r1, r2);
+  }
 
-  void FlowRowMultiply(const int &, const int &, const double &);
-  void TurbRowMultiply(const int &, const int &, const double &);
+  void FlowRowMultiply(const int &r, const int &c, const double &fac) {
+    RowMultiplyFactor(this->begin(), flowSize_, r, c, fac);
+  }
+  void TurbRowMultiply(const int &r, const int &c, const double &fac) {
+    RowMultiplyFactor(this->beginTurb(), turbSize_, r, c, fac);
+  }
 
-  void FlowLinCombRow(const int &, const double &, const int &);
-  void TurbLinCombRow(const int &, const double &, const int &);
+  void FlowLinCombRow(const int &r1, const double &fac, const int &r2) {
+    LinearCombRow(this->begin(), flowSize_, r1, fac, r2);
+  }
+  void TurbLinCombRow(const int &r1, const double &fac, const int &r2) {
+    LinearCombRow(this->beginTurb(), turbSize_, r1, fac, r2);
+  }
 
-  int FlowFindMaxInCol(const int &, const int &, const int &) const;
-  int TurbFindMaxInCol(const int &, const int &, const int &) const;
+  int FlowFindMaxInCol(const int &c, const int &start, const int &end) const {
+    return FindMaxInColumn(this->begin(), flowSize_, c, start, end);
+  }
+  int TurbFindMaxInCol(const int &c, const int &start, const int &end) const {
+    return FindMaxInColumn(this->beginTurb(), turbSize_, c, start, end);
+  }
 
-  void FlowIdentity();
-  void TurbIdentity();
+  void FlowIdentity() { IdentityMatrix(this->begin(), flowSize_); }
+  void TurbIdentity() { IdentityMatrix(this->beginTurb(), turbSize_); }
 
-  double FlowMaxAbsValOnDiagonal() const;
-  double TurbMaxAbsValOnDiagonal() const;
+  double FlowMaxAbsValOnDiagonal() const {
+    return MaximumAbsValOnDiagonal(this->begin(), flowSize_);
+  }
+  double TurbMaxAbsValOnDiagonal() const {
+    return MaximumAbsValOnDiagonal(this->beginTurb(), turbSize_);
+  }
 
   template <typename T>
   void RusanovFluxJacobian(const T &, const unique_ptr<eos> &,
@@ -260,8 +288,8 @@ class fluxJacobian {
     this->FlowInverse();
     this->TurbInverse();
   }
-  void FlowInverse();
-  void TurbInverse();
+  void FlowInverse() { MatrixInverse(this->begin(), flowSize_); }
+  void TurbInverse() { MatrixInverse(this->beginTurb(), turbSize_); }
 
   inline fluxJacobian & operator+=(const fluxJacobian &);
   inline fluxJacobian & operator-=(const fluxJacobian &);
