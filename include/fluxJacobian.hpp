@@ -387,25 +387,29 @@ inline const fluxJacobian operator/(fluxJacobian lhs, const fluxJacobian &rhs) {
 // operator overloads for double -------------------------------------
 // operator overload for addition
 fluxJacobian & fluxJacobian::operator+=(const double &scalar) {
-  for_each(this->begin(), this->end(), [&scalar](auto &val) { val += scalar; });
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val += scalar; });
   return *this;
 }
 
 // operator overload for subtraction with a scalar
 fluxJacobian & fluxJacobian::operator-=(const double &scalar) {
-  for_each(this->begin(), this->end(), [&scalar](auto &val) { val -= scalar; });
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val -= scalar; });
   return *this;
 }
 
 // operator overload for elementwise multiplication
 fluxJacobian & fluxJacobian::operator*=(const double &scalar) {
-  for_each(this->begin(), this->end(), [&scalar](auto &val) { val *= scalar; });
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val *= scalar; });
   return *this;
 }
 
 // operator overload for elementwise division
 fluxJacobian & fluxJacobian::operator/=(const double &scalar) {
-  for_each(this->begin(), this->end(), [&scalar](auto &val) { val /= scalar; });
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val /= scalar; });
   return *this;
 }
 
@@ -414,7 +418,7 @@ inline const fluxJacobian operator+(const double &lhs, fluxJacobian rhs) {
 }
 
 inline const fluxJacobian operator-(const double &lhs, fluxJacobian rhs) {
-  for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs - val; });
+  std::for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs - val; });
   return rhs;
 }
 
@@ -423,7 +427,7 @@ inline const fluxJacobian operator*(const double &lhs, fluxJacobian rhs) {
 }
 
 inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
-  for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs / val; });
+  std::for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs / val; });
   return rhs;
 }
 

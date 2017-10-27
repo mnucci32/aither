@@ -240,25 +240,29 @@ inline const squareMatrix operator/(squareMatrix lhs, const squareMatrix &rhs) {
 // operator overloads for double --------------------------------------------
 // operator overload for addition
 squareMatrix & squareMatrix::operator+=(const double &scalar) {
-  for_each(this->begin(), this->end(), [&scalar](auto &val) { val += scalar; });
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val += scalar; });
   return *this;
 }
 
 // operator overload for subtraction
 squareMatrix & squareMatrix::operator-=(const double &scalar) {
-  for_each(this->begin(), this->end(), [&scalar](auto &val) { val -= scalar; });
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val -= scalar; });
   return *this;
 }
 
 // operator overload for multiplication
 squareMatrix & squareMatrix::operator*=(const double &scalar) {
-  for_each(this->begin(), this->end(), [&scalar](auto &val) { val *= scalar; });
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val *= scalar; });
   return *this;
 }
 
 // operator overload for division
 squareMatrix & squareMatrix::operator/=(const double &scalar) {
-  for_each(this->begin(), this->end(), [&scalar](auto &val) { val /= scalar; });
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val /= scalar; });
   return *this;
 }
 
@@ -267,7 +271,7 @@ inline const squareMatrix operator+(const double &lhs, squareMatrix rhs) {
 }
 
 inline const squareMatrix operator-(const double &lhs, squareMatrix rhs) {
-  for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs - val; });
+  std::for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs - val; });
   return rhs;
 }
 
@@ -276,7 +280,7 @@ inline const squareMatrix operator*(const double &lhs, squareMatrix rhs) {
 }
 
 inline const squareMatrix operator/(const double &lhs, squareMatrix rhs) {
-  for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs / val; });
+  std::for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs / val; });
   return rhs;
 }
 
