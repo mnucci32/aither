@@ -21,6 +21,8 @@
 #include <vector>          // vector
 #include <memory>          // unique_ptr
 #include <type_traits>
+#include <algorithm>
+#include <functional>
 #include "vector3d.hpp"
 #include "tensor.hpp"
 #include "uncoupledScalar.hpp"
@@ -43,21 +45,97 @@ class transport;
 class thermodynamic;
 class turbModel;
 
+template <typename T1, typename T2,
+          typename = std::enable_if_t<std::is_base_of<varArray, T1>::value ||
+                                      std::is_same<varArrayView, T1>::value ||
+                                      std::is_same<primitiveView, T1>::value ||
+                                      std::is_same<conservedView, T1>::value ||
+                                      std::is_same<residualView, T1>::value>,
+          typename = std::enable_if_t<std::is_base_of<varArray, T2>::value>>
+void ArrayMultiplication(const vector<double>::const_iterator &mat,
+                         const int &flowSize, const int &turbSize,
+                         const bool &isScalar, const T1 &orig, T2 &arr) {
+  MSG_ASSERT(isScalar || (flowSize + turbSize) == orig.Size(),
+             "matrix/vector size mismatch");
+  MSG_ASSERT(isScalar || (flowSize + turbSize) == arr.Size(),
+             "matrix/vector size mismatch");
+
+  auto GetFlowVal = [&flowSize](const auto &mat, const int &r,
+                                const int &c) -> decltype(auto) {
+    return *(mat + r * flowSize + c);
+  };
+  auto GetTurbVal = [&flowSize, &turbSize](const auto &mat, const int &r,
+                                           const int &c) -> decltype(auto) {
+    return *(mat + flowSize * flowSize + r * turbSize + c);
+  };
+
+  if (isScalar) {
+    for (auto ii = 0; ii < arr.TurbulenceIndex(); ++ii) {
+      arr[ii] = orig[ii] * GetFlowVal(mat, 0, 0);
+    }
+    for (auto ii = arr.TurbulenceIndex(); ii < arr.Size(); ++ii) {
+      arr[ii] = orig[ii] * GetTurbVal(mat, 0, 0);
+    }
+  } else {
+    for (auto rr = 0; rr < flowSize; ++rr) {
+      for (auto cc = 0; cc < flowSize; ++cc) {
+        arr[rr] += GetFlowVal(mat, rr, cc) * orig[cc];
+      }
+    }
+
+    for (auto rr = 0; rr < turbSize; ++rr) {
+      for (auto cc = 0; cc < turbSize; ++cc) {
+        arr[flowSize + rr] += GetTurbVal(mat, rr, cc) * orig[flowSize + cc];
+      }
+    }
+  }
+}
+
 // This class holds the flux jacobians for the flow and turbulence equations.
 // In the LU-SGS method the jacobians are scalars.
 
 class fluxJacobian {
-  squareMatrix flowJacobian_;
-  squareMatrix turbJacobian_;
+  vector<double> data_;
+  int flowSize_;
+  int turbSize_;
+
+  // private member functions
+  int GetFlowLoc(const int &r, const int &c) const {
+    return r * flowSize_ + c;
+  }
+  int GetTurbLoc(const int &r, const int &c) const {
+    return flowSize_ * flowSize_ + r * turbSize_ + c;
+  }
+  double & FlowJacobian(const int &r, const int &c) {
+    return data_[this->GetFlowLoc(r, c)];
+  }
+  double & TurbJacobian(const int &r, const int &c) {
+    return data_[this->GetTurbLoc(r, c)];
+  }
 
  public:
   // constructors
-  fluxJacobian(const double &flow, const double &turb);
-  fluxJacobian(const int &flowSize, const int &turbSize);
+  fluxJacobian(const int &flowSize, const int &turbSize)
+      : data_(flowSize * flowSize + turbSize * turbSize, 0.0),
+        flowSize_(flowSize),
+        turbSize_(turbSize) {}
+  fluxJacobian(const double &flow, const double &turb) : fluxJacobian(1, 1) {
+    this->FlowJacobian(0, 0) = flow;
+    this->TurbJacobian(0, 0) = turb;
+  }
   fluxJacobian(const squareMatrix &flow, const squareMatrix &turb)
-      : flowJacobian_(flow), turbJacobian_(turb) {}
+      : fluxJacobian(flow.Size(), turb.Size()) {
+    std::copy(flow.begin(), flow.end(), data_.begin());
+    std::copy(turb.begin(), turb.end(), data_.begin() + flowSize_ * flowSize_);
+  }
   fluxJacobian() : fluxJacobian(0.0, 0.0) {}
-  fluxJacobian(const uncoupledScalar &specRad, const bool &hasTurb);
+  fluxJacobian(const uncoupledScalar &specRad, const bool &hasTurb)
+      : fluxJacobian(1, hasTurb ? 1 : 0) {
+    this->FlowJacobian(0, 0) = specRad.FlowVariable();
+    if (hasTurb) {
+      this->TurbJacobian(0, 0) = specRad.TurbVariable();
+    }
+  }
 
   // move constructor and assignment operator
   fluxJacobian(fluxJacobian&&) noexcept = default;
@@ -68,17 +146,104 @@ class fluxJacobian {
   fluxJacobian& operator=(const fluxJacobian&) = default;
 
   // member functions
-  squareMatrix FlowJacobian() const {return flowJacobian_;}
-  squareMatrix TurbulenceJacobian() const {return turbJacobian_;}
+  int Size() const {return data_.size();}
+  int FlowSize() const { return flowSize_; }
+  int TurbSize() const { return turbSize_; }
 
-  void AddToFlowJacobian(const squareMatrix &jac) {flowJacobian_ += jac;}
-  void AddToTurbJacobian(const squareMatrix &jac) {turbJacobian_ += jac;}
-  void SubtractFromFlowJacobian(const squareMatrix &jac) {flowJacobian_ -= jac;}
-  void SubtractFromTurbJacobian(const squareMatrix &jac) {turbJacobian_ -= jac;}
+  const double & FlowJacobian(const int &r, const int &c) const {
+    return data_[this->GetFlowLoc(r, c)];
+  }
+  const double & TurbJacobian(const int &r, const int &c) const {
+    return data_[this->GetTurbLoc(r, c)];
+  }
 
-  void MultiplyOnDiagonal(const double &, const bool &);
-  void AddOnDiagonal(const double &, const bool &);
-  
+  // provide begin and end so std::begin and std::end can be used
+  // use lower case to conform with std::begin, std::end
+  auto begin() noexcept {return data_.begin();}
+  const auto begin() const noexcept {return data_.begin();}
+  auto end() noexcept {return data_.end();}
+  const auto end() const noexcept {return data_.end();}
+  auto beginTurb() noexcept { return data_.begin() + flowSize_ * flowSize_; }
+  const auto beginTurb() const noexcept {
+    return data_.begin() + flowSize_ * flowSize_;
+  }
+
+  // const squareMatrix & FlowJacobian() const {return flowJacobian_;}
+  // const squareMatrix & TurbulenceJacobian() const {return turbJacobian_;}
+
+  void AddToFlowJacobian(const squareMatrix &jac);
+  void AddToTurbJacobian(const squareMatrix &jac);
+  void SubtractFromFlowJacobian(const squareMatrix &jac);
+  void SubtractFromTurbJacobian(const squareMatrix &jac);
+
+  void MultFlowJacobian(const double &fac);
+  void MultTurbJacobian(const double &fac);
+
+  void MultiplyOnDiagonal(const double &fac) {
+    this->FlowMultiplyOnDiagonal(fac);
+    this->TurbMultiplyOnDiagonal(fac);
+  }
+  void FlowMultiplyOnDiagonal(const double &fac) {
+    MultiplyFacOnDiagonal(this->begin(), flowSize_, fac);
+  }
+  void TurbMultiplyOnDiagonal(const double &fac) {
+    MultiplyFacOnDiagonal(this->beginTurb(), turbSize_, fac);
+  }
+
+  void AddOnDiagonal(const double &fac) { 
+    this->FlowAddOnDiagonal(fac);
+    this->TurbAddOnDiagonal(fac);
+  }
+  void FlowAddOnDiagonal(const double &fac) {
+    AddFacOnDiagonal(this->begin(), flowSize_, fac);
+  }
+  void TurbAddOnDiagonal(const double &fac) {
+    AddFacOnDiagonal(this->beginTurb(), turbSize_, fac);
+  }
+
+  bool HasTurbulence() const { return turbSize_ > 0; }
+
+  fluxJacobian FlowMatMult(const fluxJacobian &) const;
+  fluxJacobian TurbMatMult(const fluxJacobian &) const;
+
+  void FlowSwapRows(const int &r1, const int &r2) {
+    SwapMatRows(this->begin(), flowSize_, r1, r2);
+  }
+  void TurbSwapRows(const int &r1, const int &r2) {
+    SwapMatRows(this->beginTurb(), turbSize_, r1, r2);
+  }
+
+  void FlowRowMultiply(const int &r, const int &c, const double &fac) {
+    RowMultiplyFactor(this->begin(), flowSize_, r, c, fac);
+  }
+  void TurbRowMultiply(const int &r, const int &c, const double &fac) {
+    RowMultiplyFactor(this->beginTurb(), turbSize_, r, c, fac);
+  }
+
+  void FlowLinCombRow(const int &r1, const double &fac, const int &r2) {
+    LinearCombRow(this->begin(), flowSize_, r1, fac, r2);
+  }
+  void TurbLinCombRow(const int &r1, const double &fac, const int &r2) {
+    LinearCombRow(this->beginTurb(), turbSize_, r1, fac, r2);
+  }
+
+  int FlowFindMaxInCol(const int &c, const int &start, const int &end) const {
+    return FindMaxInColumn(this->begin(), flowSize_, c, start, end);
+  }
+  int TurbFindMaxInCol(const int &c, const int &start, const int &end) const {
+    return FindMaxInColumn(this->beginTurb(), turbSize_, c, start, end);
+  }
+
+  void FlowIdentity() { IdentityMatrix(this->begin(), flowSize_); }
+  void TurbIdentity() { IdentityMatrix(this->beginTurb(), turbSize_); }
+
+  double FlowMaxAbsValOnDiagonal() const {
+    return MaximumAbsValOnDiagonal(this->begin(), flowSize_);
+  }
+  double TurbMaxAbsValOnDiagonal() const {
+    return MaximumAbsValOnDiagonal(this->beginTurb(), turbSize_);
+  }
+
   template <typename T>
   void RusanovFluxJacobian(const T &, const unique_ptr<eos> &,
                            const unique_ptr<thermodynamic> &,
@@ -108,25 +273,15 @@ class fluxJacobian {
                          const bool &, const tensor<double> &);
 
   void Zero() {
-    flowJacobian_.Zero();
-    turbJacobian_.Zero();
+    std::fill(this->begin(), this->end(), 0.0);
   }
 
   template <typename T,
             typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
   T ArrayMult(const T &orig) const {
-    auto arr = orig;
-    if (this->IsScalar()) {
-      for (auto ii = 0; ii < arr.TurbulenceIndex(); ++ii) {
-        arr[ii] *= flowJacobian_(0, 0);
-      }
-      for (auto ii = arr.TurbulenceIndex(); ii < arr.Size(); ++ii) {
-        arr[ii] *= turbJacobian_(0, 0);
-      }
-    } else {
-      arr = flowJacobian_.ArrayMult(arr);
-      arr = turbJacobian_.ArrayMult(arr, flowJacobian_.Size());
-    }
+    T arr(orig.Size(), orig.NumSpecies());
+    ArrayMultiplication(this->begin(), flowSize_, turbSize_, this->IsScalar(),
+                        orig, arr);
     return arr;
   }
   template <typename T,
@@ -135,11 +290,18 @@ class fluxJacobian {
                                         std::is_same<conservedView, T>::value ||
                                         std::is_same<residualView, T>::value>>
   auto ArrayMult(const T &arrView) const {
-    auto arr = arrView.CopyData();
-    return this->ArrayMult(arr);
+    auto arr = arrView.GetViewType();
+    ArrayMultiplication(this->begin(), flowSize_, turbSize_, this->IsScalar(),
+                        arrView, arr);
+    return arr;
   }
-  bool IsScalar() const;
-  void Inverse(const bool &);
+  bool IsScalar() const {return flowSize_ == 1;}
+  void Inverse() {
+    this->FlowInverse();
+    this->TurbInverse();
+  }
+  void FlowInverse() { MatrixInverse(this->begin(), flowSize_); }
+  void TurbInverse() { MatrixInverse(this->beginTurb(), turbSize_); }
 
   inline fluxJacobian & operator+=(const fluxJacobian &);
   inline fluxJacobian & operator-=(const fluxJacobian &);
@@ -168,11 +330,6 @@ class fluxJacobian {
     return lhs /= s;
   }
 
-  friend inline const fluxJacobian operator-(const double &lhs,
-                                             fluxJacobian rhs);
-  friend inline const fluxJacobian operator/(const double &lhs,
-                                             fluxJacobian rhs);
-
   // destructor
   ~fluxJacobian() noexcept {}
 };
@@ -181,29 +338,33 @@ class fluxJacobian {
 
 // operator overload for addition
 fluxJacobian & fluxJacobian::operator+=(const fluxJacobian &other) {
-  flowJacobian_ += other.flowJacobian_;
-  turbJacobian_ += other.turbJacobian_;
+  MSG_ASSERT(this->Size() == other.Size(), "matrix sizes must be equal");
+  std::transform(this->begin(), this->end(), other.begin(), this->begin(),
+                 std::plus<double>());
   return *this;
 }
 
 // operator overload for subtraction with a scalar
 fluxJacobian & fluxJacobian::operator-=(const fluxJacobian &other) {
-  flowJacobian_ -= other.flowJacobian_;
-  turbJacobian_ -= other.turbJacobian_;
+  MSG_ASSERT(this->Size() == other.Size(), "matrix sizes must be equal");
+  std::transform(this->begin(), this->end(), other.begin(), this->begin(),
+                 std::minus<double>());
   return *this;
 }
 
 // operator overload for elementwise multiplication
 fluxJacobian & fluxJacobian::operator*=(const fluxJacobian &other) {
-  flowJacobian_ *= other.flowJacobian_;
-  turbJacobian_ *= other.turbJacobian_;
+  MSG_ASSERT(this->Size() == other.Size(), "matrix sizes must be equal");
+  std::transform(this->begin(), this->end(), other.begin(), this->begin(),
+                 std::multiplies<double>());
   return *this;
 }
 
 // operator overload for elementwise division
 fluxJacobian & fluxJacobian::operator/=(const fluxJacobian &other) {
-  flowJacobian_ /= other.flowJacobian_;
-  turbJacobian_ /= other.turbJacobian_;
+  MSG_ASSERT(this->Size() == other.Size(), "matrix sizes must be equal");
+  std::transform(this->begin(), this->end(), other.begin(), this->begin(),
+                 std::divides<double>());
   return *this;
 }
 
@@ -226,29 +387,29 @@ inline const fluxJacobian operator/(fluxJacobian lhs, const fluxJacobian &rhs) {
 // operator overloads for double -------------------------------------
 // operator overload for addition
 fluxJacobian & fluxJacobian::operator+=(const double &scalar) {
-  flowJacobian_ += scalar;
-  turbJacobian_ += scalar;
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val += scalar; });
   return *this;
 }
 
 // operator overload for subtraction with a scalar
 fluxJacobian & fluxJacobian::operator-=(const double &scalar) {
-  flowJacobian_ -= scalar;
-  turbJacobian_ -= scalar;
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val -= scalar; });
   return *this;
 }
 
 // operator overload for elementwise multiplication
 fluxJacobian & fluxJacobian::operator*=(const double &scalar) {
-  flowJacobian_ *= scalar;
-  turbJacobian_ *= scalar;
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val *= scalar; });
   return *this;
 }
 
 // operator overload for elementwise division
 fluxJacobian & fluxJacobian::operator/=(const double &scalar) {
-  flowJacobian_ /= scalar;
-  turbJacobian_ /= scalar;
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val /= scalar; });
   return *this;
 }
 
@@ -257,8 +418,7 @@ inline const fluxJacobian operator+(const double &lhs, fluxJacobian rhs) {
 }
 
 inline const fluxJacobian operator-(const double &lhs, fluxJacobian rhs) {
-  rhs.flowJacobian_ = lhs - rhs.flowJacobian_;
-  rhs.turbJacobian_ = lhs - rhs.turbJacobian_;
+  std::for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs - val; });
   return rhs;
 }
 
@@ -267,8 +427,7 @@ inline const fluxJacobian operator*(const double &lhs, fluxJacobian rhs) {
 }
 
 inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
-  rhs.flowJacobian_ = lhs / rhs.flowJacobian_;
-  rhs.turbJacobian_ = lhs / rhs.turbJacobian_;
+  std::for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs / val; });
   return rhs;
 }
 
@@ -276,6 +435,7 @@ ostream &operator<<(ostream &os, const fluxJacobian &jacobian);
 
 // ---------------------------------------------------------------------------
 // member functions
+
 /* Function to calculate Rusanov flux jacobian. The Rusanov flux is defined as
 shown below.
 
@@ -313,8 +473,8 @@ void fluxJacobian::RusanovFluxJacobian(const T &state,
 
   // form dissipation matrix based on spectral radius
   fluxJacobian dissipation(inp.NumFlowEquations(), inp.NumTurbEquations());
-  dissipation.flowJacobian_.Identity();
-  dissipation.flowJacobian_ *= specRad;
+  dissipation.FlowIdentity();
+  dissipation.FlowMultiplyOnDiagonal(specRad);
 
   // begin jacobian calculation
   this->InvFluxJacobian(state, eqnState, thermo, area, inp, turb);
@@ -322,7 +482,8 @@ void fluxJacobian::RusanovFluxJacobian(const T &state,
   // compute turbulent dissipation if necessary
   if (inp.IsRANS()) {
     // multiply by 0.5 b/c averaging with convection matrix
-    dissipation.turbJacobian_ = 0.5 * turb->InviscidDissJacobian(state, area);
+    const auto tJac = 0.5 * turb->InviscidDissJacobian(state, area);
+    std::copy(tJac.begin(), tJac.end(), dissipation.beginTurb());
   }
 
   positive ? (*this) += dissipation : (*this) -= dissipation;
@@ -354,61 +515,61 @@ void fluxJacobian::InvFluxJacobian(const T &state,
   const auto a3 = thermo->Gamma(t) - 2.0;
 
   // begin jacobian calculation
-  flowJacobian_ = squareMatrix(inp.NumFlowEquations());
-  turbJacobian_ = squareMatrix(inp.NumTurbEquations());
+  *this = fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
 
   // calculate flux derivatives wrt left state
   // column zero
-  flowJacobian_(0, 0) = 0.0;
-  flowJacobian_(1, 0) = phi * area.UnitVector().X() - state.U() * velNorm;
-  flowJacobian_(2, 0) = phi * area.UnitVector().Y() - state.V() * velNorm;
-  flowJacobian_(3, 0) = phi * area.UnitVector().Z() - state.W() * velNorm;
-  flowJacobian_(4, 0) = velNorm * (phi - a1);
+  this->FlowJacobian(0, 0) = 0.0;
+  this->FlowJacobian(1, 0) = phi * area.UnitVector().X() - state.U() * velNorm;
+  this->FlowJacobian(2, 0) = phi * area.UnitVector().Y() - state.V() * velNorm;
+  this->FlowJacobian(3, 0) = phi * area.UnitVector().Z() - state.W() * velNorm;
+  this->FlowJacobian(4, 0) = velNorm * (phi - a1);
 
   // column one
-  flowJacobian_(0, 1) = area.UnitVector().X();
-  flowJacobian_(1, 1) = velNorm - a3 * area.UnitVector().X() * state.U();
-  flowJacobian_(2, 1) = state.V() * area.UnitVector().X() -
+  this->FlowJacobian(0, 1) = area.UnitVector().X();
+  this->FlowJacobian(1, 1) = velNorm - a3 * area.UnitVector().X() * state.U();
+  this->FlowJacobian(2, 1) = state.V() * area.UnitVector().X() -
       gammaMinusOne * state.U() * area.UnitVector().Y();
-  flowJacobian_(3, 1) = state.W() * area.UnitVector().X() -
+  this->FlowJacobian(3, 1) = state.W() * area.UnitVector().X() -
       gammaMinusOne * state.U() * area.UnitVector().Z();
-  flowJacobian_(4, 1) = a1 * area.UnitVector().X() - gammaMinusOne * state.U()
-      * velNorm;
+  this->FlowJacobian(4, 1) =
+      a1 * area.UnitVector().X() - gammaMinusOne * state.U() * velNorm;
 
   // column two
-  flowJacobian_(0, 2) = area.UnitVector().Y();
-  flowJacobian_(1, 2) = state.U() * area.UnitVector().Y() -
+  this->FlowJacobian(0, 2) = area.UnitVector().Y();
+  this->FlowJacobian(1, 2) = state.U() * area.UnitVector().Y() -
       gammaMinusOne * state.V() * area.UnitVector().X();
-  flowJacobian_(2, 2) = velNorm - a3 * area.UnitVector().Y() * state.V();
-  flowJacobian_(3, 2) = state.W() * area.UnitVector().Y() -
+  this->FlowJacobian(2, 2) = velNorm - a3 * area.UnitVector().Y() * state.V();
+  this->FlowJacobian(3, 2) = state.W() * area.UnitVector().Y() -
       gammaMinusOne * state.V() * area.UnitVector().Z();
-  flowJacobian_(4, 2) = a1 * area.UnitVector().Y() - gammaMinusOne * state.V()
-      * velNorm;
+  this->FlowJacobian(4, 2) =
+      a1 * area.UnitVector().Y() - gammaMinusOne * state.V() * velNorm;
 
   // column three
-  flowJacobian_(0, 3) = area.UnitVector().Z();
-  flowJacobian_(1, 3) = state.U() * area.UnitVector().Z() -
+  this->FlowJacobian(0, 3) = area.UnitVector().Z();
+  this->FlowJacobian(1, 3) = state.U() * area.UnitVector().Z() -
       gammaMinusOne * state.W() * area.UnitVector().X();
-  flowJacobian_(2, 3) = state.V() * area.UnitVector().Z() -
+  this->FlowJacobian(2, 3) = state.V() * area.UnitVector().Z() -
       gammaMinusOne * state.W() * area.UnitVector().Y();
-  flowJacobian_(3, 3) = velNorm - a3 * area.UnitVector().Z() * state.W();
-  flowJacobian_(4, 3) = a1 * area.UnitVector().Z() - gammaMinusOne * state.W()
-      * velNorm;
+  this->FlowJacobian(3, 3) = velNorm - a3 * area.UnitVector().Z() * state.W();
+  this->FlowJacobian(4, 3) =
+      a1 * area.UnitVector().Z() - gammaMinusOne * state.W() * velNorm;
 
   // column four
-  flowJacobian_(0, 4) = 0.0;
-  flowJacobian_(1, 4) = gammaMinusOne * area.UnitVector().X();
-  flowJacobian_(2, 4) = gammaMinusOne * area.UnitVector().Y();
-  flowJacobian_(3, 4) = gammaMinusOne * area.UnitVector().Z();
-  flowJacobian_(4, 4) = thermo->Gamma(t) * velNorm;
+  this->FlowJacobian(0, 4) = 0.0;
+  this->FlowJacobian(1, 4) = gammaMinusOne * area.UnitVector().X();
+  this->FlowJacobian(2, 4) = gammaMinusOne * area.UnitVector().Y();
+  this->FlowJacobian(3, 4) = gammaMinusOne * area.UnitVector().Z();
+  this->FlowJacobian(4, 4) = thermo->Gamma(t) * velNorm;
 
   // multiply by 0.5 b/c averaging with dissipation matrix
-  flowJacobian_ *= 0.5 * area.Mag();
+  this->MultFlowJacobian(0.5 * area.Mag());
 
   // turbulent jacobian here
   if (inp.IsRANS()) {
     // multiply by 0.5 b/c averaging with dissipation matrix
-    turbJacobian_ = 0.5 * turb->InviscidConvJacobian(state, area);
+    const auto tJac = 0.5 * turb->InviscidConvJacobian(state, area);
+    std::copy(tJac.begin(), tJac.end(), this->beginTurb());
   }
 }
 
@@ -478,36 +639,35 @@ void fluxJacobian::DelprimitiveDelConservative(
   const auto gammaMinusOne = thermo->Gamma(t) - 1.0;
   const auto invRho = 1.0 / state.Rho();
 
-  flowJacobian_ = squareMatrix(inp.NumFlowEquations());
-  turbJacobian_ = squareMatrix(inp.NumTurbEquations());
+  *this = fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
 
   // assign column 0
-  flowJacobian_(0, 0) = 1.0;
-  flowJacobian_(1, 0) = -invRho * state.U();
-  flowJacobian_(2, 0) = -invRho * state.V();
-  flowJacobian_(3, 0) = -invRho * state.W();
-  flowJacobian_(4, 0) = 0.5 * gammaMinusOne *
+  this->FlowJacobian(0, 0) = 1.0;
+  this->FlowJacobian(1, 0) = -invRho * state.U();
+  this->FlowJacobian(2, 0) = -invRho * state.V();
+  this->FlowJacobian(3, 0) = -invRho * state.W();
+  this->FlowJacobian(4, 0) = 0.5 * gammaMinusOne *
       state.Velocity().DotProd(state.Velocity());
 
   // assign column 1
-  flowJacobian_(1, 1) = invRho;
-  flowJacobian_(4, 1) = -gammaMinusOne * state.U();
+  this->FlowJacobian(1, 1) = invRho;
+  this->FlowJacobian(4, 1) = -gammaMinusOne * state.U();
 
   // assign column 2
-  flowJacobian_(2, 2) = invRho;
-  flowJacobian_(4, 2) = -gammaMinusOne * state.V();
+  this->FlowJacobian(2, 2) = invRho;
+  this->FlowJacobian(4, 2) = -gammaMinusOne * state.V();
 
   // assign column 3
-  flowJacobian_(3, 3) = invRho;
-  flowJacobian_(4, 3) = -gammaMinusOne * state.W();
+  this->FlowJacobian(3, 3) = invRho;
+  this->FlowJacobian(4, 3) = -gammaMinusOne * state.W();
 
   // assign column 4
-  flowJacobian_(4, 4) = gammaMinusOne;
+  this->FlowJacobian(4, 4) = gammaMinusOne;
 
   // turbulent jacobian here
   if (inp.IsRANS()) {
-    turbJacobian_(0, 0) = invRho;
-    turbJacobian_(1, 1) = invRho;
+    this->TurbJacobian(0, 0) = invRho;
+    this->TurbJacobian(1, 1) = invRho;
   }
 }
 
@@ -533,9 +693,7 @@ void fluxJacobian::ApproxTSLJacobian(
   static_assert(std::is_same<primitive, T>::value ||
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
-
-  flowJacobian_ = squareMatrix(inp.NumFlowEquations());
-  turbJacobian_ = squareMatrix(inp.NumTurbEquations());
+  *this = fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
 
   const auto t = state.Temperature(eqnState);
   const auto mu = trans->NondimScaling() * lamVisc;
@@ -549,51 +707,62 @@ void fluxJacobian::ApproxTSLJacobian(
   constexpr auto third = 1.0 / 3.0;
 
   // assign column 0
-  flowJacobian_(4, 0) =
+  this->FlowJacobian(4, 0) =
       -(trans->Conductivity(mu, t, thermo) +
         trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) *
       state.Temperature(eqnState) / ((mu + mut) * state.Rho());
 
   // assign column 1
-  flowJacobian_(1, 1) = third * area.UnitVector().X() * area.UnitVector().X()
-      + 1.0;
-  flowJacobian_(2, 1) = third * area.UnitVector().X() * area.UnitVector().Y();
-  flowJacobian_(3, 1) = third * area.UnitVector().X() * area.UnitVector().Z();
-  flowJacobian_(4, 1) = fac * 0.5 * dist / (mu + mut) * tauNorm.X() +
+  this->FlowJacobian(1, 1) =
+      third * area.UnitVector().X() * area.UnitVector().X() + 1.0;
+  this->FlowJacobian(2, 1) =
+      third * area.UnitVector().X() * area.UnitVector().Y();
+  this->FlowJacobian(3, 1) =
+      third * area.UnitVector().X() * area.UnitVector().Z();
+  this->FlowJacobian(4, 1) = fac * 0.5 * dist / (mu + mut) * tauNorm.X() +
       third * area.UnitVector().X() * velNorm + state.U();
 
   // assign column 2
-  flowJacobian_(1, 2) = third * area.UnitVector().Y() * area.UnitVector().X();
-  flowJacobian_(2, 2) = third * area.UnitVector().Y() * area.UnitVector().Y()
-      + 1.0;
-  flowJacobian_(3, 2) = third * area.UnitVector().Y() * area.UnitVector().Z();
-  flowJacobian_(4, 2) = fac * 0.5 * dist / (mu + mut) * tauNorm.Y() +
-      third * area.UnitVector().Y() * velNorm + state.V();
+  this->FlowJacobian(1, 2) =
+      third * area.UnitVector().Y() * area.UnitVector().X();
+  this->FlowJacobian(2, 2) =
+      third * area.UnitVector().Y() * area.UnitVector().Y() + 1.0;
+  this->FlowJacobian(3, 2) =
+      third * area.UnitVector().Y() * area.UnitVector().Z();
+  this->FlowJacobian(4, 2) = fac * 0.5 * dist / (mu + mut) * tauNorm.Y() +
+                             third * area.UnitVector().Y() * velNorm +
+                             state.V();
 
   // assign column 3
-  flowJacobian_(1, 3) = third * area.UnitVector().Z() * area.UnitVector().X();
-  flowJacobian_(2, 3) = third * area.UnitVector().Z() * area.UnitVector().Y();
-  flowJacobian_(3, 3) = third * area.UnitVector().Z() * area.UnitVector().Z()
-      + 1.0;
-  flowJacobian_(4, 3) = fac * 0.5 * dist / (mu + mut) * tauNorm.Z() +
-      third * area.UnitVector().Z() * velNorm + state.W();
+  this->FlowJacobian(1, 3) =
+      third * area.UnitVector().Z() * area.UnitVector().X();
+  this->FlowJacobian(2, 3) =
+      third * area.UnitVector().Z() * area.UnitVector().Y();
+  this->FlowJacobian(3, 3) =
+      third * area.UnitVector().Z() * area.UnitVector().Z() + 1.0;
+  this->FlowJacobian(4, 3) = fac * 0.5 * dist / (mu + mut) * tauNorm.Z() +
+                             third * area.UnitVector().Z() * velNorm +
+                             state.W();
 
   // assign column 4
-  flowJacobian_(4, 4) =
+  this->FlowJacobian(4, 4) =
       (trans->Conductivity(mu, t, thermo) +
        trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) /
       ((mu + mut) * state.Rho());
 
-  flowJacobian_ *= area.Mag() * (mu + mut) / dist;
+  this->MultFlowJacobian(area.Mag() * (mu + mut) / dist);
 
   fluxJacobian prim2Cons;
   prim2Cons.DelprimitiveDelConservative(state, thermo, eqnState, inp);
-  flowJacobian_ = flowJacobian_.MatMult(prim2Cons.flowJacobian_);
+  const auto product = this->FlowMatMult(prim2Cons);
+  std::copy(product.begin(), product.beginTurb(), this->begin());
 
   // calculate turbulent jacobian if necessary
   if (inp.IsRANS()) {
-    turbJacobian_ = fac * turb->ViscousJacobian(state, area, lamVisc, trans,
-                                                dist, turbVisc, f1);
+    const auto turbProd =
+        fac *
+        turb->ViscousJacobian(state, area, lamVisc, trans, dist, turbVisc, f1);
+    std::copy(turbProd.begin(), turbProd.end(), this->beginTurb());
     // Don't need to multiply by prim2Cons b/c jacobian is already wrt
     // conservative variables
   }

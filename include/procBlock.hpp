@@ -56,9 +56,9 @@ class source;
 class turbModel;
 class plot3dBlock;
 class resid;
-class fluxJacobian;
 class kdtree;
 class conserved;
+class matMultiArray3d;
 
 class procBlock {
   blkMultiArray3d<primitive> state_;  // primitive vars at cell center
@@ -119,26 +119,26 @@ class procBlock {
   // private member functions
   void CalcInvFluxI(const unique_ptr<eos> &, const unique_ptr<thermodynamic> &,
                     const input &, const unique_ptr<turbModel> &,
-                    multiArray3d<fluxJacobian> &);
+                    matMultiArray3d &);
   void CalcInvFluxJ(const unique_ptr<eos> &, const unique_ptr<thermodynamic> &,
                     const input &, const unique_ptr<turbModel> &,
-                    multiArray3d<fluxJacobian> &);
+                    matMultiArray3d &);
   void CalcInvFluxK(const unique_ptr<eos> &, const unique_ptr<thermodynamic> &,
                     const input &, const unique_ptr<turbModel> &,
-                    multiArray3d<fluxJacobian> &);
+                    matMultiArray3d &);
 
   void CalcViscFluxI(const unique_ptr<transport> &,
                      const unique_ptr<thermodynamic> &, const unique_ptr<eos> &,
                      const input &, const unique_ptr<turbModel> &,
-                     multiArray3d<fluxJacobian> &);
+                     matMultiArray3d &);
   void CalcViscFluxJ(const unique_ptr<transport> &,
                      const unique_ptr<thermodynamic> &, const unique_ptr<eos> &,
                      const input &, const unique_ptr<turbModel> &,
-                     multiArray3d<fluxJacobian> &);
+                     matMultiArray3d &);
   void CalcViscFluxK(const unique_ptr<transport> &,
                      const unique_ptr<thermodynamic> &, const unique_ptr<eos> &,
                      const input &, const unique_ptr<turbModel> &,
-                     multiArray3d<fluxJacobian> &);
+                     matMultiArray3d &);
 
   void CalcCellDt(const int &, const int &, const int &, const double &);
 
@@ -404,10 +404,10 @@ class procBlock {
                             const unique_ptr<thermodynamic> &,
                             const unique_ptr<eos> &, const input &,
                             const unique_ptr<turbModel> &,
-                            multiArray3d<fluxJacobian> &);
+                            matMultiArray3d &);
   void CalcSrcTerms(const unique_ptr<transport> &,
                     const unique_ptr<turbModel> &, const input &,
-                    multiArray3d<fluxJacobian> &);
+                    matMultiArray3d &);
 
   void ResetResidWS();
   void ResetGradients();
@@ -461,29 +461,29 @@ class procBlock {
 
   void CalcWallDistance(const kdtree &);
 
-  void InvertDiagonal(multiArray3d<fluxJacobian> &, const input &) const;
+  void InvertDiagonal(matMultiArray3d &, const input &) const;
 
   blkMultiArray3d<varArray> InitializeMatrixUpdate(
       const input &, const unique_ptr<eos> &eos,
       const unique_ptr<thermodynamic> &,
-      const multiArray3d<fluxJacobian> &) const;
+      const matMultiArray3d &) const;
   void LUSGS_Forward(const vector<vector3d<int>> &, blkMultiArray3d<varArray> &,
                      const unique_ptr<eos> &, const input &,
                      const unique_ptr<thermodynamic> &,
                      const unique_ptr<transport> &,
                      const unique_ptr<turbModel> &,
-                     const multiArray3d<fluxJacobian> &, const int &) const;
+                     const matMultiArray3d &, const int &) const;
   double LUSGS_Backward(const vector<vector3d<int>> &, blkMultiArray3d<varArray> &,
                         const unique_ptr<eos> &, const input &,
                         const unique_ptr<thermodynamic> &,
                         const unique_ptr<transport> &,
                         const unique_ptr<turbModel> &,
-                        const multiArray3d<fluxJacobian> &, const int &) const;
+                        const matMultiArray3d &, const int &) const;
 
   double DPLUR(blkMultiArray3d<varArray> &, const unique_ptr<eos> &, const input &,
                const unique_ptr<thermodynamic> &, const unique_ptr<transport> &,
                const unique_ptr<turbModel> &,
-               const multiArray3d<fluxJacobian> &) const;
+               const matMultiArray3d &) const;
 
   bool IsPhysical(const int &, const int &, const int &) const;
   bool AtCorner(const int &, const int &, const int &) const;

@@ -38,6 +38,7 @@ set(sources
   inviscidFlux.cpp
   kdtree.cpp
   limiter.cpp
+  matMultiArray3d.cpp
   matrix.cpp
   output.cpp
   parallel.cpp

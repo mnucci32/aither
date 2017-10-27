@@ -30,9 +30,9 @@
 #include <iostream>     // ostream
 #include <type_traits>  // is_arithmetic
 #include <numeric>      // accumulate
+#include <algorithm>
+#include <functional>
 #include "vector3d.hpp"
-
-#define TENSORSIZE 9
 
 using std::ostream;
 using std::endl;
@@ -43,7 +43,7 @@ class tensor {
   static_assert(std::is_arithmetic<T>::value,
                 "tensor<T> requires an arithmetic type!");
 
-  T data_[TENSORSIZE];
+  T data_[9];
 
   // private member functions
   int GetLoc(const int &rr, const int &cc) const {
@@ -70,6 +70,13 @@ class tensor {
   tensor& operator=(const tensor<T>&) = default;
 
   // member functions
+  // provide begin and end so std::begin and std::end can be used
+  // use lower case to conform with std::begin, std::end
+  auto begin() noexcept {return std::begin(data_);}
+  const auto begin() const noexcept {return std::begin(data_);}
+  auto end() noexcept {return std::end(data_);}
+  const auto end() const noexcept {return std::end(data_);}
+
   // operator overloads
   T& operator()(const int &rr, const int &cc) {
     return data_[this->GetLoc(rr, cc)];
@@ -105,11 +112,6 @@ class tensor {
     auto lhs = *this;
     return lhs /= s;
   }
-
-  template <typename TT>
-  friend inline const tensor<TT> operator-(const TT &lhs, tensor<TT> rhs);
-  template <typename TT>
-  friend inline const tensor<TT> operator/(const TT &lhs, tensor<TT> rhs);
 
   // assignment of data members
   void SetXX(const T &val) { data_[0] = val; }
@@ -160,36 +162,32 @@ class tensor {
 // operator overload for addition
 template <typename T>
 tensor<T> & tensor<T>::operator+=(const tensor<T> &ten) {
-  for (auto rr = 0; rr < TENSORSIZE; rr++) {
-    data_[rr] += ten.data_[rr];
-  }
+  std::transform(this->begin(), this->end(), ten.begin(), this->begin(),
+                 std::plus<T>());
   return *this;
 }
 
 // operator overload for subtraction with a scalar
 template <typename T>
 tensor<T> & tensor<T>::operator-=(const tensor<T> &ten) {
-  for (auto rr = 0; rr < TENSORSIZE; rr++) {
-    data_[rr] -= ten.data_[rr];
-  }
+  std::transform(this->begin(), this->end(), ten.begin(), this->begin(),
+                 std::minus<T>());
   return *this;
 }
 
 // operator overload for elementwise multiplication
 template <typename T>
 tensor<T> & tensor<T>::operator*=(const tensor<T> &ten) {
-  for (auto rr = 0; rr < TENSORSIZE; rr++) {
-    data_[rr] *= ten.data_[rr];
-  }
+  std::transform(this->begin(), this->end(), ten.begin(), this->begin(),
+                 std::multiplies<T>());
   return *this;
 }
 
 // operator overload for elementwise division
 template <typename T>
 tensor<T> & tensor<T>::operator/=(const tensor<T> &ten) {
-  for (auto rr = 0; rr < TENSORSIZE; rr++) {
-    data_[rr] /= ten.data_[rr];
-  }
+  std::transform(this->begin(), this->end(), ten.begin(), this->begin(),
+                 std::divides<T>());
   return *this;
 }
 
@@ -217,36 +215,32 @@ inline const tensor<T> operator/(tensor<T> lhs, const tensor<T> &rhs) {
 // operator overload for addition
 template <typename T>
 tensor<T> & tensor<T>::operator+=(const T &scalar) {
-  for (auto &val : data_) {
-    val += scalar;
-  }
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val += scalar; });
   return *this;
 }
 
 // operator overload for subtraction with a scalar
 template <typename T>
 tensor<T> & tensor<T>::operator-=(const T &scalar) {
-  for (auto &val : data_) {
-    val -= scalar;
-  }
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val -= scalar; });
   return *this;
 }
 
 // operator overload for elementwise multiplication
 template <typename T>
 tensor<T> & tensor<T>::operator*=(const T &scalar) {
-  for (auto &val : data_) {
-    val *= scalar;
-  }
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val *= scalar; });
   return *this;
 }
 
 // operator overload for elementwise division
 template <typename T>
 tensor<T> & tensor<T>::operator/=(const T &scalar) {
-  for (auto &val : data_) {
-    val /= scalar;
-  }
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val /= scalar; });
   return *this;
 }
 
@@ -257,9 +251,7 @@ inline const tensor<T> operator+(const T &lhs, tensor<T> rhs) {
 
 template <typename T>
 inline const tensor<T> operator-(const T &lhs, tensor<T> rhs) {
-  for (auto rr = 0; rr < TENSORSIZE; rr++) {
-    rhs.data_[rr] = lhs - rhs.data_[rr];
-  }
+  std::for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs - val; });
   return rhs;
 }
 
@@ -270,9 +262,7 @@ inline const tensor<T> operator*(const T &lhs, tensor<T> rhs) {
 
 template <typename T>
 inline const tensor<T> operator/(const T &lhs, tensor<T> rhs) {
-  for (auto rr = 0; rr < TENSORSIZE; rr++) {
-    rhs.data_[rr] = lhs / rhs.data_[rr];
-  }
+  std::for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs / val; });
   return rhs;
 }
 
@@ -354,27 +344,15 @@ void tensor<T>::Identity() {
 // Function to zero a tensor
 template <typename T>
 void tensor<T>::Zero() {
-  T var = 0;
-  data_[0] = var;
-  data_[1] = var;
-  data_[2] = var;
-  data_[3] = var;
-  data_[4] = var;
-  data_[5] = var;
-  data_[6] = var;
-  data_[7] = var;
-  data_[8] = var;
+  std::fill(this->begin(), this->end(), T(0));
 }
 
 // Function to return the double dot product of two tensors
 // Aij Bij
 template <typename T>
 T tensor<T>::DoubleDotTrans(const tensor<T> &temp) const {
-  return data_[0] * temp.data_[0] + data_[1] * temp.data_[1] +
-      data_[2] * temp.data_[2] + data_[3] * temp.data_[3] +
-      data_[4] * temp.data_[4] + data_[5] * temp.data_[5] +
-      data_[6] * temp.data_[6] + data_[7] * temp.data_[7] +
-      data_[8] * temp.data_[8];
+  auto prod = *this * temp;
+  return prod.Sum();
 }
 
 // Function to return the double dot product of two tensors
@@ -382,10 +360,10 @@ T tensor<T>::DoubleDotTrans(const tensor<T> &temp) const {
 template <typename T>
 T tensor<T>::DoubleDot(const tensor<T> &temp) const {
   return data_[0] * temp.data_[0] + data_[1] * temp.data_[3] +
-      data_[2] * temp.data_[6] + data_[3] * temp.data_[1] +
-      data_[4] * temp.data_[4] + data_[5] * temp.data_[7] +
-      data_[6] * temp.data_[2] + data_[7] * temp.data_[5] +
-      data_[8] * temp.data_[8];
+         data_[2] * temp.data_[6] + data_[3] * temp.data_[1] +
+         data_[4] * temp.data_[4] + data_[5] * temp.data_[7] +
+         data_[6] * temp.data_[2] + data_[7] * temp.data_[5] +
+         data_[8] * temp.data_[8];
 }
 
 // function to remove the components that are aligned with a given direction

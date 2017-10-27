@@ -30,6 +30,7 @@
 #include "thermodynamic.hpp"  // thermodynamic model
 #include "conserved.hpp"      // conserved
 #include "spectralRadius.hpp"
+#include "matrix.hpp"
 
 using std::cout;
 using std::endl;
@@ -38,45 +39,53 @@ using std::vector;
 using std::string;
 using std::unique_ptr;
 
-// constructor
-// if constructed with two doubles, create scalar squareMatrix
-fluxJacobian::fluxJacobian(const double &flow, const double &turb) {
-  flowJacobian_ = squareMatrix(1);
-  flowJacobian_ += flow;
-
-  turbJacobian_ = squareMatrix(1);
-  turbJacobian_ += turb;
-}
-
-// if constructed with two intss, create scalar squareMatrix with given size
-fluxJacobian::fluxJacobian(const int &flowSize, const int &turbSize) {
-  flowJacobian_ = squareMatrix(flowSize);
-  turbJacobian_ = squareMatrix(turbSize);
-}
-
-fluxJacobian::fluxJacobian(const uncoupledScalar &specRad,
-                           const bool &hasTurb) {
-  flowJacobian_ = squareMatrix(1);
-  flowJacobian_ += specRad.FlowVariable();
-
-  if (hasTurb) {
-    turbJacobian_ = squareMatrix(1);
-    turbJacobian_ += specRad.TurbVariable();
-  }
-}
-
 // member functions
-bool fluxJacobian::IsScalar() const {
-  return (flowJacobian_.Size() > 1) ? false : true;
+void fluxJacobian::AddToFlowJacobian(const squareMatrix &jac) {
+  MSG_ASSERT(flowSize_ == jac.Size(), "matrix sizes don't match");
+  std::transform(this->begin(), this->beginTurb(), jac.begin(), this->begin(),
+                 std::plus<double>());
+}
+void fluxJacobian::SubtractFromFlowJacobian(const squareMatrix &jac) { 
+  MSG_ASSERT(flowSize_ == jac.Size(), "matrix sizes don't match");
+  std::transform(this->begin(), this->beginTurb(), jac.begin(), this->begin(),
+                 std::minus<double>());
 }
 
-// function to take the inverse of a flux jacobian
-void fluxJacobian::Inverse(const bool &isRANS) {
-  flowJacobian_.Inverse();
+void fluxJacobian::AddToTurbJacobian(const squareMatrix &jac) {
+  MSG_ASSERT(turbSize_ == jac.Size(), "matrix sizes don't match");
+  std::transform(this->beginTurb(), this->end(), jac.begin(), this->beginTurb(),
+                 std::plus<double>());
+}
+void fluxJacobian::SubtractFromTurbJacobian(const squareMatrix &jac) {
+  MSG_ASSERT(turbSize_ == jac.Size(), "matrix sizes don't match");
+  std::transform(this->beginTurb(), this->end(), jac.begin(), this->beginTurb(),
+                 std::minus<double>());
+}
 
-  if (isRANS) {
-    turbJacobian_.Inverse();
-  }
+void fluxJacobian::MultFlowJacobian(const double &fac) {
+  std::for_each(this->begin(), this->beginTurb(),
+                [&fac](auto &val) { val *= fac; });
+}
+void fluxJacobian::MultTurbJacobian(const double &fac) {
+  std::for_each(this->beginTurb(), this->end(),
+                [&fac](auto &val) { val *= fac; });
+}
+
+fluxJacobian fluxJacobian::FlowMatMult(const fluxJacobian &jac2) const {
+  MSG_ASSERT(this->FlowSize() == jac2.FlowSize(),
+             "Mismatch in flux jacobian size");
+  fluxJacobian result(this->FlowSize(), this->TurbSize());
+  MatrixMultiply(this->begin(), jac2.begin(), result.begin(), this->FlowSize());
+  return result;
+}
+
+fluxJacobian fluxJacobian::TurbMatMult(const fluxJacobian &jac2) const {
+  MSG_ASSERT(this->TurbSize() == jac2.TurbSize(),
+             "Mismatch in flux jacobian size");
+  fluxJacobian result(this->FlowSize(), this->TurbSize());
+  MatrixMultiply(this->beginTurb(), jac2.beginTurb(), result.beginTurb(),
+                 this->TurbSize());
+  return result;
 }
 
 
@@ -84,8 +93,30 @@ void fluxJacobian::Inverse(const bool &isRANS) {
 // non-member functions
 // ----------------------------------------------------------------------------
 ostream &operator<<(ostream &os, const fluxJacobian &jacobian) {
-  os << jacobian.FlowJacobian() << endl;
-  os << jacobian.TurbulenceJacobian() << endl;
+  // print flow jacobian
+  for (auto rr = 0; rr < jacobian.FlowSize(); ++rr) {
+    for (auto cc = 0; cc < jacobian.FlowSize(); ++cc) {
+      os << jacobian.FlowJacobian(rr, cc);
+      if (cc != (jacobian.FlowSize() - 1)) {
+        os << ", ";
+      } else {
+        os << endl;
+      }
+    }
+  }
+
+  // print turbulence jacobian
+  for (auto rr = 0; rr < jacobian.TurbSize(); ++rr) {
+    for (auto cc = 0; cc < jacobian.TurbSize(); ++cc) {
+      os << jacobian.TurbJacobian(rr, cc);
+      if (cc != (jacobian.TurbSize() - 1)) {
+        os << ", ";
+      } else {
+        os << endl;
+      }
+    }
+  }
+
   return os;
 }
 
@@ -281,33 +312,3 @@ varArray RoeOffDiagonal(
       fluxChange - specRad.ArrayMult(update);
 }
 
-void fluxJacobian::MultiplyOnDiagonal(const double &val,
-                                      const bool &isRANS) {
-  // val -- value to multiply along diagonal
-  // isRANS -- flag identifiying if simulation is turbulent
-
-  for (auto ii = 0; ii < flowJacobian_.Size(); ii++) {
-    flowJacobian_(ii, ii) *= val;
-  }
-
-  if (isRANS) {
-    for (auto ii = 0; ii < turbJacobian_.Size(); ii++) {
-      turbJacobian_(ii, ii) *= val;
-    }
-  }
-}
-
-void fluxJacobian::AddOnDiagonal(const double &val, const bool &isRANS) {
-  // val -- value to multiply along diagonal
-  // isRANS -- flag identifiying if simulation is turbulent
-
-  for (auto ii = 0; ii < flowJacobian_.Size(); ii++) {
-    flowJacobian_(ii, ii) += val;
-  }
-
-  if (isRANS) {
-    for (auto ii = 0; ii < turbJacobian_.Size(); ii++) {
-      turbJacobian_(ii, ii) += val;
-    }
-  }
-}

@@ -28,8 +28,9 @@
 #include <cmath>        // sqrt()
 #include <iostream>     // ostream
 #include <type_traits>  // is_arithmetic
-
-#define LENGTH 3
+#include <algorithm>
+#include <functional>
+#include <numeric>
 
 using std::ostream;
 
@@ -39,7 +40,7 @@ class vector3d {
   static_assert(std::is_arithmetic<T>::value,
                 "vector3d<T> requires an arithmetic type!");
 
-  T data_[LENGTH];
+  T data_[3];
 
  public:
   // constructor
@@ -62,6 +63,13 @@ class vector3d {
   bool operator==(const vector3d<T>&) const;
   bool operator!=(const vector3d<T> &v1) const {return !(*this == v1);}
   bool CompareWithTol(const vector3d<T> &v2, const double &tol = 1.0e-10) const;
+
+  // provide begin and end so std::begin and std::end can be used
+  // use lower case to conform with std::begin, std::end
+  auto begin() noexcept {return std::begin(data_);}
+  const auto begin() const noexcept {return std::begin(data_);}
+  auto end() noexcept {return std::end(data_);}
+  const auto end() const noexcept {return std::end(data_);}
 
   inline vector3d<T> & operator+=(const vector3d<T> &);
   inline vector3d<T> & operator-=(const vector3d<T> &);
@@ -180,36 +188,32 @@ class unitVec3dMag {
 // operator overload for addition
 template <typename T>
 vector3d<T> & vector3d<T>::operator+=(const vector3d<T> &vec) {
-  for (auto rr = 0; rr < LENGTH; rr++) {
-    data_[rr] += vec[rr];
-  }
+  std::transform(this->begin(), this->end(), vec.begin(), this->begin(),
+                 std::plus<T>());
   return *this;
 }
 
 // operator overload for subtraction with a scalar
 template <typename T>
 vector3d<T> & vector3d<T>::operator-=(const vector3d<T> &vec) {
-  for (auto rr = 0; rr < LENGTH; rr++) {
-    data_[rr] -= vec[rr];
-  }
+  std::transform(this->begin(), this->end(), vec.begin(), this->begin(),
+                 std::minus<T>());
   return *this;
 }
 
 // operator overload for elementwise multiplication
 template <typename T>
 vector3d<T> & vector3d<T>::operator*=(const vector3d<T> &vec) {
-  for (auto rr = 0; rr < LENGTH; rr++) {
-    data_[rr] *= vec[rr];
-  }
+  std::transform(this->begin(), this->end(), vec.begin(), this->begin(),
+                 std::multiplies<T>());
   return *this;
 }
 
 // operator overload for elementwise division
 template <typename T>
 vector3d<T> & vector3d<T>::operator/=(const vector3d<T> &vec) {
-  for (auto rr = 0; rr < LENGTH; rr++) {
-    data_[rr] /= vec[rr];
-  }
+  std::transform(this->begin(), this->end(), vec.begin(), this->begin(),
+                 std::divides<T>());
   return *this;
 }
 
@@ -237,36 +241,32 @@ inline const vector3d<T> operator/(vector3d<T> lhs, const vector3d<T> &rhs) {
 // operator overload for addition
 template <typename T>
 vector3d<T> & vector3d<T>::operator+=(const T &scalar) {
-  for (auto &val : data_) {
-    val += scalar;
-  }
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val += scalar; });
   return *this;
 }
 
 // operator overload for subtraction with a scalar
 template <typename T>
 vector3d<T> & vector3d<T>::operator-=(const T &scalar) {
-  for (auto &val : data_) {
-    val -= scalar;
-  }
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val -= scalar; });
   return *this;
 }
 
 // operator overload for elementwise multiplication
 template <typename T>
 vector3d<T> & vector3d<T>::operator*=(const T &scalar) {
-  for (auto &val : data_) {
-    val *= scalar;
-  }
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val *= scalar; });
   return *this;
 }
 
 // operator overload for elementwise division
 template <typename T>
 vector3d<T> & vector3d<T>::operator/=(const T &scalar) {
-  for (auto &val : data_) {
-    val /= scalar;
-  }
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val /= scalar; });
   return *this;
 }
 
@@ -277,9 +277,7 @@ inline const vector3d<T> operator+(const T &lhs, vector3d<T> rhs) {
 
 template <typename T>
 inline const vector3d<T> operator-(const T &lhs, vector3d<T> rhs) {
-  for (auto rr = 0; rr < LENGTH; rr++) {
-    rhs[rr] = lhs - rhs[rr];
-  }
+  std::for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs - val; });
   return rhs;
 }
 
@@ -290,9 +288,7 @@ inline const vector3d<T> operator*(const T &lhs, vector3d<T> rhs) {
 
 template <typename T>
 inline const vector3d<T> operator/(const T &lhs, vector3d<T> rhs) {
-  for (auto rr = 0; rr < LENGTH; rr++) {
-    rhs[rr] = lhs / rhs[rr];
-  }
+  std::for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs / val; });
   return rhs;
 }
 
@@ -305,8 +301,7 @@ ostream &operator<<(ostream &os, const vector3d<T> &v) {
 // Function to calculate the dot product of two vectors
 template <typename T>
 T vector3d<T>::DotProd(const vector3d<T>&v2) const {
-  return data_[0] * v2.data_[0] + data_[1] * v2.data_[1] +
-         data_[2] * v2.data_[2];
+  return std::inner_product(this->begin(), this->end(), v2.begin(), T(0));
 }
 
 // operator overload for comparison
@@ -359,7 +354,7 @@ T vector3d<T>::MagSq() const {
 // Function to sum the elements in the vector
 template <typename T>
 T vector3d<T>::SumElem() const {
-  return data_[0] + data_[1] + data_[2];
+  return std::accumulate(this->begin(), this->end(), T(0));
 }
 
 // Function to calculate the distance between two vector3ds
@@ -371,8 +366,8 @@ T vector3d<T>::Distance(const vector3d<T>&v2) const {
 // Function to calculate the distance squared between two vector3ds
 template <typename T>
 T vector3d<T>::DistSq(const vector3d<T>&v2) const {
-  return pow(data_[0] - v2.data_[0], 2) + pow(data_[1] - v2.data_[1], 2) +
-      pow(data_[2] - v2.data_[2], 2);
+  auto diff = *this - v2;
+  return diff.MagSq();
 }
 
 // Function to normalize a vector3d into a unit vector
@@ -384,9 +379,7 @@ vector3d<T> vector3d<T>::Normalize() const {
 // Function to zero out a vector
 template <typename T>
 void vector3d<T>::Zero() {
-  for (auto &val : data_) {
-    val = 0;
-  }
+  std::fill(this->begin(), this->end(), T(0));
 }
 
 

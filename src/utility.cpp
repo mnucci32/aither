@@ -29,7 +29,7 @@
 #include "varArray.hpp"
 #include "turbulence.hpp"
 #include "slices.hpp"
-#include "fluxJacobian.hpp"
+#include "matMultiArray3d.hpp"
 #include "kdtree.hpp"
 #include "resid.hpp"
 #include "primitive.hpp"
@@ -403,7 +403,7 @@ void ExplicitUpdate(vector<procBlock> &blocks, const input &inp,
 }
 
 double ImplicitUpdate(vector<procBlock> &blocks,
-                      vector<multiArray3d<fluxJacobian>> &mainDiagonal,
+                      vector<matMultiArray3d> &mainDiagonal,
                       const input &inp, const unique_ptr<eos> &eqnState,
                       const unique_ptr<thermodynamic> &thermo,
                       const unique_ptr<transport> &trans,
@@ -487,10 +487,6 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   }
 
   // Update blocks and reset main diagonal
-  const auto fluxJacZero =
-      inp.IsBlockMatrix()
-          ? fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations())
-          : fluxJacobian(1, std::min(1, inp.NumTurbEquations()));
   for (auto bb = 0U; bb < blocks.size(); bb++) {
     // Update solution
     blocks[bb].UpdateBlock(inp, eqnState, thermo, trans, du[bb], turb, mm,
@@ -502,7 +498,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
     }
 
     // zero flux jacobians
-    mainDiagonal[bb].Zero(fluxJacZero);
+    mainDiagonal[bb].Zero();
   }
 
   return matrixError;
@@ -620,7 +616,7 @@ void SwapWallDist(vector<procBlock> &states,
 }
 
 void CalcResidual(vector<procBlock> &states,
-                  vector<multiArray3d<fluxJacobian>> &mainDiagonal,
+                  vector<matMultiArray3d> &mainDiagonal,
                   const unique_ptr<transport> &trans,
                   const unique_ptr<thermodynamic> &thermo,
                   const unique_ptr<eos> &eqnState, const input &inp,
@@ -701,7 +697,7 @@ vector<vector3d<int>> HyperplaneReorder(const int &imax, const int &jmax,
 }
 
 void ResizeArrays(const vector<procBlock> &states, const input &inp,
-                  vector<multiArray3d<fluxJacobian>> &jac) {
+                  vector<matMultiArray3d> &jac) {
   // states -- all states on processor
   // sol -- vector of solutions to be resized
   // jac -- vector of flux jacobians to be resized

@@ -44,6 +44,7 @@
 #include "kdtree.hpp"
 #include "fluxJacobian.hpp"
 #include "utility.hpp"
+#include "matMultiArray3d.hpp"
 
 using std::cout;
 using std::cerr;
@@ -256,7 +257,7 @@ int main(int argc, char *argv[]) {
 
   //-----------------------------------------------------------------------
   // Allocate array for flux jacobian
-  vector<multiArray3d<fluxJacobian>> mainDiagonal(numProcBlock);
+  vector<matMultiArray3d> mainDiagonal(numProcBlock);
   if (inp.IsImplicit()) {
     ResizeArrays(localStateBlocks, inp, mainDiagonal);
   }
