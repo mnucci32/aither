@@ -1,6 +1,5 @@
-/*  This file is part of aith
-(ii, jj, kk) + bb > GetB
-Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+/*  This file is part of aither.
+    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

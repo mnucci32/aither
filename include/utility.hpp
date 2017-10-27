@@ -39,7 +39,7 @@ class thermodynamic;
 class input;
 class residual;
 class turbModel;
-class fluxJacobian;
+class matMultiArray3d;
 class kdtree;
 class resid;
 class primitive;
@@ -82,7 +82,7 @@ void ExplicitUpdate(vector<procBlock> &, const input &, const unique_ptr<eos> &,
                     const unique_ptr<transport> &,
                     const unique_ptr<turbModel> &, const int &, residual &,
                     resid &);
-double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
+double ImplicitUpdate(vector<procBlock> &, vector<matMultiArray3d> &,
                       const input &, const unique_ptr<eos> &,
                       const unique_ptr<thermodynamic> &,
                       const unique_ptr<transport> &,
@@ -99,7 +99,7 @@ void SwapEddyViscAndGradients(vector<procBlock> &, const vector<connection> &,
                               const int &, const MPI_Datatype &,
                               const MPI_Datatype &, const int &);
 
-void CalcResidual(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
+void CalcResidual(vector<procBlock> &, vector<matMultiArray3d> &,
                   const unique_ptr<transport> &,
                   const unique_ptr<thermodynamic> &, const unique_ptr<eos> &,
                   const input &, const unique_ptr<turbModel> &,
@@ -112,7 +112,7 @@ void CalcTimeStep(vector<procBlock> &, const input &);
 vector<vector3d<int>> HyperplaneReorder(const int &, const int &, const int &);
 
 void ResizeArrays(const vector<procBlock> &, const input &,
-                  vector<multiArray3d<fluxJacobian>> &);
+                  vector<matMultiArray3d> &);
 
 vector3d<double> TauNormal(const tensor<double> &, const vector3d<double> &,
                            const double &, const double &,

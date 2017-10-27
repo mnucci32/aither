@@ -45,6 +45,52 @@ class transport;
 class thermodynamic;
 class turbModel;
 
+template <typename T1, typename T2,
+          typename = std::enable_if_t<std::is_base_of<varArray, T1>::value ||
+                                      std::is_same<varArrayView, T1>::value ||
+                                      std::is_same<primitiveView, T1>::value ||
+                                      std::is_same<conservedView, T1>::value ||
+                                      std::is_same<residualView, T1>::value>,
+          typename = std::enable_if_t<std::is_base_of<varArray, T2>::value>>
+void ArrayMultiplication(const vector<double>::const_iterator &mat,
+                         const int &flowSize, const int &turbSize,
+                         const bool &isScalar, const T1 &orig, T2 &arr) {
+  MSG_ASSERT(isScalar || (flowSize + turbSize) == orig.Size(),
+             "matrix/vector size mismatch");
+  MSG_ASSERT(isScalar || (flowSize + turbSize) == arr.Size(),
+             "matrix/vector size mismatch");
+
+  auto GetFlowVal = [&flowSize](const auto &mat, const int &r,
+                                const int &c) -> decltype(auto) {
+    return *(mat + r * flowSize + c);
+  };
+  auto GetTurbVal = [&flowSize, &turbSize](const auto &mat, const int &r,
+                                           const int &c) -> decltype(auto) {
+    return *(mat + flowSize * flowSize + r * turbSize + c);
+  };
+
+  if (isScalar) {
+    for (auto ii = 0; ii < arr.TurbulenceIndex(); ++ii) {
+      arr[ii] = orig[ii] * GetFlowVal(mat, 0, 0);
+    }
+    for (auto ii = arr.TurbulenceIndex(); ii < arr.Size(); ++ii) {
+      arr[ii] = orig[ii] * GetTurbVal(mat, 0, 0);
+    }
+  } else {
+    for (auto rr = 0; rr < flowSize; ++rr) {
+      for (auto cc = 0; cc < flowSize; ++cc) {
+        arr[rr] += GetFlowVal(mat, rr, cc) * orig[cc];
+      }
+    }
+
+    for (auto rr = 0; rr < turbSize; ++rr) {
+      for (auto cc = 0; cc < turbSize; ++cc) {
+        arr[flowSize + rr] += GetTurbVal(mat, rr, cc) * orig[flowSize + cc];
+      }
+    }
+  }
+}
+
 // This class holds the flux jacobians for the flow and turbulence equations.
 // In the LU-SGS method the jacobians are scalars.
 
@@ -66,42 +112,6 @@ class fluxJacobian {
   double & TurbJacobian(const int &r, const int &c) {
     return data_[this->GetTurbLoc(r, c)];
   }
-
-  template <
-      typename T1, typename T2,
-      typename = std::enable_if_t<std::is_base_of<varArray, T1>::value ||
-                                  std::is_same<varArrayView, T1>::value ||
-                                  std::is_same<primitiveView, T1>::value ||
-                                  std::is_same<conservedView, T1>::value ||
-                                  std::is_same<residualView, T1>::value>,
-      typename = std::enable_if_t<std::is_base_of<varArray, T2>::value>>
-  void ArrayMultiplication(const T1 &orig, T2 &arr) const {
-    MSG_ASSERT(this->Size() == orig.Size(), "matrix/vector size mismatch");
-    MSG_ASSERT(this->Size() == arr.Size(), "matrix/vector size mismatch");
-
-    if (this->IsScalar()) {
-      for (auto ii = 0; ii < arr.TurbulenceIndex(); ++ii) {
-        arr[ii] = orig[ii] * this->FlowJacobian(0, 0);
-      }
-      for (auto ii = arr.TurbulenceIndex(); ii < arr.Size(); ++ii) {
-        arr[ii] = orig[ii] * this->TurbJacobian(0, 0);
-      }
-    } else {
-      for (auto rr = 0; rr < flowSize_; rr++) {
-        for (auto cc = 0; cc < flowSize_; cc++) {
-          arr[rr] += this->FlowJacobian(rr, cc) * orig[cc];
-        }
-      }
-
-      for (auto rr = 0; rr < turbSize_; rr++) {
-        for (auto cc = 0; cc < turbSize_; cc++) {
-          arr[flowSize_ + rr] +=
-              this->TurbJacobian(rr, cc) * orig[flowSize_ + cc];
-        }
-      }
-    }
-  }
-
 
  public:
   // constructors
@@ -270,7 +280,8 @@ class fluxJacobian {
             typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
   T ArrayMult(const T &orig) const {
     T arr(orig.Size(), orig.NumSpecies());
-    this->ArrayMultiplication(orig, arr);
+    ArrayMultiplication(this->begin(), flowSize_, turbSize_, this->IsScalar(),
+                        orig, arr);
     return arr;
   }
   template <typename T,
@@ -280,7 +291,8 @@ class fluxJacobian {
                                         std::is_same<residualView, T>::value>>
   auto ArrayMult(const T &arrView) const {
     auto arr = arrView.GetViewType();
-    this->ArrayMultiplication(arrView, arr);
+    ArrayMultiplication(this->begin(), flowSize_, turbSize_, this->IsScalar(),
+                        arrView, arr);
     return arr;
   }
   bool IsScalar() const {return flowSize_ == 1;}

@@ -39,6 +39,7 @@
 #include "reconstruction.hpp"
 #include "spectralRadius.hpp"
 #include "ghostStates.hpp"
+#include "matMultiArray3d.hpp"
 
 using std::cout;
 using std::endl;
@@ -360,7 +361,7 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
                              const unique_ptr<thermodynamic> &thermo,
                              const input &inp,
                              const unique_ptr<turbModel> &turb,
-                             multiArray3d<fluxJacobian> &mainDiagonal) {
+                             matMultiArray3d &mainDiagonal) {
   // eqnState -- equation of state
   // thermo -- thermodynamic model
   // inp -- all input variables
@@ -429,7 +430,7 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
             fluxJac.RusanovFluxJacobian(faceStateLower, eqnState, thermo,
                                         this->FAreaI(ii, jj, kk), true,
                                         inp, turb);
-            mainDiagonal(ii - 1, jj, kk) += fluxJac;
+            mainDiagonal.Add(ii - 1, jj, kk, fluxJac);
           }
         }
 
@@ -457,9 +458,9 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
             fluxJac.RusanovFluxJacobian(faceStateUpper, eqnState, thermo,
                                         this->FAreaI(ii, jj, kk), false,
                                         inp, turb);
-            mainDiagonal(ii, jj, kk) -= fluxJac;
+            mainDiagonal.Subtract(ii, jj, kk, fluxJac);
           } else if (inp.IsImplicit()) {
-            mainDiagonal(ii, jj, kk) += fluxJacobian(specRad, isRANS_);
+            mainDiagonal.Add(ii, jj, kk, fluxJacobian(specRad, isRANS_));
           }
         }
       }
@@ -498,7 +499,7 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
                              const unique_ptr<thermodynamic> &thermo,
                              const input &inp,
                              const unique_ptr<turbModel> &turb,
-                             multiArray3d<fluxJacobian> &mainDiagonal) {
+                             matMultiArray3d &mainDiagonal) {
   // eqnState -- equation of state
   // thermo -- thermodynamic model
   // inp -- all input variables
@@ -567,7 +568,7 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
             fluxJac.RusanovFluxJacobian(faceStateLower, eqnState, thermo,
                                         this->FAreaJ(ii, jj, kk), true,
                                         inp, turb);
-            mainDiagonal(ii, jj - 1, kk) += fluxJac;
+            mainDiagonal.Add(ii, jj - 1, kk, fluxJac);
           }
         }
         // at right boundary no right cell to add to
@@ -594,9 +595,9 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
             fluxJac.RusanovFluxJacobian(faceStateUpper, eqnState, thermo,
                                         this->FAreaJ(ii, jj, kk), false,
                                         inp, turb);
-            mainDiagonal(ii, jj, kk) -= fluxJac;
+            mainDiagonal.Subtract(ii, jj, kk, fluxJac);
           } else if (inp.IsImplicit()) {
-            mainDiagonal(ii, jj, kk) += fluxJacobian(specRad, isRANS_);
+            mainDiagonal.Add(ii, jj, kk, fluxJacobian(specRad, isRANS_));
           }
         }
       }
@@ -635,7 +636,7 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
                              const unique_ptr<thermodynamic> &thermo,
                              const input &inp,
                              const unique_ptr<turbModel> &turb,
-                             multiArray3d<fluxJacobian> &mainDiagonal) {
+                             matMultiArray3d &mainDiagonal) {
   // eqnState -- equation of state
   // thermo -- thermodynamic model
   // inp -- all input variables
@@ -704,7 +705,7 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
             fluxJac.RusanovFluxJacobian(faceStateLower, eqnState, thermo,
                                         this->FAreaK(ii, jj, kk), true,
                                         inp, turb);
-            mainDiagonal(ii, jj, kk - 1) += fluxJac;
+            mainDiagonal.Add(ii, jj, kk - 1, fluxJac);
           }
         }
         // at right boundary no right cell to add to
@@ -731,9 +732,9 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
             fluxJac.RusanovFluxJacobian(faceStateUpper, eqnState, thermo,
                                         this->FAreaK(ii, jj, kk), false,
                                         inp, turb);
-            mainDiagonal(ii, jj, kk) -= fluxJac;
+            mainDiagonal.Subtract(ii, jj, kk, fluxJac);
           } else if (inp.IsImplicit()) {
-            mainDiagonal(ii, jj, kk) += fluxJacobian(specRad, isRANS_);
+            mainDiagonal.Add(ii, jj, kk, fluxJacobian(specRad, isRANS_));
           }
         }
       }
@@ -1021,7 +1022,7 @@ varArray procBlock::SolDeltaNm1(const int &ii, const int &jj, const int &kk,
   }
 }
 
-void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
+void procBlock::InvertDiagonal(matMultiArray3d &mainDiagonal,
                                const input &inp) const {
   // mainDiagonal -- main diagonal in implicit operator
   // inp -- input variables
@@ -1038,9 +1039,9 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
         }
 
         // add volume and time term
-        mainDiagonal(ii, jj, kk).MultiplyOnDiagonal(inp.MatrixRelaxation());
-        mainDiagonal(ii, jj, kk).AddOnDiagonal(diagVolTime);
-        mainDiagonal(ii, jj, kk).Inverse();
+        mainDiagonal.MultiplyOnDiagonal(ii, jj, kk, inp.MatrixRelaxation());
+        mainDiagonal.AddOnDiagonal(ii, jj, kk, diagVolTime);
+        mainDiagonal.Inverse(ii, jj, kk);
       }
     }
   }
@@ -1179,7 +1180,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                               const unique_ptr<thermodynamic> &thermo,
                               const unique_ptr<transport> &trans,
                               const unique_ptr<turbModel> &turb,
-                              const multiArray3d<fluxJacobian> &aInv,
+                              const matMultiArray3d &aInv,
                               const int &sweep) const {
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed
@@ -1327,9 +1328,9 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // normal at lower boundaries needs to be reversed, so add instead
     // of subtract L
     x.InsertBlock(ii, jj, kk,
-                  aInv(ii, jj, kk)
-                      .ArrayMult(-thetaInv * residual_(ii, jj, kk) +
-                                 solDeltaNm1 - solDeltaMmN + L - U));
+                  aInv.ArrayMult(ii, jj, kk,
+                                 -thetaInv * residual_(ii, jj, kk) +
+                                     solDeltaNm1 - solDeltaMmN + L - U));
   }  // end forward sweep
 }
 
@@ -1337,7 +1338,7 @@ double procBlock::LUSGS_Backward(
     const vector<vector3d<int>> &reorder, blkMultiArray3d<varArray> &x,
     const unique_ptr<eos> &eqnState, const input &inp,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const unique_ptr<turbModel> &turb, const multiArray3d<fluxJacobian> &aInv,
+    const unique_ptr<turbModel> &turb, const matMultiArray3d &aInv,
     const int &sweep) const {
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed
@@ -1487,11 +1488,11 @@ double procBlock::LUSGS_Backward(
     const auto xold = x.GetCopy(ii, jj, kk);
     if (sweep > 0 || inp.MatrixRequiresInitialization()) {
       x.InsertBlock(ii, jj, kk,
-                    aInv(ii, jj, kk)
-                        .ArrayMult(-thetaInv * residual_(ii, jj, kk) +
-                                   solDeltaNm1 - solDeltaMmN + L - U));
+                    aInv.ArrayMult(ii, jj, kk,
+                                   -thetaInv * residual_(ii, jj, kk) +
+                                       solDeltaNm1 - solDeltaMmN + L - U));
     } else {
-      x.InsertBlock(ii, jj, kk, xold - aInv(ii, jj, kk).ArrayMult(U));
+      x.InsertBlock(ii, jj, kk, xold - aInv.ArrayMult(ii, jj, kk, U));
     }
     const auto error = x(ii, jj, kk) - xold;
     l2Error += error * error;
@@ -1508,7 +1509,7 @@ double procBlock::DPLUR(blkMultiArray3d<varArray> &x,
                         const unique_ptr<thermodynamic> &thermo,
                         const unique_ptr<transport> &trans,
                         const unique_ptr<turbModel> &turb,
-                        const multiArray3d<fluxJacobian> &aInv) const {
+                        const matMultiArray3d &aInv) const {
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   //                   to be zero to start)
   // eqnState -- equation of state
@@ -1648,10 +1649,11 @@ double procBlock::DPLUR(blkMultiArray3d<varArray> &x,
             this->SolDeltaMmN(ii, jj, kk, inp, eqnState, thermo);
 
         // calculate update
-        x.InsertBlock(ii, jj, kk,
-                      aInv(ii, jj, kk)
-                          .ArrayMult(-thetaInv * residual_(ii, jj, kk) +
-                                     solDeltaNm1 - solDeltaMmN + offDiagonal));
+        x.InsertBlock(
+            ii, jj, kk,
+            aInv.ArrayMult(ii, jj, kk,
+                           -thetaInv * residual_(ii, jj, kk) + solDeltaNm1 -
+                               solDeltaMmN + offDiagonal));
 
         // calculate matrix error
         const auto error = x(ii, jj, kk) - xold(ii, jj, kk);
@@ -1666,7 +1668,7 @@ double procBlock::DPLUR(blkMultiArray3d<varArray> &x,
 blkMultiArray3d<varArray> procBlock::InitializeMatrixUpdate(
     const input &inp, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo,
-    const multiArray3d<fluxJacobian> &aInv) const {
+    const matMultiArray3d &aInv) const {
   // inp -- input variables
   // eqnState -- equation of state
   // thermo -- thermodynamic model
@@ -1684,12 +1686,13 @@ blkMultiArray3d<varArray> procBlock::InitializeMatrixUpdate(
       for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
         for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
           // calculate update
-          x.InsertBlock(ii, jj, kk,
-                        aInv(ii, jj, kk)
-                            .ArrayMult(-thetaInv * residual_(ii, jj, kk) -
-                                       this->SolDeltaNm1(ii, jj, kk, inp) -
-                                       this->SolDeltaMmN(ii, jj, kk, inp,
-                                                         eqnState, thermo)));
+          x.InsertBlock(
+              ii, jj, kk,
+              aInv.ArrayMult(
+                  ii, jj, kk,
+                  -thetaInv * residual_(ii, jj, kk) -
+                      this->SolDeltaNm1(ii, jj, kk, inp) -
+                      this->SolDeltaMmN(ii, jj, kk, inp, eqnState, thermo)));
         }
       }
     }
@@ -1773,7 +1776,7 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
                               const unique_ptr<thermodynamic> &thermo,
                               const unique_ptr<eos> &eqnState, const input &inp,
                               const unique_ptr<turbModel> &turb,
-                              multiArray3d<fluxJacobian> &mainDiagonal) {
+                              matMultiArray3d &mainDiagonal) {
   // trans -- viscous transport model
   // thermo -- thermodynamic model
   // eqnState -- equation of state
@@ -1949,7 +1952,7 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans,
                                       thermo, this->FAreaI(ii, jj, kk), c2cDist,
                                       turb, inp, true, velGrad);
-            mainDiagonal(ii - 1, jj, kk) -= fluxJac;
+            mainDiagonal.Subtract(ii - 1, jj, kk, fluxJac);
           }
         }
         // at right boundary there is no right cell to add to
@@ -1996,10 +1999,10 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans,
                                       thermo, this->FAreaI(ii, jj, kk), c2cDist,
                                       turb, inp, false, velGrad);
-            mainDiagonal(ii, jj, kk) += fluxJac;
+            mainDiagonal.Add(ii, jj, kk, fluxJac);
           } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-            mainDiagonal(ii, jj, kk) += fluxJacobian(2.0 * specRad, isRANS_);
+            mainDiagonal.Add(ii, jj, kk, fluxJacobian(2.0 * specRad, isRANS_));
           }
         }
       }
@@ -2082,7 +2085,7 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
                               const unique_ptr<thermodynamic> &thermo,
                               const unique_ptr<eos> &eqnState, const input &inp,
                               const unique_ptr<turbModel> &turb,
-                              multiArray3d<fluxJacobian> &mainDiagonal) {
+                              matMultiArray3d &mainDiagonal) {
   // trans -- viscous transport model
   // thermo -- thermodynamic model
   // eqnState -- equation of state
@@ -2259,7 +2262,7 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans,
                                       thermo, this->FAreaJ(ii, jj, kk), c2cDist,
                                       turb, inp, true, velGrad);
-            mainDiagonal(ii, jj - 1, kk) -= fluxJac;
+            mainDiagonal.Subtract(ii, jj - 1, kk, fluxJac);
           }
         }
         // at right boundary there is no right cell to add to
@@ -2307,10 +2310,10 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans,
                                       thermo, this->FAreaJ(ii, jj, kk), c2cDist,
                                       turb, inp, false, velGrad);
-            mainDiagonal(ii, jj, kk) += fluxJac;
+            mainDiagonal.Add(ii, jj, kk, fluxJac);
           } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-            mainDiagonal(ii, jj, kk) += fluxJacobian(2.0 * specRad, isRANS_);
+            mainDiagonal.Add(ii, jj, kk, fluxJacobian(2.0 * specRad, isRANS_));
           }
         }
       }
@@ -2392,7 +2395,7 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
                               const unique_ptr<thermodynamic> &thermo,
                               const unique_ptr<eos> &eqnState, const input &inp,
                               const unique_ptr<turbModel> &turb,
-                              multiArray3d<fluxJacobian> &mainDiagonal) {
+                              matMultiArray3d &mainDiagonal) {
   // trans -- viscous transport model
   // thermo -- thermodynamic model
   // eqnState -- equation of state
@@ -2569,7 +2572,7 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans,
                                       thermo, this->FAreaK(ii, jj, kk), c2cDist,
                                       turb, inp, true, velGrad);
-            mainDiagonal(ii, jj, kk - 1) -= fluxJac;
+            mainDiagonal.Subtract(ii, jj, kk - 1, fluxJac);
           }
         }
         // at right boundary there is no right cell to add to
@@ -2616,10 +2619,10 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans,
                                       thermo, this->FAreaK(ii, jj, kk), c2cDist,
                                       turb, inp, false, velGrad);
-            mainDiagonal(ii, jj, kk) += fluxJac;
+            mainDiagonal.Add(ii, jj, kk, fluxJac);
           } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-            mainDiagonal(ii, jj, kk) += fluxJacobian(2.0 * specRad, isRANS_);
+            mainDiagonal.Add(ii, jj, kk, fluxJacobian(2.0 * specRad, isRANS_));
           }
         }
       }
@@ -6428,7 +6431,7 @@ void procBlock::CalcGradsK() {
 void procBlock::CalcSrcTerms(const unique_ptr<transport> &trans,
                              const unique_ptr<turbModel> &turb,
                              const input &inp,
-                             multiArray3d<fluxJacobian> &mainDiagonal) {
+                             matMultiArray3d &mainDiagonal) {
   // trans -- unique_ptr<transport>'s law for viscosity
   // turb -- turbulence model
   // mainDiagonal -- main diagonal of LHS used to store flux jacobians for
@@ -6459,10 +6462,11 @@ void procBlock::CalcSrcTerms(const unique_ptr<transport> &trans,
 
         // add contribution of source spectral radius to flux jacobian
         if (inp.IsBlockMatrix()) {
-          mainDiagonal(ii, jj, kk).SubtractFromTurbJacobian(srcJac);
+          mainDiagonal.SubtractFromTurb(ii, jj, kk, srcJac);
         } else if (inp.IsImplicit()) {
           const uncoupledScalar srcJacScalar(0.0, turbSpecRad);
-          mainDiagonal(ii, jj, kk) -= fluxJacobian(srcJacScalar, isRANS_);
+          mainDiagonal.Subtract(ii, jj, kk,
+                                fluxJacobian(srcJacScalar, isRANS_));
         }
       }
     }
@@ -6538,7 +6542,7 @@ void procBlock::CalcResidualNoSource(const unique_ptr<transport> &trans,
                                      const unique_ptr<eos> &eos,
                                      const input &inp,
                                      const unique_ptr<turbModel> &turb,
-                                     multiArray3d<fluxJacobian> &mainDiagonal) {
+                                     matMultiArray3d &mainDiagonal) {
   // Zero spectral radii, residuals, gradients, turbulence variables
   this->ResetResidWS();
   this->ResetGradients();
