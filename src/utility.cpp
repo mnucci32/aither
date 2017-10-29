@@ -901,3 +901,8 @@ void AssertWithMessage(const char *exprStr, bool expr, const char *file,
     exit(EXIT_FAILURE);
   }
 }
+
+string GetEnvironmentVariable(const string &var) {
+  auto val = getenv(var.c_str());
+  return val == NULL ? "" : string(val);
+}

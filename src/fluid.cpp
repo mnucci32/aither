@@ -17,8 +17,10 @@
 #include <iostream>     // cout
 #include <vector>
 #include <string>
+#include <fstream>
 #include "fluid.hpp"
 #include "inputStates.hpp"
+#include "utility.hpp"
 
 using std::cout;
 using std::endl;
@@ -76,17 +78,26 @@ fluid::fluid(string &str, const string name) {
   }
 
   // sanity checks
-  // optional variables
-  if (nCount > 1 || nameCount > 1 || vibCount > 1 || massCount > 1) {
-    cerr << "ERROR. For " << name << ", name, n, vibrationalTemperature, and "
-         << "molarMass can only be specified once." << endl;
+  // required variables
+  if (nameCount != 1) {
+    cerr << "ERROR. For fluid 'name' must be specified" << endl;
     exit(EXIT_FAILURE);
   }
-
   if (name != "fluid") {
     cerr << "ERROR. To specify fluid, properties must be enclosed in fluid()."
          << endl;
   }
+
+  // optional variables
+  if (nCount > 1 || vibCount > 1 || massCount > 1) {
+    cerr << "ERROR. For " << name << ", n, vibrationalTemperature, and "
+         << "molarMass can only be specified once." << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // get data from fluid database
+  this->GetDatabaseProperties(name_, nCount == 1, massCount == 1,
+                              vibCount == 1);
 }
 
 void fluid::Nondimensionalize(const double &tRef) {
@@ -94,6 +105,58 @@ void fluid::Nondimensionalize(const double &tRef) {
     vibTemp_ /= tRef;
     this->SetNondimensional(true);
   }
+}
+
+void fluid::GetDatabaseProperties(const string &name, const bool &specifiedN,
+                                  const bool &specifiedMolarMass,
+                                  const bool &specifiedVibTemp) {
+  auto fname = name + ".dat";
+  // open database file -- first try run directory, then fluid database
+  ifstream datFile(fname, std::ios::in);
+  if (datFile.fail()) {
+    auto databaseFile =
+        GetEnvironmentVariable("AITHER_FLUID_DATABASE") + "/" + fname;
+    datFile.open(databaseFile, std::ios::in);
+    if (datFile.fail()) {
+      cerr << "ERROR: Error in fluid::GetDatabaseProperties(). File " << fname
+           << " did not open correctly!!!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  string line = "";
+  while (getline(datFile, line)) {
+    // remove leading and trailing whitespace and ignore comments
+    line = Trim(line);
+
+    if (line.length() > 0) {  // only proceed if line has data
+      // split line at variable separator
+      auto tokens = Tokenize(line, ":", 2);
+      // search to see if first token corresponds to any keywords
+      auto key = tokens[0];
+
+      if (key == "n" && !specifiedN) {
+        n_ = std::stod(tokens[1]);
+      } else if (key == "molarMass" && !specifiedMolarMass) {
+        molarMass_ = std::stod(tokens[1]);
+      } else if (key == "vibrationalTemperature" && !specifiedVibTemp) {
+        vibTemp_ = std::stod(tokens[1]);
+      } else if (key == "sutherlandViscosityC1") {
+        transportViscosity_[0] = std::stod(tokens[1]);
+      } else if (key == "sutherlandViscosityS") {
+        transportViscosity_[1] = std::stod(tokens[1]);
+      } else if (key == "sutherlandConductivityC1") {
+        transportConductivity_[0] = std::stod(tokens[1]);
+      } else if (key == "sutherlandConductivityS") {
+        transportConductivity_[1] = std::stod(tokens[1]);
+      } else if (key == "schmidt") {
+        schmidt_ = std::stod(tokens[1]);
+      }
+    }
+  }
+
+  // close database file
+  datFile.close();
 }
 
 // function to read initial condition state from string

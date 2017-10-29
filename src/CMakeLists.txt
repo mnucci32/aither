@@ -144,3 +144,7 @@ install (TARGETS aither aitherStatic aitherShared
 FILE (GLOB files "${CMAKE_SOURCE_DIR}/include/*.hpp")
 install (FILES ${files} DESTINATION include)
 install (FILES "${PROJECT_BINARY_DIR}/macros.hpp" DESTINATION include)
+
+# install fluid database files
+FILE (GLOB files "${CMAKE_SOURCE_DIR}/fluidDatabase/*.dat")
+install (FILES ${files} DESTINATION fluidDatabase)

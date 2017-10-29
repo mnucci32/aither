@@ -1,0 +1,15 @@
+# general fluid properties
+n: 2.5
+molarMass: 0.02897
+vibrationalTemperature: 3056.0
+
+# transport properties -- viscosity
+sutherlandViscosityC1: 1.458e-6
+sutherlandViscosityS: 110.4
+
+# transport properties -- thermal conductivity
+sutherlandConductivityC1: 2.495e-3
+sutherlandConductivityS: 194.0
+
+# diffusion properties
+schmidt: 0.9

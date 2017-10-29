@@ -20,31 +20,38 @@
 // This header file contains the properties for a given fluid
 
 #include <vector>
+#include <array>
 #include <string>
 #include <fstream>
 #include <iostream>
 
 using std::vector;
+using std::array;
 using std::ifstream;
 using std::string;
 using std::ostream;
 
 // class for fluid properties
 class fluid {
-  double n_ = 2.5;
-  double molarMass_ = 0.02897;  // kg/mol
-  double vibTemp_ = 3056.0;    // K
+  double n_;
+  double molarMass_;  // kg/mol
+  double vibTemp_;    // K
   double universalGasConst_ = 8.3144598;  // J / mol-K
+  array<double, 2> transportViscosity_;
+  array<double, 2> transportConductivity_;
+  double schmidt_;
   string name_ = "air";
   bool nondimensional_ = false;
 
   // private member functions
   void SetNondimensional(const bool &nd) { nondimensional_ = nd; }
+  void GetDatabaseProperties(const string &, const bool &, const bool &,
+                             const bool &);
 
  public:
   // Constructor
-  fluid() {}
-  fluid(string& str, const string = "fluid");
+  fluid() { this->GetDatabaseProperties(name_, false, false, false); }
+  fluid(string &str, const string = "fluid");
 
   // move constructor and assignment operator
   fluid(fluid&&) noexcept = default;

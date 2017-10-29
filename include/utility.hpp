@@ -137,6 +137,8 @@ kdtree CalcTreeFromCloud(const string &, const input &,
                          const unique_ptr<transport> &, vector<primitive> &,
                          vector<string> &);
 
+string GetEnvironmentVariable(const string &);
+
 // ---------------------------------------------------------------------------
 // inline function definitions
 template <typename T>
