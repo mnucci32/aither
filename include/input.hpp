@@ -200,7 +200,7 @@ class input {
   int NumVarsOutput() const {return outputVariables_.size();}
   int NumWallVarsOutput() const {return wallOutputVariables_.size();}
   int NumEquations() const;
-  int NumSpecies() const { return 1; }  // DEBUG -- update this
+  int NumSpecies() const { return fluids_.size(); }
   int NumFlowEquations() const {return 4 + this->NumSpecies();}
   int NumTurbEquations() const;
 

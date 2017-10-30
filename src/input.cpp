@@ -688,8 +688,8 @@ unique_ptr<transport> input::AssignTransportModel() const {
   // define equation of state
   unique_ptr<transport> trans(nullptr);
   if (transportModel_ == "sutherland") {
-    trans = unique_ptr<transport>{std::make_unique<sutherland>(
-        tRef_, rRef_, lRef_, aRef_)};
+    trans = unique_ptr<transport>{
+        std::make_unique<sutherland>(fluids_, tRef_, rRef_, lRef_, aRef_)};
   } else {
     cerr << "ERROR: Error in input::AssignTransportModel(). Transport model "
          << transportModel_ << " is not recognized!" << endl;

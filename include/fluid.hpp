@@ -67,6 +67,9 @@ class fluid {
   double VibrationalTemperature() const { return vibTemp_; }
   double GasConstant() const { return universalGasConst_ / molarMass_; }
   double UniversalGasConstant() const { return universalGasConst_; }
+  auto ViscosityCoeffs() const { return transportViscosity_; }
+  auto ConductivityCoeffs() const { return transportConductivity_; }
+  double SchmidtNumber() const { return schmidt_; }
   string Name() const { return name_; }
   bool IsNondimensional() const { return nondimensional_; }
 

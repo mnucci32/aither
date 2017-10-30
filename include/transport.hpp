@@ -21,20 +21,35 @@
 
 #include <math.h>  // sqrt
 #include <memory>
+#include <vector>
 #include "vector3d.hpp"
 #include "thermodynamic.hpp"
 
+using std::vector;
 using std::unique_ptr;
+
+// forward class declarations
+class fluid;
 
 // abstract base class for transport models
 class transport {
-  const double scaling_;
-  const double invScaling_;
+  double scaling_;
+  double invScaling_;
+
+ protected:
+  void SetScaling(const double &rho, const double &l, const double &mu,
+                  const double &a) {
+    scaling_ = mu / (rho * a * l);
+    invScaling_ = 1.0 / scaling_;
+  }
 
  public:
   // Constructor
-  transport(const double &rho, const double &l, const double &mu, const double &a)
-      : scaling_(mu / (rho * a * l)), invScaling_(rho * a * l / mu) {}
+  transport() : scaling_(0), invScaling_(0) {}
+  transport(const double &rho, const double &l, const double &mu,
+            const double &a) {
+    this->SetScaling(rho, l, mu, a);
+  }
 
   // move constructor and assignment operator
   transport(transport&&) noexcept = default;
@@ -48,8 +63,6 @@ class transport {
   virtual double Viscosity(const double&) const = 0;
   virtual double EffectiveViscosity(const double&) const = 0;
   virtual double Lambda(const double&) const = 0;
-  virtual double ConstC1() const = 0;
-  virtual double ConstS() const = 0;
   virtual double TRef() const = 0;
   virtual double MuRef() const = 0;
   virtual double Conductivity(const double &, const double &,
@@ -67,26 +80,20 @@ class transport {
 
 // this class models viscous transport using Sutherland's law
 class sutherland : public transport {
-  const double cOne_;
-  const double S_;
-  const double tRef_;
-  const double muRef_;
-  const double bulkVisc_;
+  vector<double> viscC1_;
+  vector<double> viscS_;
+  vector<double> condC1_;
+  vector<double> condS_;
+  vector<double> muRef_;
+  double tRef_;
+  double bulkVisc_ = 0.0;
 
  public:
   // Constructors
   // Stoke's hypothesis -- bulk viscosity = 0
   // Sutherland's Law -- mu = muref * (C1 * Tref^1.5) / (T + S_)
-  sutherland(const double &c, const double &s, const double &t, const double &r,
-             const double &l, const double &a)
-      : transport(r, l, c * pow(t, 1.5) / (t + s), a),
-        cOne_(c),
-        S_(s),
-        tRef_(t),
-        muRef_(cOne_ * pow(tRef_, 1.5) / (tRef_ + S_)),
-        bulkVisc_(0.0) {}
-  sutherland(const double &t, const double &r, const double &l, const double &a)
-      : sutherland(1.458e-6, 110.4, t, r, l, a) {}
+  sutherland(const vector<fluid> &, const double &, const double &,
+             const double &, const double &);
 
   // move constructor and assignment operator
   sutherland(sutherland&&) noexcept = default;
@@ -100,10 +107,8 @@ class sutherland : public transport {
   double Viscosity(const double&) const override;
   double EffectiveViscosity(const double&) const override;
   double Lambda(const double&) const override;
-  double ConstC1() const override {return cOne_;}
-  double ConstS() const override {return S_;}
   double TRef() const override {return tRef_;}
-  double MuRef() const override {return muRef_;}
+  double MuRef() const override {return muRef_[0];}  // DEBUG -- use mixture value
   double Conductivity(const double &mu, const double &t,
                       const unique_ptr<thermodynamic> &thermo) const override {
     return mu * thermo->Cp(t) / thermo->Prandtl(t);
