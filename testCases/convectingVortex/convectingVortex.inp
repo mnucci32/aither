@@ -25,7 +25,7 @@ referenceDensity: 1.185
 referenceTemperature: 288
 referenceLength: 1
 
-fluids: <fluid(name=N2; n=2.5; molarMass=0.0280134)>
+fluids: <fluid(name=N2; n=2.5; molarMass=28.0134)>
 thermodynamicModel: caloricallyPerfect
 
 initialConditions: <icState(tag=-1; file=vortex.dat)>

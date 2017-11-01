@@ -62,10 +62,11 @@ fluid::fluid(string &str, const string name) {
       n_ = stod(RemoveTrailing(param[1], ","));
       nCount++;
     } else if (param[0] == "molarMass") {
-      molarMass_ = stod(RemoveTrailing(param[1], ","));
+      // convert to kg/mol
+      molarMass_ = stod(RemoveTrailing(param[1], ",")) / 1000.;
       massCount++;
     } else if (param[0] == "vibrationalTemperature") {
-      vibTemp_ = stod(RemoveTrailing(param[1], ","));
+      vibTemp_ = ReadVectorXd(RemoveTrailing(param[1], ","));
       vibCount++;
     } else if (param[0] == "name") {
       name_ = RemoveTrailing(param[1], ",");
@@ -102,7 +103,8 @@ fluid::fluid(string &str, const string name) {
 
 void fluid::Nondimensionalize(const double &tRef) {
   if (!this->IsNondimensional()) {
-    vibTemp_ /= tRef;
+    std::for_each(vibTemp_.begin(), vibTemp_.end(),
+                  [&tRef](auto &val) { val /= tRef; });
     this->SetNondimensional(true);
   }
 }
@@ -138,9 +140,9 @@ void fluid::GetDatabaseProperties(const string &name, const bool &specifiedN,
       if (key == "n" && !specifiedN) {
         n_ = std::stod(tokens[1]);
       } else if (key == "molarMass" && !specifiedMolarMass) {
-        molarMass_ = std::stod(tokens[1]);
+        molarMass_ = std::stod(tokens[1]) / 1000.;  // convert to kg/mol
       } else if (key == "vibrationalTemperature" && !specifiedVibTemp) {
-        vibTemp_ = std::stod(tokens[1]);
+        vibTemp_ = ReadVectorXd(tokens[1]);
       } else if (key == "sutherlandViscosityC1") {
         transportViscosity_[0] = std::stod(tokens[1]);
       } else if (key == "sutherlandViscosityS") {
@@ -208,8 +210,15 @@ vector<fluid> ReadFluidList(ifstream &inFile, string &str) {
 }
 
 ostream &operator<<(ostream &os, const fluid &fl) {
+  auto vt = fl.VibrationalTemperature();
   os << "fluid(name=" << fl.Name() << "; n=" << fl.N()
-     << "; molarMass=" << fl.MolarMass()
-     << "; vibrationalTemperature=" << fl.VibrationalTemperature() << ")";
+     << "; molarMass=" << fl.MolarMass() << "; vibrationalTemperature=[";
+  for (auto ii = 0U; ii < vt.size(); ++ii) {
+    os << vt[ii];
+    if (ii != vt.size() - 1) {
+      os << ", ";
+    }
+  }
+  os << "])";
   return os;
 }

@@ -1,20 +1,20 @@
 # general fluid properties
-n: 2.5
-molarMass: 28.0134
-vibrationalTemperature: [3392]
+n: 3.0
+molarMass: 16.0425
+vibrationalTemperature: [4196.38, 2207.18, 2207.18, 4343.43, 4343.43, 4343.43, 1879.13, 1879.13, 1879.13]
 
 # Sutherland's coefficients for transport properties
 # ----- viscosity -----
 # values obtained from least squares curve fit of data
 # from [250.0 K - 1000.0 K]
-sutherlandViscosityC1: 1.4742E-06
-sutherlandViscosityS: 1.2846E+02
+sutherlandViscosityC1: 1.0166E-06
+sutherlandViscosityS: 1.6471E+02
 
 # ----- thermal conductivity -----
 # values obtained from least squares curve fit of data
 # from [250.0 K - 1000.0 K]
-sutherlandConductivityC1: 2.6834E-03
-sutherlandConductivityS: 2.5615E+02
+sutherlandConductivityC1: 1.7680E-02
+sutherlandConductivityS: 2.3083E+03
 
 # diffusion properties
 schmidt: 0.9

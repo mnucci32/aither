@@ -443,6 +443,7 @@ ostream &operator<<(ostream &, const periodic &);
 vector<string> Tokenize(string, const string &, const unsigned int = 0);
 string Trim(const string &, const string & = " \t\r\n");
 vector3d<double> ReadVector(const string &);
+vector<double> ReadVectorXd(const string &);
 map<string, double> ReadMassFractions(const string &);
 vector<icState> ReadICList(ifstream &, string &);
 vector<string> ReadStringList(ifstream &, string &);

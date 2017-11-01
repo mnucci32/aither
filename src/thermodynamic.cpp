@@ -33,7 +33,6 @@ double thermallyPerfect::TemperatureFromSpecEnergy(const double& e) const {
   auto temperature = 0.0;
   auto func = [&](const double& t) {
     temperature = t;
-    //cout << "t: " << temperature << endl;
     return e - this->SpecEnergy(t);
   };
   FindRoot(func, 1.0e-8, 1.0e4, 1.0e-8);

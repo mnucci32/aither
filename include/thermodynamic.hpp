@@ -20,10 +20,12 @@
 // This header file contains the thermodynamic model classes
 #include <iostream>
 #include <cmath>
+#include <vector>
 
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::vector;
 
 // abstract base class for thermodynamic model
 class thermodynamic {
@@ -93,25 +95,26 @@ class caloricallyPerfect : public thermodynamic {
 // Cp and Cv are functions of T
 class thermallyPerfect : public thermodynamic {
   const double n_;
-  const double vibTemp_;
+  const vector<double> vibTemp_;
   const double nonDimR_;
 
   // private member functions
-  double ThetaV(const double& t) const { return vibTemp_ / (2.0 * t); }
+  // DEBUG -- fix this for multiple vib temps
+  double ThetaV(const double& t) const { return vibTemp_[0] / (2.0 * t); }
 
  public:
   // Constructor
-  thermallyPerfect(const double& n, const double& vt)
+  thermallyPerfect(const double& n, const vector<double>& vt)
       : n_(n), vibTemp_(vt), nonDimR_(n / (n + 1.0)) {}
-  thermallyPerfect() : thermallyPerfect(1.4, 3056.0) {}
 
-  // move constructor and assignment operator
+  /*// move constructor and assignment operator
   thermallyPerfect(thermallyPerfect&&) noexcept = default;
   thermallyPerfect& operator=(thermallyPerfect&&) noexcept = default;
 
   // copy constructor and assignment operator
   thermallyPerfect(const thermallyPerfect&) = default;
   thermallyPerfect& operator=(const thermallyPerfect&) = default;
+  */
 
   // Member functions
   double Gamma(const double& t) const override {
@@ -129,11 +132,13 @@ class thermallyPerfect : public thermodynamic {
     return nonDimR_ * (n_ + pow(tv / sinh(tv), 2.0));
   }
 
+  // DEBUG -- fix this for multiple vib temps
   double SpecEnergy(const double& t) const override {
-    return nonDimR_ * (n_ * t + vibTemp_ / (exp(vibTemp_ / t) - 1.0));
+    return nonDimR_ * (n_ * t + vibTemp_[0] / (exp(vibTemp_[0] / t) - 1.0));
   }
+  // DEBUG -- fix this for multiple vib temps
   double SpecEnthalpy(const double& t) const override {
-    return nonDimR_ * ((n_ + 1) * t + vibTemp_ / (exp(vibTemp_ / t) - 1.0));
+    return nonDimR_ * ((n_ + 1) * t + vibTemp_[0] / (exp(vibTemp_[0] / t) - 1.0));
   }
   
   double TemperatureFromSpecEnergy(const double& e) const override;

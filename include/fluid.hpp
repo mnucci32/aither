@@ -35,7 +35,7 @@ using std::ostream;
 class fluid {
   double n_;
   double molarMass_;  // kg/mol
-  double vibTemp_;    // K
+  vector<double> vibTemp_;    // K
   double universalGasConst_ = 8.3144598;  // J / mol-K
   array<double, 2> transportViscosity_;
   array<double, 2> transportConductivity_;
@@ -64,7 +64,7 @@ class fluid {
   // Member functions for abstract base class
   double N() const { return n_; }
   double MolarMass() const { return molarMass_; }
-  double VibrationalTemperature() const { return vibTemp_; }
+  vector<double> VibrationalTemperature() const { return vibTemp_; }
   double GasConstant() const { return universalGasConst_ / molarMass_; }
   double UniversalGasConstant() const { return universalGasConst_; }
   auto ViscosityCoeffs() const { return transportViscosity_; }

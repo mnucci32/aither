@@ -13,7 +13,7 @@ iterations: 25000
 outputFrequency: 1000
 outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, velGrad_ux, velGrad_uy, velGrad_uz>
 
-fluids: <fluid(name=air; n=2.5; molarMass=0.02897)>
+fluids: <fluid(name=air; n=2.5; molarMass=28.97)>
 
 #reference conditions
 referenceTemperature: 288.0

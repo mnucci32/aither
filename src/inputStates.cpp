@@ -302,6 +302,20 @@ vector3d<double> ReadVector(const string &str) {
   return {stod(tokens[0]), stod(tokens[1]), stod(tokens[2])};
 }
 
+// function to read vector data from string
+vector<double> ReadVectorXd(const string &str) {
+  const auto start = str.find("[") + 1;
+  const auto end = str.find("]") - 1;
+  const auto range = end - start + 1;  // +/-1 to ignore []
+  auto vec = str.substr(start, range);
+  auto tokens = Tokenize(vec, ",");
+  vector<double> vals(tokens.size());
+  for (auto ii = 0; ii < vals.size(); ++ii) {
+    vals[ii] = stod(tokens[ii]);
+  }
+  return vals;
+}
+
 // function to read mass fraction data from string
 map<string, double> ReadMassFractions(const string &str) {
   const auto start = str.find("[") + 1;
