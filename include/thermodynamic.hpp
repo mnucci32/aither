@@ -99,22 +99,32 @@ class thermallyPerfect : public thermodynamic {
   const double nonDimR_;
 
   // private member functions
-  // DEBUG -- fix this for multiple vib temps
-  double ThetaV(const double& t) const { return vibTemp_[0] / (2.0 * t); }
+  double ThetaV(const double& t, const int& ii) const {
+    return vibTemp_[ii] / (2.0 * t);
+  }
+
+  double VibEqCpCvTerm(const double &t) const {
+    auto vibEq = 0.0;
+    for (auto ii = 0U; ii < vibTemp_.size(); ++ii) {
+      const auto tv = this->ThetaV(t, ii);
+      vibEq += pow(tv / sinh(tv), 2.0);
+    }
+    return vibEq;
+  }
+
+  double VibEqTerm(const double &t) const {
+    auto vibEq = 0.0;
+    for (auto &vt : vibTemp_) {
+      vibEq += vt / (exp(vt / t) - 1.0);
+    }
+    return vibEq;
+  }
+
 
  public:
   // Constructor
   thermallyPerfect(const double& n, const vector<double>& vt)
       : n_(n), vibTemp_(vt), nonDimR_(n / (n + 1.0)) {}
-
-  /*// move constructor and assignment operator
-  thermallyPerfect(thermallyPerfect&&) noexcept = default;
-  thermallyPerfect& operator=(thermallyPerfect&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  thermallyPerfect(const thermallyPerfect&) = default;
-  thermallyPerfect& operator=(const thermallyPerfect&) = default;
-  */
 
   // Member functions
   double Gamma(const double& t) const override {
@@ -124,21 +134,19 @@ class thermallyPerfect : public thermodynamic {
     return (4.0 * this->Gamma(t)) / (9.0 * this->Gamma(t) - 5.0);
   }
   double Cp(const double& t) const override {
-    const auto tv = this->ThetaV(t);
-    return nonDimR_ * ((n_ + 1.0) + pow(tv / sinh(tv), 2.0));
+    return nonDimR_ * ((n_ + 1.0) + this->VibEqCpCvTerm(t));
   }
   double Cv(const double& t) const override {
-    const auto tv = this->ThetaV(t);
-    return nonDimR_ * (n_ + pow(tv / sinh(tv), 2.0));
+    return nonDimR_ * (n_ + this->VibEqCpCvTerm(t));
   }
 
   // DEBUG -- fix this for multiple vib temps
   double SpecEnergy(const double& t) const override {
-    return nonDimR_ * (n_ * t + vibTemp_[0] / (exp(vibTemp_[0] / t) - 1.0));
+    return nonDimR_ * (n_ * t + this->VibEqTerm(t));
   }
   // DEBUG -- fix this for multiple vib temps
   double SpecEnthalpy(const double& t) const override {
-    return nonDimR_ * ((n_ + 1) * t + vibTemp_[0] / (exp(vibTemp_[0] / t) - 1.0));
+    return nonDimR_ * ((n_ + 1) * t + this->VibEqTerm(t));
   }
   
   double TemperatureFromSpecEnergy(const double& e) const override;
