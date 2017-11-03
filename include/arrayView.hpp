@@ -134,8 +134,9 @@ class arrayView {
     static_assert(std::is_same<primitive, T1>::value,
                   "getter only valid for primitive type!");
     vector<T2> mf(this->NumSpecies());
+    const auto totalRho = this->Rho();
     for (auto ii = 0U; ii < mf.size(); ++ii) {
-      mf[ii] = this->MassFractionN(ii);
+      mf[ii] = this->RhoN(ii) / totalRho;
     }
     return mf;
   }

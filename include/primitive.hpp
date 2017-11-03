@@ -88,8 +88,9 @@ class primitive : public varArray {
   }
   vector<double> MassFractions() const {
     vector<double> mf(this->NumSpecies());
+    const auto totalRho = this->Rho();
     for (auto ii = 0U; ii < mf.size(); ++ii) {
-      mf[ii] = this->MassFractionN(ii);
+      mf[ii] = this->RhoN(ii) / totalRho;
     }
     return mf;
   }
