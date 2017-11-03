@@ -140,11 +140,10 @@ class thermallyPerfect : public thermodynamic {
     return nonDimR_ * (n_ + this->VibEqCpCvTerm(t));
   }
 
-  // DEBUG -- fix this for multiple vib temps
   double SpecEnergy(const double& t) const override {
     return nonDimR_ * (n_ * t + this->VibEqTerm(t));
   }
-  // DEBUG -- fix this for multiple vib temps
+
   double SpecEnthalpy(const double& t) const override {
     return nonDimR_ * ((n_ + 1) * t + this->VibEqTerm(t));
   }

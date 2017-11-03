@@ -101,8 +101,10 @@ void primitive::ApplyFarfieldTurbBC(const vector3d<double> &vel,
   // turb --  turbulence model
 
   (*this)[this->TurbulenceIndex()] = 1.5 * pow(turbInten * vel.Mag(), 2.0);
-  (*this)[this->TurbulenceIndex() + 1] = this->Rho() * this->Tke() /
-      (viscRatio * trans->Viscosity(this->Temperature(eqnState)));
+  (*this)[this->TurbulenceIndex() + 1] =
+      this->Rho() * this->Tke() /
+      (viscRatio *
+       trans->Viscosity(this->Temperature(eqnState), this->MassFractions()));
   this->LimitTurb(turb);
 }
 

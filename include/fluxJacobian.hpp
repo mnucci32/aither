@@ -708,7 +708,7 @@ void fluxJacobian::ApproxTSLJacobian(
 
   // assign column 0
   this->FlowJacobian(4, 0) =
-      -(trans->Conductivity(mu, t, thermo) +
+      -(trans->EffectiveConductivity(t, state.MassFractions()) +
         trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) *
       state.Temperature(eqnState) / ((mu + mut) * state.Rho());
 
@@ -746,7 +746,7 @@ void fluxJacobian::ApproxTSLJacobian(
 
   // assign column 4
   this->FlowJacobian(4, 4) =
-      (trans->Conductivity(mu, t, thermo) +
+      (trans->EffectiveConductivity(t, state.MassFractions()) +
        trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) /
       ((mu + mut) * state.Rho());
 

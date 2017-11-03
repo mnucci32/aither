@@ -57,6 +57,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   tRef_ = -1.0;
   lRef_ = 1.0;
   aRef_ = 0.0;
+  mixtureRef_ = vector<double>(1, 1.0);
   fluids_ = vector<fluid>(1);
   bc_ = vector<boundaryConditions>(1);
   timeIntegration_ = "explicitEuler";
@@ -526,6 +527,19 @@ void input::ReadInput(const int &rank) {
     }
   }
 
+  // get mixture reference mass fractions
+  if (this->NumSpecies() > 1) {
+    mixtureRef_.resize(this->NumSpecies());
+    for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
+      mixtureRef_[ii] = fluids_[ii].MassFractionRef();
+    }
+    // normalize mass fractions so that sum is 1
+    auto mfSum = std::accumulate(mixtureRef_.begin(), mixtureRef_.end(), 0.0);
+    std::for_each(mixtureRef_.begin(), mixtureRef_.end(),
+                  [&mfSum](auto &val) { val /= mfSum; });
+  } else {
+    mixtureRef_[0] = 1.0;
+  }
 
   // input file sanity checks
   this->CheckNonlinearIterations();
@@ -688,8 +702,8 @@ unique_ptr<transport> input::AssignTransportModel() const {
   // define equation of state
   unique_ptr<transport> trans(nullptr);
   if (transportModel_ == "sutherland") {
-    trans = unique_ptr<transport>{
-        std::make_unique<sutherland>(fluids_, tRef_, rRef_, lRef_, aRef_)};
+    trans = unique_ptr<transport>{std::make_unique<sutherland>(
+        fluids_, tRef_, rRef_, lRef_, aRef_, mixtureRef_)};
   } else {
     cerr << "ERROR: Error in input::AssignTransportModel(). Transport model "
          << transportModel_ << " is not recognized!" << endl;

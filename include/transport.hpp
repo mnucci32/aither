@@ -60,16 +60,21 @@ class transport {
   transport& operator=(const transport&) = default;
 
   // Member functions for abstract base class
-  virtual double Viscosity(const double&) const = 0;
-  virtual double EffectiveViscosity(const double&) const = 0;
-  virtual double Lambda(const double&) const = 0;
+  virtual int NumSpecies() const = 0;
+  virtual double SpeciesViscosity(const double &, const int &) const = 0;
+  virtual double SpeciesConductivity(const double &, const int &) const = 0;
+  virtual double Viscosity(const double &, const vector<double> &) const = 0;
+  virtual double EffectiveViscosity(const double &,
+                                    const vector<double> &) const = 0;
+  virtual double Lambda(const double &) const = 0;
   virtual double TRef() const = 0;
   virtual double MuRef() const = 0;
-  virtual double Conductivity(const double &, const double &,
-                              const unique_ptr<thermodynamic> &) const = 0;
-  virtual double TurbConductivity(const double &, const double &, const double &,
+  virtual double Conductivity(const double &, const vector<double> &) const = 0;
+  virtual double EffectiveConductivity(const double &,
+                                       const vector<double> &) const = 0;
+  virtual double TurbConductivity(const double &, const double &,
+                                  const double &,
                                   const unique_ptr<thermodynamic> &) const = 0;
-
   double NondimScaling() const {return scaling_;}
   double InvNondimScaling() const {return invScaling_;}
 
@@ -85,15 +90,22 @@ class sutherland : public transport {
   vector<double> condC1_;
   vector<double> condS_;
   vector<double> muRef_;
+  vector<double> kRef_;
+  vector<double> molarMass_;
   double tRef_;
+  double muMixRef_;
   double bulkVisc_ = 0.0;
+
+  // private member functions
+  vector<double> MoleFractions(const vector<double> &) const;
+  double WilkesVisc(const vector<double> &, const vector<double> &) const;
 
  public:
   // Constructors
   // Stoke's hypothesis -- bulk viscosity = 0
   // Sutherland's Law -- mu = muref * (C1 * Tref^1.5) / (T + S_)
   sutherland(const vector<fluid> &, const double &, const double &,
-             const double &, const double &);
+             const double &, const double &, const vector<double> &);
 
   // move constructor and assignment operator
   sutherland(sutherland&&) noexcept = default;
@@ -104,15 +116,18 @@ class sutherland : public transport {
   sutherland& operator=(const sutherland&) = default;
 
   // Member functions
-  double Viscosity(const double&) const override;
-  double EffectiveViscosity(const double&) const override;
-  double Lambda(const double&) const override;
+  int NumSpecies() const override { return muRef_.size(); }
+  double SpeciesViscosity(const double &, const int &) const override;
+  double SpeciesConductivity(const double &, const int &) const override;
+  double Viscosity(const double &, const vector<double> &) const override;
+  double EffectiveViscosity(const double &,
+                            const vector<double> &) const override;
+  double Lambda(const double &) const override;
   double TRef() const override {return tRef_;}
-  double MuRef() const override {return muRef_[0];}  // DEBUG -- use mixture value
-  double Conductivity(const double &mu, const double &t,
-                      const unique_ptr<thermodynamic> &thermo) const override {
-    return mu * thermo->Cp(t) / thermo->Prandtl(t);
-  }
+  double MuRef() const override {return muMixRef_;}
+  double Conductivity(const double &, const vector<double> &) const override;
+  double EffectiveConductivity(const double &,
+                               const vector<double> &) const override;
   double TurbConductivity(
       const double &eddyVisc, const double &prt, const double &t,
       const unique_ptr<thermodynamic> &thermo) const override {
@@ -122,5 +137,11 @@ class sutherland : public transport {
   // Destructor
   ~sutherland() noexcept {}
 };
+
+
+// --------------------------------------------------------------------------
+// function declarations
+
+
 
 #endif

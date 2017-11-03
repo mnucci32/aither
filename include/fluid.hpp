@@ -40,17 +40,17 @@ class fluid {
   array<double, 2> transportViscosity_;
   array<double, 2> transportConductivity_;
   double schmidt_;
+  double massFracRef_ = 1.0;
   string name_ = "air";
   bool nondimensional_ = false;
 
   // private member functions
   void SetNondimensional(const bool &nd) { nondimensional_ = nd; }
-  void GetDatabaseProperties(const string &, const bool &, const bool &,
-                             const bool &);
+  void GetDatabaseProperties(const string &);
 
  public:
   // Constructor
-  fluid() { this->GetDatabaseProperties(name_, false, false, false); }
+  fluid() { this->GetDatabaseProperties(name_); }
   fluid(string &str, const string = "fluid");
 
   // move constructor and assignment operator
@@ -70,6 +70,7 @@ class fluid {
   auto ViscosityCoeffs() const { return transportViscosity_; }
   auto ConductivityCoeffs() const { return transportConductivity_; }
   double SchmidtNumber() const { return schmidt_; }
+  double MassFractionRef() const { return massFracRef_; }
   string Name() const { return name_; }
   bool IsNondimensional() const { return nondimensional_; }
 

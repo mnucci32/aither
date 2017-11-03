@@ -86,6 +86,13 @@ class primitive : public varArray {
   double MassFractionN(const int &ii) const {
     return this->RhoN(ii) / this->Rho();
   }
+  vector<double> MassFractions() const {
+    vector<double> mf(this->NumSpecies());
+    for (auto ii = 0U; ii < mf.size(); ++ii) {
+      mf[ii] = this->MassFractionN(ii);
+    }
+    return mf;
+  }
   const double & U() const { return this->MomentumX(); }
   const double & V() const { return this->MomentumY(); }
   const double & W() const { return this->MomentumZ(); }

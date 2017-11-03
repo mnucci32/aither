@@ -62,7 +62,6 @@ class wallLaw {
   void CalcYplusWhite();
   double CalcHeatFlux(const unique_ptr<eos> &) const;
   void SetWallVars(const double &, const unique_ptr<eos> &,
-                   const unique_ptr<thermodynamic> &,
                    const unique_ptr<transport> &);
   void EddyVisc(const unique_ptr<eos> &, const unique_ptr<transport> &);
   void CalcVelocities(const double &, const double &);

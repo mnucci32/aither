@@ -54,7 +54,8 @@ class input {
   double tRef_;  // reference temperature
   double lRef_;  // reference length
   double aRef_;  // reference speed of sound
-  vector<fluid> fluids_;  // fluids in simulation
+  vector<double> mixtureRef_;  // reference mixture mass fractions
+  vector<fluid> fluids_;           // fluids in simulation
   vector<boundaryConditions> bc_;  // vector of boundary conditions for each
                                   // block
   string timeIntegration_;  // time integration method
@@ -129,6 +130,7 @@ class input {
   double LRef() const {return lRef_;}
   double TRef() const {return tRef_;}
   double ARef() const {return aRef_;}
+  vector<double> MixtureRef() const { return mixtureRef_; }
   void NondimensionalizeStateData(const unique_ptr<eos> &);
   void NondimensionalizeFluid();
 

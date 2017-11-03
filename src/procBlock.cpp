@@ -287,7 +287,8 @@ void procBlock::InitializeStates(const input &inp,
           state_.InsertBlock(ii, jj, kk, cloudStates[id]);
           temperature_(ii, jj, kk) = state_(ii, jj, kk).Temperature(eqnState);
           if (inp.IsViscous()) {
-            viscosity_(ii, jj, kk) = trans->Viscosity(temperature_(ii, jj, kk));
+            viscosity_(ii, jj, kk) = trans->Viscosity(
+                temperature_(ii, jj, kk), state_(ii, jj, kk).MassFractions());
             if (inp.IsTurbulent()) {
               eddyViscosity_(ii, jj, kk) =
                   turb->EddyViscNoLim(state_(ii, jj, kk));
@@ -320,7 +321,8 @@ void procBlock::InitializeStates(const input &inp,
     temperature_ = {numI, numJ, numK, numGhosts_, 1, inputTemperature};
 
     if (isViscous_) {
-      const auto inputViscosity = trans->Viscosity(inputTemperature);
+      const auto inputViscosity =
+          trans->Viscosity(inputTemperature, inputState.MassFractions());
       viscosity_ = {numI, numJ, numK, numGhosts_, 1, inputViscosity};
       if (isTurbulent_) {
         eddyViscosity_ = {numI, numJ, numK, numGhosts_, 1,
@@ -6611,7 +6613,8 @@ void procBlock::UpdateAuxillaryVariables(const unique_ptr<eos> &eos,
             (includeGhosts || this->IsPhysical(ii, jj, kk))) {
           temperature_(ii, jj, kk) = state_(ii, jj, kk).Temperature(eos);
           if (isViscous_) {
-            viscosity_(ii, jj, kk) = trans->Viscosity(temperature_(ii, jj, kk));
+            viscosity_(ii, jj, kk) = trans->Viscosity(
+                temperature_(ii, jj, kk), state_(ii, jj, kk).MassFractions());
           }
         }
       }

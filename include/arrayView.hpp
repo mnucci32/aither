@@ -130,6 +130,15 @@ class arrayView {
                 "getter only valid for primitive type!");
     return this->RhoN(ii) / this->Rho(); 
   }
+  vector<T2> MassFractions() const {
+    static_assert(std::is_same<primitive, T1>::value,
+                  "getter only valid for primitive type!");
+    vector<T2> mf(this->NumSpecies());
+    for (auto ii = 0U; ii < mf.size(); ++ii) {
+      mf[ii] = this->MassFractionN(ii);
+    }
+    return mf;
+  }
   const T2 &U() const { 
     static_assert(std::is_same<primitive, T1>::value,
                 "getter only valid for primitive type!");

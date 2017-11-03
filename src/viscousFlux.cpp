@@ -90,7 +90,7 @@ void viscousFlux::CalcFlux(
   (*this)[this->MomentumYIndex()] = tau.Y();
   (*this)[this->MomentumZIndex()] = tau.Z();
   (*this)[this->EnergyIndex()] = tau.DotProd(state.Velocity()) +
-      (trans->Conductivity(mu, t, thermo) +
+      (trans->EffectiveConductivity(t, state.MassFractions()) +
        trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) *
       tGrad.DotProd(normArea);
 
@@ -147,7 +147,7 @@ wallVars viscousFlux::CalcWallFlux(
 
   // wall heat flux
   wVars.heatFlux_ =
-      (trans->Conductivity(wVars.viscosity_, t, thermo) +
+      (trans->EffectiveConductivity(t, state.MassFractions()) +
        trans->TurbConductivity(wVars.turbEddyVisc_, turb->TurbPrandtlNumber(),
                                t, thermo)) *
       tGrad.DotProd(normArea);

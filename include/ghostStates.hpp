@@ -159,8 +159,9 @@ primitive GetGhostState(
         } else {
           // use wall law heat flux to get ghost cell density
           // need turbulent contribution because eddy viscosity is not 0 at wall
-          const auto kappa = trans->Conductivity(wVars.viscosity_,
-                                                 wVars.temperature_, thermo) +
+          // assume mass fractions at wall are same as interior
+          const auto kappa = trans->EffectiveConductivity(
+                                 wVars.temperature_, interior.MassFractions()) +
                              trans->TurbConductivity(
                                  wVars.turbEddyVisc_, turb->TurbPrandtlNumber(),
                                  wVars.temperature_, thermo);
@@ -202,8 +203,8 @@ primitive GetGhostState(
         if (wVars.SwitchToLowRe()) {
           // don't need turbulent contribution b/c eddy viscosity is 0 at wall
           const auto t = interior.Temperature(eqnState);
-          const auto mu = trans->EffectiveViscosity(t);
-          const auto kappa = trans->Conductivity(mu, t, thermo);
+          const auto mf = interior.MassFractions();
+          const auto kappa = trans->EffectiveConductivity(t, mf);
           // 2x wall distance as gradient length
           const auto tGhost =
               interior.Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
@@ -235,8 +236,8 @@ primitive GetGhostState(
       } else {  // low-Re wall treatment
         // don't need turbulent contribution b/c eddy viscosity is 0 at wall
         const auto t = interior.Temperature(eqnState);
-        const auto mu = trans->EffectiveViscosity(t);
-        const auto kappa = trans->Conductivity(mu, t, thermo);
+        const auto mf = interior.MassFractions();
+        const auto kappa = trans->EffectiveConductivity(t, mf);
         // 2x wall distance as gradient length
         const auto tGhost =
             interior.Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
@@ -276,8 +277,9 @@ primitive GetGhostState(
       // so that tke at face will be zero
       ghost[ghost.TurbulenceIndex()] = -1.0 * interior.Tke();
 
-      const auto nuW =
-          trans->Viscosity(interior.Temperature(eqnState)) / interior.Rho();
+      const auto nuW = trans->Viscosity(interior.Temperature(eqnState),
+                                        interior.MassFractions()) /
+                       interior.Rho();
       const auto wWall = trans->NondimScaling() * trans->NondimScaling() *
                          60.0 * nuW / (wallDist * wallDist * turb->WallBeta());
       ghost[ghost.TurbulenceIndex() + 1] = 2.0 * wWall - interior.Omega();
