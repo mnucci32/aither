@@ -509,10 +509,11 @@ void fluxJacobian::InvFluxJacobian(const T &state,
 
   const auto t = state.Temperature(eqnState);
   const auto velNorm = state.Velocity().DotProd(area.UnitVector());
-  const auto gammaMinusOne = thermo->Gamma(t) - 1.0;
+  const auto gamma = thermo->Gamma(t, state.MassFractions());
+  const auto gammaMinusOne = gamma - 1.0;
   const auto phi = 0.5 * gammaMinusOne * state.Velocity().MagSq();
-  const auto a1 = thermo->Gamma(t) * state.Energy(eqnState, thermo) - phi;
-  const auto a3 = thermo->Gamma(t) - 2.0;
+  const auto a1 = gamma * state.Energy(eqnState, thermo) - phi;
+  const auto a3 = gamma - 2.0;
 
   // begin jacobian calculation
   *this = fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
@@ -560,7 +561,7 @@ void fluxJacobian::InvFluxJacobian(const T &state,
   this->FlowJacobian(1, 4) = gammaMinusOne * area.UnitVector().X();
   this->FlowJacobian(2, 4) = gammaMinusOne * area.UnitVector().Y();
   this->FlowJacobian(3, 4) = gammaMinusOne * area.UnitVector().Z();
-  this->FlowJacobian(4, 4) = thermo->Gamma(t) * velNorm;
+  this->FlowJacobian(4, 4) = gamma * velNorm;
 
   // multiply by 0.5 b/c averaging with dissipation matrix
   this->MultFlowJacobian(0.5 * area.Mag());
@@ -636,7 +637,7 @@ void fluxJacobian::DelprimitiveDelConservative(
                 "T requires primitive or primativeView type");
 
   const auto t = state.Temperature(eqnState);
-  const auto gammaMinusOne = thermo->Gamma(t) - 1.0;
+  const auto gammaMinusOne = thermo->Gamma(t, state.MassFractions()) - 1.0;
   const auto invRho = 1.0 / state.Rho();
 
   *this = fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
@@ -709,7 +710,8 @@ void fluxJacobian::ApproxTSLJacobian(
   // assign column 0
   this->FlowJacobian(4, 0) =
       -(trans->EffectiveConductivity(t, state.MassFractions()) +
-        trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) *
+        trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo,
+                                state.MassFractions())) *
       state.Temperature(eqnState) / ((mu + mut) * state.Rho());
 
   // assign column 1
@@ -747,7 +749,8 @@ void fluxJacobian::ApproxTSLJacobian(
   // assign column 4
   this->FlowJacobian(4, 4) =
       (trans->EffectiveConductivity(t, state.MassFractions()) +
-       trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) /
+       trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo,
+                               state.MassFractions())) /
       ((mu + mut) * state.Rho());
 
   this->MultFlowJacobian(area.Mag() * (mu + mut) / dist);

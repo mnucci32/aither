@@ -232,7 +232,7 @@ class input {
 
   icState ICStateForBlock(const int &) const;
   const shared_ptr<inputState> & BCData(const int &) const;
-  fluid Fluid(const int = 0) const;  // DEBUG -- fix for multi-species
+  const fluid &Fluid(const int &ii) const { return fluids_[ii]; }
   void CheckSpecies(const vector<string> &) const;
 
   bool IsWenoZ() const {return this->FaceReconstruction() == "wenoZ";}

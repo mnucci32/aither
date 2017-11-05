@@ -678,22 +678,24 @@ unique_ptr<turbModel> input::AssignTurbulenceModel() const {
 // member function to get equation of state
 unique_ptr<eos> input::AssignEquationOfState(
     const unique_ptr<thermodynamic> &thermo) {
-  // get fluid
-  auto fl = this->Fluid();
   // define equation of state
   unique_ptr<eos> eqnState(nullptr);
   if (equationOfState_ == "idealGas") {
-    // nondimensional temperature is 1.0 (tRef_ / tRef_)
-    eqnState = unique_ptr<eos>{
-        std::make_unique<idealGas>(thermo, fl.GasConstant(), 1.0)};
+    // non-dimensional reference temperature is 1.0
+    eqnState =
+        unique_ptr<eos>{std::make_unique<idealGas>(thermo, fluids_, 1.0)};
   } else {
     cerr << "ERROR: Error in input::AssignEquationOfState(). Equation of state "
          << equationOfState_ << " is not recognized!" << endl;
     exit(EXIT_FAILURE);
   }
   // use equation of state to assign additional reference values
-  const auto pRef = eqnState->PressureDim(rRef_, tRef_);
-  aRef_ = eqnState->SoS(pRef, rRef_);
+  auto rhoVec = mixtureRef_;
+  for (auto &rho : rhoVec) {
+    rho *= rRef_;
+  }
+  const auto pRef = eqnState->PressureDim(rhoVec, tRef_);
+  aRef_ = eqnState->SoS(pRef, rhoVec);
   return eqnState;
 }
 
@@ -714,16 +716,14 @@ unique_ptr<transport> input::AssignTransportModel() const {
 
 // member function to get thermodynamic model
 unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
-  // get fluid
-  auto fl = this->Fluid();
-  // define equation of state
+  // define thermodynamic model
   unique_ptr<thermodynamic> thermo(nullptr);
   if (thermodynamicModel_ == "caloricallyPerfect") {
-    thermo =
-        unique_ptr<thermodynamic>{std::make_unique<caloricallyPerfect>(fl.N())};
+    thermo = unique_ptr<thermodynamic>{
+        std::make_unique<caloricallyPerfect>(fluids_)};
   } else if (thermodynamicModel_ == "thermallyPerfect") {
-    thermo = unique_ptr<thermodynamic>{std::make_unique<thermallyPerfect>(
-        fl.N(), fl.VibrationalTemperature())};
+    thermo =
+        unique_ptr<thermodynamic>{std::make_unique<thermallyPerfect>(fluids_)};
   } else {
     cerr << "ERROR: Error in input::AssignThermodynamicModel(). Thermodynamic "
          << "model " << thermodynamicModel_ << " is not recognized!" << endl;
@@ -1009,6 +1009,3 @@ void input::NondimensionalizeFluid() {
     fl.Nondimensionalize(tRef_);
   }
 }
-
-// default value is 0; code currently only supports single fluid flows
-fluid input::Fluid(const int ind) const { return fluids_[ind]; }

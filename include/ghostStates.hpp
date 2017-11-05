@@ -162,9 +162,10 @@ primitive GetGhostState(
           // assume mass fractions at wall are same as interior
           const auto kappa = trans->EffectiveConductivity(
                                  wVars.temperature_, interior.MassFractions()) +
-                             trans->TurbConductivity(
-                                 wVars.turbEddyVisc_, turb->TurbPrandtlNumber(),
-                                 wVars.temperature_, thermo);
+                             trans->TurbConductivity(wVars.turbEddyVisc_,
+                                                     turb->TurbPrandtlNumber(),
+                                                     wVars.temperature_, thermo,
+                                                     interior.MassFractions());
           // 2x wall distance as gradient length
           const auto tGhost = tWall - wVars.heatFlux_ / kappa * 2.0 * wallDist;
           const auto rho = eqnState->DensityTP(tGhost, ghost.P());
@@ -536,7 +537,8 @@ primitive GetGhostState(
     const auto &bcData = inputVars.BCData(tag);
 
     const auto t = interior.Temperature(eqnState);
-    const auto g = thermo->Gamma(t) - 1.0;
+    const auto mf = interior.MassFractions();
+    const auto g = thermo->Gamma(t, mf) - 1.0;
     // calculate outgoing riemann invarient
     const auto rNeg = interior.Velocity().DotProd(normArea) -
                       2.0 * interior.SoS(thermo, eqnState) / g;
@@ -553,7 +555,7 @@ primitive GetGhostState(
                                              0.5 * g));
     const auto tb = bcData->StagnationTemperature() * (sosB * sosB / stagSoSsq);
     const auto pb = bcData->StagnationPressure() *
-                    pow(sosB * sosB / stagSoSsq, thermo->Gamma(t) / g);
+                    pow(sosB * sosB / stagSoSsq, thermo->Gamma(t, mf) / g);
     const auto vbMag = sqrt(2.0 / g * (bcData->StagnationTemperature() - tb));
 
     ghost[0] = eqnState->DensityTP(tb, pb);
@@ -615,7 +617,8 @@ primitive GetGhostState(
       const auto velGradT = velGrad.RemoveComponent(normArea);
       const auto dVelN_dTrans = velGradT.LinearCombination(normArea);
       const auto dVelT_dTrans = velGradT.Sum() - dVelN_dTrans.SumElem();
-      const auto gamma = thermo->Gamma(stateN.Temperature(eqnState));
+      const auto gamma =
+          thermo->Gamma(stateN.Temperature(eqnState), stateN.MassFractions());
 
       const auto trans = -0.5 * (velT.DotProd(pGradT - rhoSoSN * dVelN_dTrans) +
                                  gamma * stateN.P() * dVelT_dTrans);

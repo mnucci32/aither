@@ -459,14 +459,20 @@ inviscidFlux AUSMFlux(const T1 &left, const T2 &right,
   // calculate average specific enthalpy on face
   const auto tl = left.Temperature(eqnState);
   const auto tr = right.Temperature(eqnState);
-  const auto hl = thermo->SpecEnthalpy(tl);
-  const auto hr = thermo->SpecEnthalpy(tr);
+  const auto mfl = left.MassFractions();
+  const auto mfr = right.MassFractions();
+  const auto hl = thermo->SpecEnthalpy(tl, mfl);
+  const auto hr = thermo->SpecEnthalpy(tr, mfr);
   const auto h = 0.5 * (hl + hr);
 
   // calculate c* from Kim, Kim, Rho 1998
   const auto t = 0.5 * (tl + tr);
-  const auto sosStar =
-      sqrt(2.0 * h * (thermo->Gamma(t) - 1.0) / (thermo->Gamma(t) + 1.0));
+  vector<double> mf(mfl.size());
+  for (auto ii = 0U; ii < mf.size(); ++ii) {
+    mf[ii] = 0.5 * (mfl[ii] + mfr[ii]);
+  }
+  const auto sosStar = sqrt(2.0 * h * (thermo->Gamma(t, mf) - 1.0) /
+                            (thermo->Gamma(t, mf) + 1.0));
 
   // calculate left/right mach numbers
   const auto vell = left.Velocity().DotProd(area);

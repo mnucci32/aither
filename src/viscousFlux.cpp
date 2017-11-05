@@ -89,10 +89,12 @@ void viscousFlux::CalcFlux(
   (*this)[this->MomentumXIndex()] = tau.X();
   (*this)[this->MomentumYIndex()] = tau.Y();
   (*this)[this->MomentumZIndex()] = tau.Z();
-  (*this)[this->EnergyIndex()] = tau.DotProd(state.Velocity()) +
+  (*this)[this->EnergyIndex()] =
+      tau.DotProd(state.Velocity()) +
       (trans->EffectiveConductivity(t, state.MassFractions()) +
-       trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) *
-      tGrad.DotProd(normArea);
+       trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo,
+                               state.MassFractions())) *
+          tGrad.DotProd(normArea);
 
   // turbulence viscous flux
   if (this->HasTurbulenceData()) {
@@ -149,7 +151,7 @@ wallVars viscousFlux::CalcWallFlux(
   wVars.heatFlux_ =
       (trans->EffectiveConductivity(t, state.MassFractions()) +
        trans->TurbConductivity(wVars.turbEddyVisc_, turb->TurbPrandtlNumber(),
-                               t, thermo)) *
+                               t, thermo, state.MassFractions())) *
       tGrad.DotProd(normArea);
 
   (*this)[this->MomentumXIndex()] = wVars.shearStress_.X();

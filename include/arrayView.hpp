@@ -130,6 +130,11 @@ class arrayView {
                 "getter only valid for primitive type!");
     return this->RhoN(ii) / this->Rho(); 
   }
+  vector<T2> RhoVec() const {
+    static_assert(std::is_same<primitive, T1>::value,
+                  "getter only valid for primitive type!");
+    return {this->begin(), this->begin() + this->NumSpecies()};
+  }
   vector<T2> MassFractions() const {
     static_assert(std::is_same<primitive, T1>::value,
                   "getter only valid for primitive type!");
@@ -184,28 +189,31 @@ class arrayView {
          const unique_ptr<eos> &eqnState) const {
     static_assert(std::is_same<primitive, T1>::value,
                   "getter only valid for primitive type!");
-    return sqrt(thermo->Gamma(this->Temperature(eqnState)) * this->P() /
-                this->Rho());
+    return sqrt(
+        thermo->Gamma(this->Temperature(eqnState), this->MassFractions()) *
+        this->P() / this->Rho());
   }
   T2 Temperature(const unique_ptr<eos> &eqnState) const {
     static_assert(std::is_same<primitive, T1>::value,
                   "getter only valid for primitive type!");
-    return eqnState->Temperature(this->P(), this->Rho());
+    return eqnState->Temperature(this->P(), this->RhoVec());
   }
   T2 Energy(const unique_ptr<eos> &eqnState,
             const unique_ptr<thermodynamic> &thermo) const {
     static_assert(std::is_same<primitive, T1>::value,
                   "getter only valid for primitive type!");
     const auto t = this->Temperature(eqnState);
-    return eqnState->Energy(eqnState->SpecEnergy(thermo, t),
-                            this->Velocity().Mag());
+    return eqnState->Energy(
+        eqnState->SpecEnergy(thermo, t, this->MassFractions()),
+        this->Velocity().Mag());
   }
   T2 Enthalpy(const unique_ptr<eos> &eqnState,
               const unique_ptr<thermodynamic> &thermo) const {
     static_assert(std::is_same<primitive, T1>::value,
                   "getter only valid for primitive type!");
     const auto t = this->Temperature(eqnState);
-    return eqnState->Enthalpy(thermo, t, this->Velocity().Mag());
+    return eqnState->Enthalpy(thermo, t, this->Velocity().Mag(),
+                              this->MassFractions());
   }
   conserved ConsVars(const unique_ptr<eos> &eqnState,
                      const unique_ptr<thermodynamic> &thermo) const {

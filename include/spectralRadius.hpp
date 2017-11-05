@@ -127,10 +127,12 @@ double ViscCellSpectralRadius(
   const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
   const auto t = state.Temperature(eqnState);
   const auto maxTerm =
-      max(4.0 / (3.0 * state.Rho()), thermo->Gamma(t) / state.Rho());
+      max(4.0 / (3.0 * state.Rho()),
+          thermo->Gamma(t, state.MassFractions()) / state.Rho());
   // viscous term
-  const auto viscTerm = trans->NondimScaling() *
-      (mu / thermo->Prandtl(t) +  mut / turb->TurbPrandtlNumber());
+  const auto viscTerm =
+      trans->NondimScaling() * (mu / thermo->Prandtl(t, state.MassFractions()) +
+                                mut / turb->TurbPrandtlNumber());
 
   // return viscous spectral radius
   return maxTerm * viscTerm * fMag * fMag / vol;
@@ -157,10 +159,12 @@ double ViscFaceSpectralRadius(
 
   const auto t = state.Temperature(eqnState);
   const auto maxTerm =
-      max(4.0 / (3.0 * state.Rho()), thermo->Gamma(t) / state.Rho());
+      max(4.0 / (3.0 * state.Rho()),
+          thermo->Gamma(t, state.MassFractions()) / state.Rho());
   // viscous term
-  const auto viscTerm = trans->NondimScaling() *
-      (mu / thermo->Prandtl(t) +  mut / turb->TurbPrandtlNumber());
+  const auto viscTerm =
+      trans->NondimScaling() * (mu / thermo->Prandtl(t, state.MassFractions()) +
+                                mut / turb->TurbPrandtlNumber());
 
   // return viscous spectral radius
   return fArea.Mag() / dist * maxTerm * viscTerm;

@@ -83,6 +83,9 @@ class primitive : public varArray {
   // member functions
   const double & RhoN(const int &ii) const { return this->SpeciesN(ii); }
   double Rho() const { return this->SpeciesSum(); }
+  vector<double> RhoVec() const {
+    return {this->begin(), this->begin() + this->NumSpecies()};
+  }
   double MassFractionN(const int &ii) const {
     return this->RhoN(ii) / this->Rho();
   }
@@ -123,21 +126,24 @@ class primitive : public varArray {
   double Energy(const unique_ptr<eos> &eqnState,
                 const unique_ptr<thermodynamic> &thermo) const {
     const auto t = this->Temperature(eqnState);
-    return eqnState->Energy(eqnState->SpecEnergy(thermo, t),
-                            this->Velocity().Mag());
+    return eqnState->Energy(
+        eqnState->SpecEnergy(thermo, t, this->MassFractions()),
+        this->Velocity().Mag());
   }
   double Enthalpy(const unique_ptr<eos> &eqnState,
                   const unique_ptr<thermodynamic> &thermo) const {
     const auto t = this->Temperature(eqnState);
-    return eqnState->Enthalpy(thermo, t, this->Velocity().Mag());
+    return eqnState->Enthalpy(thermo, t, this->Velocity().Mag(),
+                              this->MassFractions());
   }
   double Temperature(const unique_ptr<eos> &eqnState) const {
-    return eqnState->Temperature(this->P(), this->Rho());
+    return eqnState->Temperature(this->P(), this->RhoVec());
   }
   double SoS(const unique_ptr<thermodynamic> &thermo,
-                    const unique_ptr<eos> &eqnState) const {
-    return sqrt(thermo->Gamma(this->Temperature(eqnState)) * this->P() /
-                this->Rho());
+             const unique_ptr<eos> &eqnState) const {
+    return sqrt(
+        thermo->Gamma(this->Temperature(eqnState), this->MassFractions()) *
+        this->P() / this->Rho());
   }
 
   inline conserved ConsVars(const unique_ptr<eos> &,
@@ -180,8 +186,8 @@ primitive::primitive(const T &cons, const unique_ptr<eos> &eqnState,
   (*this)[this->MomentumZIndex()] = cons.MomentumZ() / rho;
   
   const auto energy = cons.Energy() / rho;
-  (*this)[this->EnergyIndex()] =
-      eqnState->PressFromEnergy(thermo, rho, energy, this->Velocity().Mag());
+  (*this)[this->EnergyIndex()] = eqnState->PressFromEnergy(
+      thermo, this->RhoVec(), energy, this->Velocity().Mag());
 
   for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
     (*this)[this->TurbulenceIndex() + ii] = cons.TurbulenceN(ii) / rho;

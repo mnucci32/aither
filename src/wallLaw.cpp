@@ -51,7 +51,8 @@ wallVars wallLaw::AdiabaticBCs(const vector3d<double> &area,
   auto t = state_.Temperature(eqnState);
   this->CalcRecoveryFactor(thermo, t);
   // this is correct form of crocco-busemann, typo in Nichols & Nelson (2004)
-  auto tW = t + 0.5 * recoveryFactor_ * velTanMag * velTanMag / thermo->Cp(t);
+  auto tW = t + 0.5 * recoveryFactor_ * velTanMag * velTanMag /
+                    thermo->Cp(t, state_.MassFractions());
   // set wall properties
   this->SetWallVars(tW, eqnState, trans);
 
@@ -209,7 +210,8 @@ wallVars wallLaw::IsothermalBCs(const vector3d<double> &area,
 void wallLaw::UpdateGamma(const unique_ptr<thermodynamic> &thermo,
                           const double &t) {
   // calculate constants
-  gamma_ = recoveryFactor_ * uStar_ * uStar_ / (2.0 * thermo->Cp(t) * tW_);
+  gamma_ = recoveryFactor_ * uStar_ * uStar_ /
+           (2.0 * thermo->Cp(t, state_.MassFractions()) * tW_);
 }
 
 void wallLaw::UpdateConstants(const double &heatFluxW) {
@@ -238,9 +240,9 @@ double wallLaw::CalcWallTemperature(const unique_ptr<eos> &eqnState,
                                     const unique_ptr<thermodynamic> &thermo,
                                     const double &heatFluxW) const {
   const auto t = state_.Temperature(eqnState);
-  return t +
-         recoveryFactor_ * uStar_ * uStar_ * uplus_ * uplus_ /
-             (2.0 * thermo->Cp(t) + heatFluxW * muW_ / (rhoW_ * kW_ * uStar_));
+  return t + recoveryFactor_ * uStar_ * uStar_ * uplus_ * uplus_ /
+                 (2.0 * thermo->Cp(t, state_.MassFractions()) +
+                  heatFluxW * muW_ / (rhoW_ * kW_ * uStar_));
 }
 
 void wallLaw::SetWallVars(const double &tW, const unique_ptr<eos> &eqnState,
@@ -296,5 +298,5 @@ void wallLaw::CalcTurbVars(const unique_ptr<turbModel> &turb,
 
 void wallLaw::CalcRecoveryFactor(const unique_ptr<thermodynamic> &thermo,
                                  const double &t) {
-  recoveryFactor_ = pow(thermo->Prandtl(t), 1.0 / 3.0);
+  recoveryFactor_ = pow(thermo->Prandtl(t, state_.MassFractions()), 1.0 / 3.0);
 }

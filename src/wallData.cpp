@@ -55,8 +55,8 @@ double wallData::WallEddyViscosity(const int &ii, const int &jj,
 
 double wallData::WallPressure(const int &ii, const int &jj, const int &kk,
                               const unique_ptr<eos> &eqnState) const {
-  return eqnState->PressureRT(this->WallDensity(ii, jj, kk),
-                              this->WallTemperature(ii, jj, kk));
+  return eqnState->PressureRTScalar(this->WallDensity(ii, jj, kk),
+                                    this->WallTemperature(ii, jj, kk));
 }
 
 double wallData::WallViscosity(const int &ii, const int &jj,
