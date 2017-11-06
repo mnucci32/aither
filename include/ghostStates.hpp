@@ -303,7 +303,12 @@ primitive GetGhostState(
     // freestream variables
     const auto freeVel = bcData->Velocity();
     primitive freeState(inputVars.NumEquations(), inputVars.NumSpecies());
-    freeState[0] = bcData->Density();  // need to fix for multispecies
+    const auto freeRho = bcData->Density();
+    const auto freeMf = bcData->MassFractions();
+    for (auto &mf : freeMf) {
+      auto ind = inputVars.SpeciesIndex(mf.first);
+      freeState[ind] = freeRho * mf.second;
+    }
     freeState[freeState.MomentumXIndex()] = freeVel.X();
     freeState[freeState.MomentumYIndex()] = freeVel.Y();
     freeState[freeState.MomentumZIndex()] = freeVel.Z();
@@ -345,7 +350,10 @@ primitive GetGhostState(
       const auto deltaPressure = freeState.P() - ghost.P();
 
       // minus characteristic
-      ghost[0] = freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
+      const auto rho = freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
+      for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
+        ghost[ii] = rho * freeState.MassFractionN(ii);
+      }
       ghost[ghost.MomentumXIndex()] =
           freeState.U() - normArea.X() * deltaPressure / rhoSoSInt;
       ghost[ghost.MomentumYIndex()] =
@@ -368,7 +376,10 @@ primitive GetGhostState(
       const auto deltaPressure = interior.P() - freeState.P();
 
       // plus characteristic
-      ghost[0] = interior.Rho() - deltaPressure / (SoSInt * SoSInt);
+      const auto rho = interior.Rho() - deltaPressure / (SoSInt * SoSInt);
+      for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
+        ghost[ii] = rho * interior.MassFractionN(ii);
+      }
       ghost[ghost.MomentumXIndex()] =
           interior.U() + normArea.X() * deltaPressure / rhoSoSInt;
       ghost[ghost.MomentumYIndex()] =
@@ -408,7 +419,12 @@ primitive GetGhostState(
     // freestream variables
     const auto freeVel = bcData->Velocity();
     primitive freeState(inputVars.NumEquations(), inputVars.NumSpecies());
-    freeState[0] = bcData->Density();  // need to fix for multispecies
+    const auto freeRho = bcData->Density();
+    const auto freeMf = bcData->MassFractions();
+    for (auto &mf : freeMf) {
+      auto ind = inputVars.SpeciesIndex(mf.first);
+      freeState[ind] = freeRho * mf.second;
+    }
     freeState[freeState.MomentumXIndex()] = freeVel.X();
     freeState[freeState.MomentumYIndex()] = freeVel.Y();
     freeState[freeState.MomentumZIndex()] = freeVel.Z();
@@ -454,9 +470,12 @@ primitive GetGhostState(
         const auto length = bcData->LengthScale();
         const auto alphaR = sigma / (sosN * length);
 
-        ghost[0] = (rhoN + dt * alphaR * freeState.Rho() +
-                    deltaPressure / (sosN * sosN)) /
-                   (1.0 + dt * alphaR);
+        const auto rhoNp1 = (rhoN + dt * alphaR * freeState.Rho() +
+                             deltaPressure / (sosN * sosN)) /
+                            (1.0 + dt * alphaR);
+        for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
+          ghost[ii] = rhoNp1 * freeState.MassFractionN(ii);
+        }
 
         const auto alpha = sigma * sosN / length;
         const auto k = alpha * (1.0 - maxMach * maxMach);
@@ -472,7 +491,10 @@ primitive GetGhostState(
         const auto deltaPressure = freeState.P() - ghost.P();
 
         // minus characteristic
-        ghost[0] = freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
+        const auto rho = freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
+        for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
+          ghost[ii] = rho * freeState.MassFractionN(ii);
+        }
         ghost[ghost.MomentumXIndex()] =
             freeState.U() - normArea.X() * deltaPressure / rhoSoSInt;
         ghost[ghost.MomentumYIndex()] =
@@ -504,8 +526,17 @@ primitive GetGhostState(
     const auto &bcData = inputVars.BCData(tag);
     // physical boundary conditions - fix everything
     const auto vel = bcData->Velocity();
-
-    ghost[0] = bcData->Density();
+    // zero densities
+    for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
+      ghost[ii] = 0.0;
+    }
+    // assign density from BCs
+    const auto ghostRho = bcData->Density();
+    const auto ghostMf = bcData->MassFractions();
+    for (auto &mf : ghostMf) {
+      auto ind = inputVars.SpeciesIndex(mf.first);
+      ghost[ind] = ghostRho * mf.second;
+    }
     ghost[ghost.MomentumXIndex()] = vel.X();
     ghost[ghost.MomentumYIndex()] = vel.Y();
     ghost[ghost.MomentumZIndex()] = vel.Z();
@@ -558,7 +589,17 @@ primitive GetGhostState(
                     pow(sosB * sosB / stagSoSsq, thermo->Gamma(t, mf) / g);
     const auto vbMag = sqrt(2.0 / g * (bcData->StagnationTemperature() - tb));
 
-    ghost[0] = eqnState->DensityTP(tb, pb);
+    // zero densities
+    for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
+      ghost[ii] = 0.0;
+    }
+    // assign densities from BC
+    const auto rhoGhost = eqnState->DensityTP(tb, pb);
+    const auto mfGhost = bcData->MassFractions();
+    for (auto &mf : mfGhost) {
+      auto ind = inputVars.SpeciesIndex(mf.first);
+      ghost[ind] = rhoGhost * mf.second;
+    }
     ghost[ghost.MomentumXIndex()] = vbMag * bcData->Direction().X();
     ghost[ghost.MomentumYIndex()] = vbMag * bcData->Direction().Y();
     ghost[ghost.MomentumZIndex()] = vbMag * bcData->Direction().Z();
@@ -631,7 +672,10 @@ primitive GetGhostState(
     }
 
     const auto deltaPressure = interior.P() - ghost.P();
-    ghost[0] = interior.Rho() - deltaPressure / (SoSInt * SoSInt);
+    const auto rho = interior.Rho() - deltaPressure / (SoSInt * SoSInt);
+    for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
+      ghost[ii] = rho * interior.MassFractionN(ii);
+    }
     ghost[ghost.MomentumXIndex()] =
         interior.U() + normArea.X() * deltaPressure / rhoSoSInt;
     ghost[ghost.MomentumYIndex()] =
