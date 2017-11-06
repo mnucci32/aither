@@ -785,6 +785,14 @@ void input::CheckOutputVariables() {
         outputVariables_.erase(var);
       }
     }
+
+    // check species
+    if (var.substr(0, 3) == "mf_" &&
+        !this->HaveSpecies(var.substr(3, string::npos))) {
+      cerr << "WARNING: Species " << var.substr(3, string::npos)
+           << " is not present. Removing mass fraction output request" << endl;
+      outputVariables_.erase(var);
+    }
   }
 }
 
@@ -915,6 +923,27 @@ void input::CheckSpecies(const vector<string> &species) const {
          << endl;
     exit(EXIT_FAILURE);
   }
+}
+
+// member function to check that species specified is defined
+bool input::HaveSpecies(const string &species) const {
+  return !(find_if(std::begin(fluids_), std::end(fluids_),
+                   [&species](const fluid &fl) {
+                     return fl.Name() == species;
+                   }) == std::end(fluids_));
+}
+
+// member function to get index of species
+bool input::SpeciesIndex(const string &species) const {
+  auto ind = -1;
+  auto match = find_if(std::begin(fluids_), std::end(fluids_),
+                       [&species, &ind](const fluid &fl) {
+                         ind++;
+                         return fl.Name() == species;
+                       });
+  MSG_ASSERT(ind < this->NumSpecies() && ind >= 0,
+             "species index out of range");
+  return ind;
 }
 
 // member function to calculate the coefficient used to scale the viscous

@@ -362,6 +362,10 @@ void WriteFun(const vector<procBlock> &vars, const unique_ptr<eos> &eqnState,
               value = blk.Residual(ii, jj, kk, 6);
               value *= inp.RRef() * inp.RRef() * pow(inp.ARef(), 4.0) *
                   inp.LRef() * inp.LRef() / trans->MuRef();
+            } else if (var.substr(0, 3) == "mf_" &&
+                       inp.HaveSpecies(var.substr(3, string::npos))) {
+              auto ind = inp.SpeciesIndex(var.substr(3, string::npos));
+              value = blk.State(ii, jj, kk).MassFractionN(ind);
             } else {
               cerr << "ERROR: Variable " << var
                    << " to write to function file is not defined!" << endl;
