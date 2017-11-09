@@ -906,3 +906,7 @@ string GetEnvironmentVariable(const string &var) {
   auto val = getenv(var.c_str());
   return val == NULL ? "" : string(val);
 }
+
+double Kronecker(const int &ii, const int &jj) {
+  return (ii == jj) ? 1.0 : 0.0;
+}

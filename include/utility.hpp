@@ -139,6 +139,8 @@ kdtree CalcTreeFromCloud(const string &, const input &,
 
 string GetEnvironmentVariable(const string &);
 
+double Kronecker(const int &, const int &);
+
 // ---------------------------------------------------------------------------
 // inline function definitions
 template <typename T>

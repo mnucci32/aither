@@ -147,18 +147,19 @@ void inviscidFlux::ConstructFromPrim(const T &state,
   for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
     (*this)[ii] = state.RhoN(ii) * velNorm;
   }
+  const auto rho = state.Rho();
   (*this)[this->MomentumXIndex()] =
-      state.Rho() * velNorm * vel.X() + state.P() * normArea.X();
+      rho * velNorm * vel.X() + state.P() * normArea.X();
   (*this)[this->MomentumYIndex()] =
-      state.Rho() * velNorm * vel.Y() + state.P() * normArea.Y();
+      rho * velNorm * vel.Y() + state.P() * normArea.Y();
   (*this)[this->MomentumZIndex()] =
-      state.Rho() * velNorm * vel.Z() + state.P() * normArea.Z();
+      rho * velNorm * vel.Z() + state.P() * normArea.Z();
   (*this)[this->EnergyIndex()] =
-      state.Rho() * velNorm * state.Enthalpy(eqnState, thermo);
+      rho * velNorm * state.Enthalpy(eqnState, thermo);
 
   for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
     (*this)[this->TurbulenceIndex() + ii] =
-        state.Rho() * velNorm * state.TurbulenceN(ii);
+        rho * velNorm * state.TurbulenceN(ii);
   }
 }
 
@@ -281,19 +282,16 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
   // compute Rho averaged quantities
   // Roe averaged state
   const auto roe = RoeAveragedState(left, right);
-
   // Roe averaged total enthalpy
   const auto hR = roe.Enthalpy(eqnState, thermo);
-
   // Roe averaged speed of sound
   const auto aR = roe.SoS(thermo, eqnState);
-
   // Roe velocity dotted with normalized area vector
   const auto velRSum = roe.Velocity().DotProd(areaNorm);
-
+  // Roe mass fractions
+  const auto mfR = roe.MassFractions();
   // Delta between right and left states
   const auto delta = right - left;
-
   // normal velocity difference between left and right states
   const auto normVelDiff = delta.Velocity().DotProd(areaNorm);
 
@@ -338,7 +336,7 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
   // calculate eigenvector due to left acoustic wave
   varArray lAcousticEigV(left.Size(), left.NumSpecies());
   for (auto ii = 0; ii < lAcousticEigV.NumSpecies(); ++ii) {
-    lAcousticEigV[ii] = 1.0;
+    lAcousticEigV[ii] = mfR[ii];
   }
   lAcousticEigV[lAcousticEigV.MomentumXIndex()] = roe.U() - aR * areaNorm.X();
   lAcousticEigV[lAcousticEigV.MomentumYIndex()] = roe.V() - aR * areaNorm.Y();
@@ -362,7 +360,7 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
   // calculate eigenvector due to right acoustic wave
   varArray rAcousticEigV(left.Size(), left.NumSpecies());
   for (auto ii = 0; ii < rAcousticEigV.NumSpecies(); ++ii) {
-    rAcousticEigV[ii] = 1.0;
+    rAcousticEigV[ii] = mfR[ii];
   }
   rAcousticEigV[rAcousticEigV.MomentumXIndex()] = roe.U() + aR * areaNorm.X();
   rAcousticEigV[rAcousticEigV.MomentumYIndex()] = roe.V() + aR * areaNorm.Y();

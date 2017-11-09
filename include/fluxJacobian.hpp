@@ -508,60 +508,60 @@ void fluxJacobian::InvFluxJacobian(const T &state,
                 "T requires primitive or primativeView type");
 
   const auto t = state.Temperature(eqnState);
-  const auto velNorm = state.Velocity().DotProd(area.UnitVector());
-  const auto gamma = thermo->Gamma(t, state.MassFractions());
-  const auto gammaMinusOne = gamma - 1.0;
-  const auto phi = 0.5 * gammaMinusOne * state.Velocity().MagSq();
+  const auto n = area.UnitVector();
+  const auto velNorm = state.Velocity().DotProd(n);
+  const auto mf = state.MassFractions();
+  const auto gamma = thermo->Gamma(t, mf);
+  const auto gm1 = gamma - 1.0;
+  const auto phi = 0.5 * gm1 * state.Velocity().MagSq();
   const auto a1 = gamma * state.Energy(eqnState, thermo) - phi;
   const auto a3 = gamma - 2.0;
-
+  
   // begin jacobian calculation
   *this = fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
 
-  // calculate flux derivatives wrt left state
-  // column zero
-  this->FlowJacobian(0, 0) = 0.0;
-  this->FlowJacobian(1, 0) = phi * area.UnitVector().X() - state.U() * velNorm;
-  this->FlowJacobian(2, 0) = phi * area.UnitVector().Y() - state.V() * velNorm;
-  this->FlowJacobian(3, 0) = phi * area.UnitVector().Z() - state.W() * velNorm;
-  this->FlowJacobian(4, 0) = velNorm * (phi - a1);
+  const auto ns = state.NumSpecies();
+  for (auto ii = 0; ii < ns; ++ii) {
+    for (auto jj = 0; jj < ns; ++jj) {
+      this->FlowJacobian(ii, jj) = velNorm * (Kronecker(ii, jj) - mf[ii]);
+    }
 
+    // rows for species equations
+    this->FlowJacobian(ii, ns + 0) = mf[ii] * n.X();
+    this->FlowJacobian(ii, ns + 1) = mf[ii] * n.Y();
+    this->FlowJacobian(ii, ns + 2) = mf[ii] * n.Z();
+
+    // columns for species equations
+    this->FlowJacobian(ns + 0, ii) = phi * n.X() - state.U() * velNorm;
+    this->FlowJacobian(ns + 1, ii) = phi * n.Y() - state.V() * velNorm;
+    this->FlowJacobian(ns + 2, ii) = phi * n.Z() - state.W() * velNorm;
+    this->FlowJacobian(ns + 3, ii) = velNorm * (phi - a1);
+  }
+
+  // calculate flux derivatives wrt state
   // column one
-  this->FlowJacobian(0, 1) = area.UnitVector().X();
-  this->FlowJacobian(1, 1) = velNorm - a3 * area.UnitVector().X() * state.U();
-  this->FlowJacobian(2, 1) = state.V() * area.UnitVector().X() -
-      gammaMinusOne * state.U() * area.UnitVector().Y();
-  this->FlowJacobian(3, 1) = state.W() * area.UnitVector().X() -
-      gammaMinusOne * state.U() * area.UnitVector().Z();
-  this->FlowJacobian(4, 1) =
-      a1 * area.UnitVector().X() - gammaMinusOne * state.U() * velNorm;
+  this->FlowJacobian(ns + 0, ns) = velNorm - a3 * n.X() * state.U();
+  this->FlowJacobian(ns + 1, ns) = state.V() * n.X() - gm1 * state.U() * n.Y();
+  this->FlowJacobian(ns + 2, ns) = state.W() * n.X() - gm1 * state.U() * n.Z();
+  this->FlowJacobian(ns + 3, ns) = a1 * n.X() - gm1 * state.U() * velNorm;
 
   // column two
-  this->FlowJacobian(0, 2) = area.UnitVector().Y();
-  this->FlowJacobian(1, 2) = state.U() * area.UnitVector().Y() -
-      gammaMinusOne * state.V() * area.UnitVector().X();
-  this->FlowJacobian(2, 2) = velNorm - a3 * area.UnitVector().Y() * state.V();
-  this->FlowJacobian(3, 2) = state.W() * area.UnitVector().Y() -
-      gammaMinusOne * state.V() * area.UnitVector().Z();
-  this->FlowJacobian(4, 2) =
-      a1 * area.UnitVector().Y() - gammaMinusOne * state.V() * velNorm;
+  this->FlowJacobian(ns + 0, ns + 1) = state.U() * n.Y() - gm1 * state.V() * n.X();
+  this->FlowJacobian(ns + 1, ns + 1) = velNorm - a3 * n.Y() * state.V();
+  this->FlowJacobian(ns + 2, ns + 1) = state.W() * n.Y() - gm1 * state.V() * n.Z();
+  this->FlowJacobian(ns + 3, ns + 1) = a1 * n.Y() - gm1 * state.V() * velNorm;
 
   // column three
-  this->FlowJacobian(0, 3) = area.UnitVector().Z();
-  this->FlowJacobian(1, 3) = state.U() * area.UnitVector().Z() -
-      gammaMinusOne * state.W() * area.UnitVector().X();
-  this->FlowJacobian(2, 3) = state.V() * area.UnitVector().Z() -
-      gammaMinusOne * state.W() * area.UnitVector().Y();
-  this->FlowJacobian(3, 3) = velNorm - a3 * area.UnitVector().Z() * state.W();
-  this->FlowJacobian(4, 3) =
-      a1 * area.UnitVector().Z() - gammaMinusOne * state.W() * velNorm;
+  this->FlowJacobian(ns + 0, ns + 2) = state.U() * n.Z() - gm1 * state.W() * n.X();
+  this->FlowJacobian(ns + 1, ns + 2) = state.V() * n.Z() - gm1 * state.W() * n.Y();
+  this->FlowJacobian(ns + 2, ns + 2) = velNorm - a3 * n.Z() * state.W();
+  this->FlowJacobian(ns + 3, ns + 2) = a1 * n.Z() - gm1 * state.W() * velNorm;
 
   // column four
-  this->FlowJacobian(0, 4) = 0.0;
-  this->FlowJacobian(1, 4) = gammaMinusOne * area.UnitVector().X();
-  this->FlowJacobian(2, 4) = gammaMinusOne * area.UnitVector().Y();
-  this->FlowJacobian(3, 4) = gammaMinusOne * area.UnitVector().Z();
-  this->FlowJacobian(4, 4) = gamma * velNorm;
+  this->FlowJacobian(ns + 0, ns + 3) = gm1 * n.X();
+  this->FlowJacobian(ns + 1, ns + 3) = gm1 * n.Y();
+  this->FlowJacobian(ns + 2, ns + 3) = gm1 * n.Z();
+  this->FlowJacobian(ns + 3, ns + 3) = gamma * velNorm;
 
   // multiply by 0.5 b/c averaging with dissipation matrix
   this->MultFlowJacobian(0.5 * area.Mag());
@@ -699,59 +699,54 @@ void fluxJacobian::ApproxTSLJacobian(
   const auto t = state.Temperature(eqnState);
   const auto mu = trans->NondimScaling() * lamVisc;
   const auto mut = trans->NondimScaling() * turbVisc;
-  const auto velNorm = state.Velocity().DotProd(area.UnitVector());
+  const auto norm = area.UnitVector();
+  const auto velNorm = state.Velocity().DotProd(norm);
+  const auto mf = state.MassFractions();
+  const auto rho = state.Rho();
 
-  const auto tauNorm = TauNormal(vGrad, area.UnitVector(), mu, mut, trans);
+  const auto tauNorm = TauNormal(vGrad, norm, mu, mut, trans);
 
   auto fac = left ? -1.0 : 1.0;
 
   constexpr auto third = 1.0 / 3.0;
+  const auto ns = state.NumSpecies();
 
+  // DEBUG -- fix this for multi-species
   // assign column 0
-  this->FlowJacobian(4, 0) =
-      -(trans->EffectiveConductivity(t, state.MassFractions()) +
+  this->FlowJacobian(ns + 3, 0) =
+      -(trans->EffectiveConductivity(t, mf) +
         trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo,
-                                state.MassFractions())) *
-      state.Temperature(eqnState) / ((mu + mut) * state.Rho());
+                                mf)) *
+      t / ((mu + mut) * rho);
 
   // assign column 1
-  this->FlowJacobian(1, 1) =
-      third * area.UnitVector().X() * area.UnitVector().X() + 1.0;
-  this->FlowJacobian(2, 1) =
-      third * area.UnitVector().X() * area.UnitVector().Y();
-  this->FlowJacobian(3, 1) =
-      third * area.UnitVector().X() * area.UnitVector().Z();
-  this->FlowJacobian(4, 1) = fac * 0.5 * dist / (mu + mut) * tauNorm.X() +
-      third * area.UnitVector().X() * velNorm + state.U();
+  this->FlowJacobian(ns + 0, ns) = third * norm.X() * norm.X() + 1.0;
+  this->FlowJacobian(ns + 1, ns) = third * norm.X() * norm.Y();
+  this->FlowJacobian(ns + 2, ns) = third * norm.X() * norm.Z();
+  this->FlowJacobian(ns + 3, ns) = fac * 0.5 * dist / (mu + mut) * tauNorm.X() +
+                                   third * norm.X() * velNorm + state.U();
 
   // assign column 2
-  this->FlowJacobian(1, 2) =
-      third * area.UnitVector().Y() * area.UnitVector().X();
-  this->FlowJacobian(2, 2) =
-      third * area.UnitVector().Y() * area.UnitVector().Y() + 1.0;
-  this->FlowJacobian(3, 2) =
-      third * area.UnitVector().Y() * area.UnitVector().Z();
-  this->FlowJacobian(4, 2) = fac * 0.5 * dist / (mu + mut) * tauNorm.Y() +
-                             third * area.UnitVector().Y() * velNorm +
-                             state.V();
+  this->FlowJacobian(ns + 0, ns + 1) = third * norm.Y() * norm.X();
+  this->FlowJacobian(ns + 1, ns + 1) = third * norm.Y() * norm.Y() + 1.0;
+  this->FlowJacobian(ns + 2, ns + 1) = third * norm.Y() * norm.Z();
+  this->FlowJacobian(ns + 3, ns + 1) =
+      fac * 0.5 * dist / (mu + mut) * tauNorm.Y() + third * norm.Y() * velNorm +
+      state.V();
 
   // assign column 3
-  this->FlowJacobian(1, 3) =
-      third * area.UnitVector().Z() * area.UnitVector().X();
-  this->FlowJacobian(2, 3) =
-      third * area.UnitVector().Z() * area.UnitVector().Y();
-  this->FlowJacobian(3, 3) =
-      third * area.UnitVector().Z() * area.UnitVector().Z() + 1.0;
-  this->FlowJacobian(4, 3) = fac * 0.5 * dist / (mu + mut) * tauNorm.Z() +
-                             third * area.UnitVector().Z() * velNorm +
-                             state.W();
+  this->FlowJacobian(ns + 0, ns + 2) = third * norm.Z() * norm.X();
+  this->FlowJacobian(ns + 1, ns + 2) = third * norm.Z() * norm.Y();
+  this->FlowJacobian(ns + 2, ns + 2) = third * norm.Z() * norm.Z() + 1.0;
+  this->FlowJacobian(ns + 3, ns + 2) =
+      fac * 0.5 * dist / (mu + mut) * tauNorm.Z() + third * norm.Z() * velNorm +
+      state.W();
 
   // assign column 4
-  this->FlowJacobian(4, 4) =
-      (trans->EffectiveConductivity(t, state.MassFractions()) +
-       trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo,
-                               state.MassFractions())) /
-      ((mu + mut) * state.Rho());
+  this->FlowJacobian(ns + 3, ns + 3) =
+      (trans->EffectiveConductivity(t, mf) +
+       trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo, mf)) /
+      ((mu + mut) * rho);
 
   this->MultFlowJacobian(area.Mag() * (mu + mut) / dist);
 
