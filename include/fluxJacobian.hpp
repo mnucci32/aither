@@ -642,28 +642,32 @@ void fluxJacobian::DelprimitiveDelConservative(
 
   *this = fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
 
-  // assign column 0
-  this->FlowJacobian(0, 0) = 1.0;
-  this->FlowJacobian(1, 0) = -invRho * state.U();
-  this->FlowJacobian(2, 0) = -invRho * state.V();
-  this->FlowJacobian(3, 0) = -invRho * state.W();
-  this->FlowJacobian(4, 0) = 0.5 * gammaMinusOne *
-      state.Velocity().DotProd(state.Velocity());
+  const auto ns = state.NumSpecies();
+  for (auto ii = 0; ii < ns; ++ii) {
+    this->FlowJacobian(ii, ii) = 1.0;
+
+    // assign species column
+    this->FlowJacobian(ns + 0, ii) = -invRho * state.U();
+    this->FlowJacobian(ns + 1, ii) = -invRho * state.V();
+    this->FlowJacobian(ns + 2, ii) = -invRho * state.W();
+    this->FlowJacobian(ns + 3, ii) =
+        0.5 * gammaMinusOne * state.Velocity().DotProd(state.Velocity());
+  }
 
   // assign column 1
-  this->FlowJacobian(1, 1) = invRho;
-  this->FlowJacobian(4, 1) = -gammaMinusOne * state.U();
+  this->FlowJacobian(ns, ns) = invRho;
+  this->FlowJacobian(ns + 3, ns) = -gammaMinusOne * state.U();
 
   // assign column 2
-  this->FlowJacobian(2, 2) = invRho;
-  this->FlowJacobian(4, 2) = -gammaMinusOne * state.V();
+  this->FlowJacobian(ns + 1, ns + 1) = invRho;
+  this->FlowJacobian(ns + 3, ns + 1) = -gammaMinusOne * state.V();
 
   // assign column 3
-  this->FlowJacobian(3, 3) = invRho;
-  this->FlowJacobian(4, 3) = -gammaMinusOne * state.W();
+  this->FlowJacobian(ns + 2, ns + 2) = invRho;
+  this->FlowJacobian(ns + 3, ns + 2) = -gammaMinusOne * state.W();
 
   // assign column 4
-  this->FlowJacobian(4, 4) = gammaMinusOne;
+  this->FlowJacobian(ns + 3, ns + 3) = gammaMinusOne;
 
   // turbulent jacobian here
   if (inp.IsRANS()) {
@@ -710,14 +714,14 @@ void fluxJacobian::ApproxTSLJacobian(
 
   constexpr auto third = 1.0 / 3.0;
   const auto ns = state.NumSpecies();
-
-  // DEBUG -- fix this for multi-species
-  // assign column 0
-  this->FlowJacobian(ns + 3, 0) =
-      -(trans->EffectiveConductivity(t, mf) +
-        trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo,
-                                mf)) *
-      t / ((mu + mut) * rho);
+  for (auto ii = 0; ii < ns; ++ii) {
+    // assign species column
+    this->FlowJacobian(ns + 3, ii) =
+        -(trans->EffectiveConductivity(t, mf) +
+          trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo,
+                                  mf)) *
+        t / ((mu + mut) * rho);
+  }
 
   // assign column 1
   this->FlowJacobian(ns + 0, ns) = third * norm.X() * norm.X() + 1.0;
