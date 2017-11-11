@@ -527,16 +527,29 @@ void WriteRestart(const vector<procBlock> &splitVars,
   auto numSpecies = inp.NumSpecies();
   outFile.write(reinterpret_cast<char *>(&numSpecies), sizeof(numSpecies));
 
+  // write species names (including sizes)
+  for (auto ii = 0; ii < numSpecies; ++ii) {
+    auto specName = inp.Fluid(ii).Name();
+    auto specSize = specName.size();
+    outFile.write(reinterpret_cast<char *>(&specSize), sizeof(specSize));
+    outFile.write(specName.c_str(), specSize * sizeof(char));
+  }
+
   // write residual values
   outFile.write(
       const_cast<char *>(reinterpret_cast<const char *>(&residL2First[0])),
       residL2First.Size() * sizeof(residL2First[0]));
 
   // variables to write to restart file
-  vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
+  vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z",
+                                "pressure"};
   if (inp.IsRANS()) {
     restartVars.push_back("tke");
     restartVars.push_back("sdr");
+  }
+  for (auto ii = 0; ii < numSpecies; ++ii) {
+    auto var = "mf_" + inp.Fluid(ii).Name();
+    restartVars.push_back(var);
   }
 
   WriteBlockDims(outFile, vars, restartVars.size());
@@ -571,6 +584,10 @@ void WriteRestart(const vector<procBlock> &splitVars,
             } else if (var == "sdr") {
               value = blk.State(ii, jj, kk).Omega();
               value *= inp.ARef() * inp.ARef() * inp.RRef() / trans->MuRef();
+            } else if (var.substr(0, 3) == "mf_" &&
+                       inp.HaveSpecies(var.substr(3, string::npos))) {
+              auto ind = inp.SpeciesIndex(var.substr(3, string::npos));
+              value = blk.State(ii, jj, kk).MassFractionN(ind);
             } else {
               cerr << "ERROR: Variable " << var
                    << " to write to restart file is not defined!" << endl;
@@ -615,7 +632,12 @@ void WriteRestart(const vector<procBlock> &splitVars,
                 value *= inp.ARef() * inp.ARef() * inp.RRef();
               } else if (var == "sdr") {  // conserved var is rho-sdr
                 value = blk.ConsVarsNm1(ii, jj, kk)[6];
-                value *= inp.ARef() * inp.ARef() * inp.RRef() * inp.RRef() / trans->MuRef();
+                value *= inp.ARef() * inp.ARef() * inp.RRef() * inp.RRef() /
+                         trans->MuRef();
+              } else if (var.substr(0, 3) == "mf_" &&
+                         inp.HaveSpecies(var.substr(3, string::npos))) {
+                auto ind = inp.SpeciesIndex(var.substr(3, string::npos));
+                value = blk.ConsVarsNm1(ii, jj, kk).MassFractionN(ind);
               } else {
                 cerr << "ERROR: Variable " << var
                      << " to write to restart file is not defined!" << endl;
@@ -674,10 +696,23 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   cout << "Number of equations: " << numEqns << endl;
 
   // read the number of species
-  // DEBUG -- need to know which species these are
   auto numSpecies = 0;
   fName.read(reinterpret_cast<char *>(&numSpecies), sizeof(numSpecies));
   cout << "Number of species: " << numSpecies << endl;
+
+  // read species names (including sizes)
+  vector<string> speciesNames(numSpecies);
+  for (auto ii = 0; ii < numSpecies; ++ii) {
+    size_t nameSize = 0;
+    fName.read(reinterpret_cast<char *>(&nameSize), sizeof(nameSize));
+    
+    auto buffer = unique_ptr<char>(new char[nameSize]);
+    fName.read(buffer.get(), nameSize * sizeof(char));
+    string sname(buffer.get(), nameSize);
+    speciesNames[ii] = sname;
+  }
+  // check that species are defined
+  inp.CheckSpecies(speciesNames);
 
   // read the residuals to normalize by
   fName.read(reinterpret_cast<char *>(&residL2First[0]),
@@ -702,7 +737,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
     fName.read(reinterpret_cast<char *>(&numK), sizeof(numK));
     fName.read(reinterpret_cast<char *>(&numVars), sizeof(numVars));
     if (numI != gridSizes[ii].X() || numJ != gridSizes[ii].Y() ||
-        numK != gridSizes[ii].Z() || numVars != numEqns) {
+        numK != gridSizes[ii].Z() || numVars - 1 != numEqns) {
       cerr << "ERROR: Problem with restart file. Block size does not match "
            << "grid, or number of variables in block does not match number of "
            << "equations!" << endl;
@@ -711,10 +746,15 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   }
 
   // variables to read from restart file
-  vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
-  if (numEqns == 7) {
+  vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z",
+                                "pressure"};
+  if (numEqns == numSpecies + 6) {  // have turbulence variables
     restartVars.push_back("tke");
     restartVars.push_back("sdr");
+  }
+  for (auto &spec : speciesNames) {
+    auto var = "mf_" + spec;
+    restartVars.push_back(var);
   }
 
   // loop over blocks and initialize
@@ -1068,11 +1108,12 @@ blkMultiArray3d<primitive> ReadSolFromRestart(
     for (auto jj = sol.StartJ(); jj < sol.EndJ(); jj++) {
       for (auto ii = sol.StartI(); ii < sol.EndI(); ii++) {
         primitive value(restartVars.size(), numSpecies);
+        auto rho = 0.0;
         // loop over the number of variables to read
         for (auto &var : restartVars) {
           if (var == "density") {
-            resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
-            value[0] /= inp.RRef();
+            resFile.read(reinterpret_cast<char *>(&rho), sizeof(rho));
+            rho /= inp.RRef();
           } else if (var == "vel_x") {
             auto n = value.MomentumXIndex();
             resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
@@ -1097,6 +1138,12 @@ blkMultiArray3d<primitive> ReadSolFromRestart(
             auto n = value.TurbulenceIndex() + 1;
             resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
             value[n] /= inp.ARef() * inp.ARef() * inp.RRef() / trans->MuRef();
+          } else if (var.substr(0, 3) == "mf_" &&
+                     inp.HaveSpecies(var.substr(3, string::npos))) {
+            auto n = inp.SpeciesIndex(var.substr(3, string::npos));
+            auto mf = 0.0;
+            resFile.read(reinterpret_cast<char *>(&mf), sizeof(mf));
+            value[n] = rho * mf;
           } else {
             cerr << "ERROR: Variable " << var
                  << " to read from restart file is not defined!" << endl;
@@ -1125,11 +1172,12 @@ blkMultiArray3d<conserved> ReadSolNm1FromRestart(
     for (auto jj = sol.StartJ(); jj < sol.EndJ(); jj++) {
       for (auto ii = sol.StartI(); ii < sol.EndI(); ii++) {
         conserved value(restartVars.size(), numSpecies);
+        auto rho = 0.0;
         // loop over the number of variables to read
         for (auto &var : restartVars) {
           if (var == "density") {
-            resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
-            value[0] /= inp.RRef();
+            resFile.read(reinterpret_cast<char *>(&rho), sizeof(rho));
+            rho /= inp.RRef();
           } else if (var == "vel_x") {  // conserved var is rho-u
             auto n = value.MomentumXIndex();
             resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
@@ -1155,6 +1203,12 @@ blkMultiArray3d<conserved> ReadSolNm1FromRestart(
             resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
             value[n] /= inp.ARef() * inp.ARef() * inp.RRef() * inp.RRef() /
                         trans->MuRef();
+          } else if (var.substr(0, 3) == "mf_" &&
+                     inp.HaveSpecies(var.substr(3, string::npos))) {
+            auto n = inp.SpeciesIndex(var.substr(3, string::npos));
+            auto mf = 0.0;
+            resFile.read(reinterpret_cast<char *>(&mf), sizeof(mf));
+            value[n] = rho * mf;
           } else {
             cerr << "ERROR: Variable " << var
                  << " to read from restart file is not defined!" << endl;

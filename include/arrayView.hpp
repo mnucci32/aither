@@ -115,29 +115,34 @@ class arrayView {
 
   // --------------------------------------------------------------------------
   // getters for primitives ---------------------------------------------------
-  const T2 &RhoN(const int &ii) const { 
-    static_assert(std::is_same<primitive, T1>::value,
-                "getter only valid for primitive type!");
+  const T2 &RhoN(const int &ii) const {
+    static_assert(std::is_same<primitive, T1>::value ||
+                      std::is_same<conserved, T1>::value,
+                  "getter only valid for primitive/conserved type!");
     return this->SpeciesN(ii); 
   }
-  T2 Rho() const { 
-    static_assert(std::is_same<primitive, T1>::value,
-                "getter only valid for primitive type!");
-    return this->SpeciesSum(); 
+  T2 Rho() const {
+    static_assert(std::is_same<primitive, T1>::value ||
+                      std::is_same<conserved, T1>::value,
+                  "getter only valid for primitive/conserved type!");
+    return this->SpeciesSum();
   }
-  T2 MassFractionN(const int &ii) const { 
-    static_assert(std::is_same<primitive, T1>::value,
-                "getter only valid for primitive type!");
+  T2 MassFractionN(const int &ii) const {
+    static_assert(std::is_same<primitive, T1>::value ||
+                      std::is_same<conserved, T1>::value,
+                  "getter only valid for primitive/conserved type!");
     return this->RhoN(ii) / this->Rho(); 
   }
   vector<T2> RhoVec() const {
-    static_assert(std::is_same<primitive, T1>::value,
-                  "getter only valid for primitive type!");
+    static_assert(std::is_same<primitive, T1>::value ||
+                      std::is_same<conserved, T1>::value,
+                  "getter only valid for primitive/conserved type!");
     return {this->begin(), this->begin() + this->NumSpecies()};
   }
   vector<T2> MassFractions() const {
-    static_assert(std::is_same<primitive, T1>::value,
-                  "getter only valid for primitive type!");
+    static_assert(std::is_same<primitive, T1>::value ||
+                      std::is_same<conserved, T1>::value,
+                  "getter only valid for primitive/conserved type!");
     vector<T2> mf(this->NumSpecies());
     const auto totalRho = this->Rho();
     for (auto ii = 0U; ii < mf.size(); ++ii) {

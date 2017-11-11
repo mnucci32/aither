@@ -826,6 +826,7 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
 
   vector<vector3d<double>> points;
   auto count = 0;
+  std::map<int, int> speciesMap;
   string line = "";
   while (getline(inFile, line)) {
     // remove leading and trailing whitespace and ignore comments
@@ -840,11 +841,11 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
         states.resize(numPts, {inp.NumEquations(), inp.NumSpecies()});
       } else if (count == 1) {  // second line has species
         species = tokens;
-        if (species.size() != 1) {
-          cerr << "ERROR in CalcTreeFromCloud(), only single species currently "
-                  "supported"
-               << endl;
-          exit(EXIT_FAILURE);
+        // check that species are defined
+        inp.CheckSpecies(species);
+        // create map from species order in file to order in simulation
+        for (auto ii = 0U; ii < species.size(); ++ii) {
+          speciesMap.insert(std::make_pair(ii, inp.SpeciesIndex(species[ii])));
         }
       } else if (tokens.size() != 10 + species.size()) {
         cerr << "ERROR in CalcTreeFromCloud(). Expecting "
@@ -871,8 +872,8 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
           massFractions[ii] = std::stod(tokens[ii + 10]);
         }
         primitive state(inp.NumEquations(), species.size());
-        for (auto ii = 0; ii < state.NumSpecies(); ++ii) {
-          state[ii] = rho * massFractions[ii];
+        for (auto ii = 0U; ii < massFractions.size(); ++ii) {
+          state[speciesMap[ii]] = rho * massFractions[ii];
         }
         state[state.MomentumXIndex()] = uVel;
         state[state.MomentumYIndex()] = vVel;

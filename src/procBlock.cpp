@@ -272,8 +272,6 @@ void procBlock::InitializeStates(const input &inp,
     vector<string> species;
     const auto tree =
         CalcTreeFromCloud(ic.File(), inp, trans, cloudStates, species);
-    // check that species are defined
-    inp.CheckSpecies(species);
 
     auto maxDist = std::numeric_limits<double>::min();
     vector3d<double> neighbor;
