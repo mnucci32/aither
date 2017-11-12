@@ -267,11 +267,11 @@ template <typename T1, typename T2>
 inviscidFlux RoeFlux(const T1 &left, const T2 &right,
                      const unique_ptr<eos> &eqnState,
                      const unique_ptr<thermodynamic> &thermo,
-                     const vector3d<double> &areaNorm) {
+                     const vector3d<double> &n) {
   // left -- primitive variables from left
   // right -- primitive variables from right
   // eqnState -- equation of state
-  // areaNorm -- norm area vector of face
+  // n -- norm area vector of face
   static_assert(std::is_same<primitive, T1>::value ||
                     std::is_same<primitiveView, T1>::value,
                 "T1 requires primitive or primativeView type");
@@ -286,37 +286,37 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
   const auto hR = roe.Enthalpy(eqnState, thermo);
   // Roe averaged speed of sound
   const auto aR = roe.SoS(thermo, eqnState);
+  // Roe averaged density
+  const auto rhoR = roe.Rho();
   // Roe velocity dotted with normalized area vector
-  const auto velRSum = roe.Velocity().DotProd(areaNorm);
+  const auto velNormR = roe.Velocity().DotProd(n);
   // Roe mass fractions
   const auto mfR = roe.MassFractions();
   // Delta between right and left states
   const auto delta = right - left;
   // normal velocity difference between left and right states
-  const auto normVelDiff = delta.Velocity().DotProd(areaNorm);
+  const auto normVelDiff = delta.Velocity().DotProd(n);
 
   // calculate wave strengths (Cr - Cl)
-  vector<double> waveStrength(left.Size() - 1);
-  waveStrength[0] =
-      (delta.P() - roe.Rho() * aR * normVelDiff) / (2.0 * aR * aR);
+  vector<double> waveStrength(4 + left.NumTurbulence());
+  waveStrength[0] = (delta.P() - rhoR * aR * normVelDiff) / (2.0 * aR * aR);
   waveStrength[1] = delta.Rho() - delta.P() / (aR * aR);
-  waveStrength[2] =
-      (delta.P() + roe.Rho() * aR * normVelDiff) / (2.0 * aR * aR);
-  waveStrength[3] = roe.Rho();
+  waveStrength[2] = (delta.P() + rhoR * aR * normVelDiff) / (2.0 * aR * aR);
+  waveStrength[3] = rhoR;
   for (auto ii = 0; ii < left.NumTurbulence(); ++ii) {
-    waveStrength[4 + ii] = roe.Rho() * delta.TurbulenceN(ii) +
+    waveStrength[4 + ii] = rhoR * delta.TurbulenceN(ii) +
                            roe.TurbulenceN(ii) * delta.Rho() -
                            delta.P() * roe.TurbulenceN(ii) / (aR * aR);
   }
 
   // calculate absolute value of wave speeds (L)
-  vector<double> waveSpeed(left.Size() - 1);
-  waveSpeed[0] = fabs(velRSum - aR);  // left moving acoustic wave speed
-  waveSpeed[1] = fabs(velRSum);       // entropy wave speed
-  waveSpeed[2] = fabs(velRSum + aR);  // right moving acoustic wave speed
-  waveSpeed[3] = fabs(velRSum);       // shear wave speed
+  vector<double> waveSpeed(4 + left.NumTurbulence());
+  waveSpeed[0] = fabs(velNormR - aR);  // left moving acoustic wave speed
+  waveSpeed[1] = fabs(velNormR);       // entropy wave speed
+  waveSpeed[2] = fabs(velNormR + aR);  // right moving acoustic wave speed
+  waveSpeed[3] = fabs(velNormR);       // shear wave speed
   for (auto ii = 0; ii < left.NumTurbulence(); ++ii) {
-    waveSpeed[4 + ii] = fabs(velRSum);  // turbulent eqn wave speed
+    waveSpeed[4 + ii] = fabs(velNormR);  // turbulent eqn wave speed
   }
 
   // calculate entropy fix (Harten) and adjust wave speeds if necessary
@@ -328,22 +328,29 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
         0.5 * (waveSpeed[0] * waveSpeed[0] / entropyFix + entropyFix);
   }
   if (waveSpeed[2] < entropyFix) {
-    waveSpeed[2] = 0.5 * (waveSpeed[2] * waveSpeed[2] /
-                          entropyFix + entropyFix);
+    waveSpeed[2] =
+        0.5 * (waveSpeed[2] * waveSpeed[2] / entropyFix + entropyFix);
   }
-  
+
   // calculate right eigenvectors (T)
+  // get indices
+  const auto imx = left.MomentumXIndex();
+  const auto imy = left.MomentumYIndex();
+  const auto imz = left.MomentumZIndex();
+  const auto ie = left.EnergyIndex();
+  const auto it = left.TurbulenceIndex();
+
   // calculate eigenvector due to left acoustic wave
   varArray lAcousticEigV(left.Size(), left.NumSpecies());
   for (auto ii = 0; ii < lAcousticEigV.NumSpecies(); ++ii) {
     lAcousticEigV[ii] = mfR[ii];
   }
-  lAcousticEigV[lAcousticEigV.MomentumXIndex()] = roe.U() - aR * areaNorm.X();
-  lAcousticEigV[lAcousticEigV.MomentumYIndex()] = roe.V() - aR * areaNorm.Y();
-  lAcousticEigV[lAcousticEigV.MomentumZIndex()] = roe.W() - aR * areaNorm.Z();
-  lAcousticEigV[lAcousticEigV.EnergyIndex()] = hR - aR * velRSum;
+  lAcousticEigV[imx] = roe.U() - aR * n.X();
+  lAcousticEigV[imy] = roe.V() - aR * n.Y();
+  lAcousticEigV[imz] = roe.W() - aR * n.Z();
+  lAcousticEigV[ie] = hR - aR * velNormR;
   for (auto ii = 0; ii < lAcousticEigV.NumTurbulence(); ++ii) {
-    lAcousticEigV[lAcousticEigV.TurbulenceIndex() + ii] = roe.TurbulenceN(ii);
+    lAcousticEigV[it + ii] = roe.TurbulenceN(ii);
   }
 
   // calculate eigenvector due to entropy wave
@@ -351,10 +358,11 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
   for (auto ii = 0; ii < entropyEigV.NumSpecies(); ++ii) {
     entropyEigV[ii] = 1.0;
   }
-  entropyEigV[entropyEigV.MomentumXIndex()] = roe.U();
-  entropyEigV[entropyEigV.MomentumYIndex()] = roe.V();
-  entropyEigV[entropyEigV.MomentumZIndex()] = roe.W();
-  entropyEigV[entropyEigV.EnergyIndex()] = 0.5 * roe.Velocity().MagSq();
+  // non-species values are repated for number of species
+  entropyEigV[imx] = roe.U() * entropyEigV.NumSpecies();
+  entropyEigV[imy] = roe.V() * entropyEigV.NumSpecies();
+  entropyEigV[imz] = roe.W() * entropyEigV.NumSpecies();
+  entropyEigV[ie] = 0.5 * roe.Velocity().MagSq() * entropyEigV.NumSpecies();
   // turbulence values are zero
 
   // calculate eigenvector due to right acoustic wave
@@ -362,39 +370,34 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
   for (auto ii = 0; ii < rAcousticEigV.NumSpecies(); ++ii) {
     rAcousticEigV[ii] = mfR[ii];
   }
-  rAcousticEigV[rAcousticEigV.MomentumXIndex()] = roe.U() + aR * areaNorm.X();
-  rAcousticEigV[rAcousticEigV.MomentumYIndex()] = roe.V() + aR * areaNorm.Y();
-  rAcousticEigV[rAcousticEigV.MomentumZIndex()] = roe.W() + aR * areaNorm.Z();
-  rAcousticEigV[rAcousticEigV.EnergyIndex()] = hR + aR * velRSum;
+  rAcousticEigV[imx] = roe.U() + aR * n.X();
+  rAcousticEigV[imy] = roe.V() + aR * n.Y();
+  rAcousticEigV[imz] = roe.W() + aR * n.Z();
+  rAcousticEigV[ie] = hR + aR * velNormR;
   for (auto ii = 0; ii < rAcousticEigV.NumTurbulence(); ++ii) {
-    rAcousticEigV[rAcousticEigV.TurbulenceIndex() + ii] = roe.TurbulenceN(ii);
+    rAcousticEigV[it + ii] = roe.TurbulenceN(ii);
   }
 
   // calculate eigenvector due to shear wave
   varArray shearEigV(left.Size(), left.NumSpecies());
-  for (auto ii = 0; ii < shearEigV.NumSpecies(); ++ii) {
-    shearEigV[ii] = 0.0;
-  }
-  shearEigV[shearEigV.MomentumXIndex()] =
-      delta.U() - normVelDiff * areaNorm.X();
-  shearEigV[shearEigV.MomentumYIndex()] =
-      delta.V() - normVelDiff * areaNorm.Y();
-  shearEigV[shearEigV.MomentumZIndex()] =
-      delta.W() - normVelDiff * areaNorm.Z();
-  shearEigV[shearEigV.EnergyIndex()] =
-      roe.Velocity().DotProd(delta.Velocity()) - velRSum * normVelDiff;
+  // species values are zero
+  shearEigV[imx] = delta.U() - normVelDiff * n.X();
+  shearEigV[imy] = delta.V() - normVelDiff * n.Y();
+  shearEigV[imz] = delta.W() - normVelDiff * n.Z();
+  shearEigV[ie] =
+      roe.Velocity().DotProd(delta.Velocity()) - velNormR * normVelDiff;
   // turbulence values are zero
 
   // calculate eigenvector due to turbulent equation 1
   varArray tkeEigV(left.Size(), left.NumSpecies());
   if (tkeEigV.HasTurbulenceData()) {
-    tkeEigV[tkeEigV.TurbulenceIndex()] = 1.0;
+    tkeEigV[it] = 1.0;
   }
 
   // calculate eigenvector due to turbulent equation 2
   varArray omgEigV(left.Size(), left.NumSpecies());
   if (omgEigV.HasTurbulenceData() && omgEigV.NumTurbulence() > 1) {
-    omgEigV[omgEigV.TurbulenceIndex() + 1] = 1.0;
+    omgEigV[it + 1] = 1.0;
   }
 
   // calculate dissipation term ( eigenvector * wave speed * wave strength)
@@ -417,8 +420,8 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
   }
 
   // calculate left/right physical flux
-  inviscidFlux leftFlux(left, eqnState, thermo, areaNorm);
-  inviscidFlux rightFlux(right, eqnState, thermo, areaNorm);
+  inviscidFlux leftFlux(left, eqnState, thermo, n);
+  inviscidFlux rightFlux(right, eqnState, thermo, n);
 
   // calculate numerical Roe flux
   leftFlux.RoeFlux(rightFlux, dissipation);
