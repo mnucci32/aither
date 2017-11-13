@@ -94,7 +94,9 @@ primitive GetGhostState(
   // bordering the boundary
 
   // set ghost state equal to boundary state to start
-  primitive ghost(interior.begin(), interior.end(), interior.NumSpecies());
+  //auto ghost = interior.CopyData();
+  primitive ghost(interior.Size(), interior.NumSpecies());
+  std::copy(interior.begin(), interior.end(), ghost.begin());
 
   // face area vector (should always point out of domain)
   // at lower surface normal should point out of domain for ghost cell calc
@@ -714,6 +716,9 @@ primitive GetGhostState(
     cerr << "surface is " << surf << " and layer is " << layer << endl;
     exit(EXIT_FAILURE);
   }
+
+  MSG_ASSERT(ghost.Rho() > 0, "nonphysical density");
+  MSG_ASSERT(ghost.P() > 0, "nonphysical pressure");
 
   return ghost;
 }

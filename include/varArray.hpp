@@ -48,8 +48,8 @@ class varArray {
         momentumIndex_(numSpecies),
         energyIndex_(momentumIndex_ + 3),
         turbulenceIndex_(energyIndex_ + 1) {
-    MSG_ASSERT(numEqns > numSpecies && numEqns >= 5,
-               "number of equations should be greater than number of species");
+    //MSG_ASSERT(numEqns > numSpecies && numEqns >= 5,
+    //           "number of equations should be greater than number of species");
   }
   varArray(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies, 0.0) {}
@@ -60,8 +60,8 @@ class varArray {
         momentumIndex_(numSpecies),
         energyIndex_(momentumIndex_ + 3),
         turbulenceIndex_(energyIndex_ + 1) {
-    MSG_ASSERT(data_.size() > numSpecies && data_.size() >= 5,
-               "number of equations should be greater than number of species");
+    //MSG_ASSERT(data_.size() > numSpecies && data_.size() >= 5,
+    //           "number of equations should be greater than number of species");
   }
 
   // move constructor and assignment operator
@@ -97,7 +97,7 @@ class varArray {
   const double &MomentumZ() const { return (*this)[momentumIndex_ + 2]; }
   const double &Energy() const { return (*this)[energyIndex_]; }
   const double &TurbulenceN(const int &ii) const {
-    MSG_ASSERT(tubulenceIndex_ + ii >= this->Size(),
+    MSG_ASSERT(turbulenceIndex_ + ii >= this->Size(),
                "requesting turbulence variable out of range");
     return (*this)[turbulenceIndex_ + ii];
   }

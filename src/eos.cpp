@@ -89,22 +89,26 @@ double idealGas::Enthalpy(const unique_ptr<thermodynamic> &thermo,
 
 double idealGas::SoS(const double &pressure, const vector<double> &rho) const {
   MSG_ASSERT(this->NumSpecies() == rho.size(), "species size mismatch");
-  auto a2 = 0.0;
-  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    auto gamma = 1.0 / nonDimR_[ss];
-    a2 += gamma * pressure / rho[ss];
+  const auto rhoSum = std::accumulate(rho.begin(), rho.end(), 0.0);
+  vector<double> mf(rho.size());
+  for (auto ii = 0U; ii < mf.size(); ++ii) {
+    mf[ii] = rho[ii] / rhoSum;
   }
-  return sqrt(a2);
+  auto gamma = 0.0;
+  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+    gamma += mf[ss] / nonDimR_[ss];
+  }
+  return sqrt(gamma * pressure / rhoSum);
 }
 
 double idealGas::Temperature(const double &pressure,
                              const vector<double> &rho) const {
   MSG_ASSERT(this->NumSpecies() == rho.size(), "species size mismatch");
-  auto t = 0.0;
+  auto rhoR = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    t += pressure / (rho[ss] * nonDimR_[ss]);
+    rhoR += rho[ss] * nonDimR_[ss];
   }
-  return t;
+  return pressure / rhoR;
 }
 
 double idealGas::DensityTP(const double &temp, const double &press) const {

@@ -229,7 +229,7 @@ void input::ReadInput(const int &rank) {
               if (ii == fluids_.size() - 1) {
                 cout << ">" << endl;
               } else {
-                cout << "," << endl << "                    ";
+                cout << "," << endl << "         ";
               }
             }
           }
@@ -936,11 +936,11 @@ bool input::HaveSpecies(const string &species) const {
 // member function to get index of species
 bool input::SpeciesIndex(const string &species) const {
   auto ind = -1;
-  auto match = find_if(std::begin(fluids_), std::end(fluids_),
-                       [&species, &ind](const fluid &fl) {
-                         ind++;
-                         return fl.Name() == species;
-                       });
+  find_if(std::begin(fluids_), std::end(fluids_),
+          [&species, &ind](const fluid &fl) {
+            ind++;
+            return fl.Name() == species;
+          });
   MSG_ASSERT(ind < this->NumSpecies() && ind >= 0,
              "species index out of range");
   return ind;

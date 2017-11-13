@@ -71,7 +71,7 @@ fluid::fluid(string &str, const string name) {
 
   // sanity checks
   // required variables
-  if (nameCount != 1 || massFracRef_ != 1) {
+  if (nameCount != 1 || mfCount != 1) {
     cerr << "ERROR. For fluid 'name' and 'referenceMassFraction' must be "
             "specified"
          << endl;

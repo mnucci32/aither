@@ -598,7 +598,7 @@ template <typename T>
 void procBlock::AddToResidual(const int &ii, const int &jj, const int &kk,
                               const T &arr) {
   static_assert(std::is_base_of<varArray, T>::value, "T must be varArray type");
-  MSG_ASSERT(arr.BlockSize() == residual_.BlockSize(),
+  MSG_ASSERT(arr.Size() == residual_.BlockSize(),
              "array block size must match residual block size");
   for (auto bb = 0; bb < residual_.BlockSize(); ++bb) {
     residual_(ii, jj, kk, bb) += arr[bb];
@@ -609,7 +609,7 @@ template <typename T>
 void procBlock::SubtractFromResidual(const int &ii, const int &jj,
                                      const int &kk, const T &arr) {
   static_assert(std::is_base_of<varArray, T>::value, "T must be varArray type");
-  MSG_ASSERT(arr.BlockSize() == residual_.BlockSize(),
+  MSG_ASSERT(arr.Size() == residual_.BlockSize(),
              "array block size must match residual block size");
   for (auto bb = 0; bb < residual_.BlockSize(); ++bb) {
     residual_(ii, jj, kk, bb) -= arr[bb];

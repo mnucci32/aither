@@ -25,7 +25,7 @@ restartFrequency: 1000
 # reference conditions
 referenceTemperature: 2000
 referenceDensity: 0.4
-lengthRef: 1
+referenceLength: 1
 
 fluids: <fluid(name=air; referenceMassFraction=1.0)>
 thermodynamicModel: thermallyPerfect

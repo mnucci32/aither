@@ -283,7 +283,10 @@ void procBlock::InitializeStates(const input &inp,
           auto dist = tree.NearestNeighbor(center_(ii, jj, kk), neighbor, id);
           maxDist = std::max(dist, maxDist);
           state_.InsertBlock(ii, jj, kk, cloudStates[id]);
+          MSG_ASSERT(state_(ii, jj, kk).Rho() > 0, "nonphysical density");
+          MSG_ASSERT(state_(ii, jj, kk).P() > 0, "nonphysical pressure");
           temperature_(ii, jj, kk) = state_(ii, jj, kk).Temperature(eqnState);
+          MSG_ASSERT(temperature_(ii, jj, kk) > 0, "nonphysical temperature");
           if (inp.IsViscous()) {
             viscosity_(ii, jj, kk) = trans->Viscosity(
                 temperature_(ii, jj, kk), state_(ii, jj, kk).MassFractions());
@@ -305,6 +308,8 @@ void procBlock::InitializeStates(const input &inp,
     // get nondimensional state for initialization
     primitive inputState(inp.NumEquations(), inp.NumSpecies());
     inputState.NondimensionalInitialize(eqnState, inp, trans, parBlock_, turb);
+    MSG_ASSERT(inputState.Rho() > 0, "nonphysical density");
+    MSG_ASSERT(inputState.P() > 0, "nonphysical pressure");
 
     const auto numI = this->NumI();
     const auto numJ = this->NumJ();
@@ -316,6 +321,7 @@ void procBlock::InitializeStates(const input &inp,
         numGhosts_);
 
     const auto inputTemperature = inputState.Temperature(eqnState);
+    MSG_ASSERT(inputTemperature > 0, "nonphysical temperature");
     temperature_ = {numI, numJ, numK, numGhosts_, 1, inputTemperature};
 
     if (isViscous_) {
@@ -876,6 +882,8 @@ void procBlock::ExplicitEulerTimeAdvance(
 
   // calculate updated primitive variables and update state
   state_.InsertBlock(ii, jj, kk, primitive(consVars, eqnState, thermo, turb));
+  MSG_ASSERT(state_(ii, jj, kk).Rho() > 0, "nonphysical density");
+  MSG_ASSERT(state_(ii, jj, kk).P() > 0, "nonphysical pressure");
 }
 
 // member function to advance the state vector to time n+1 (for implicit
@@ -897,6 +905,8 @@ void procBlock::ImplicitTimeAdvance(const varArrayView &du,
   // calculate updated state (primitive variables)
   state_.InsertBlock(ii, jj, kk,
       state_(ii, jj, kk).UpdateWithConsVars(eqnState, thermo, du, turb));
+  MSG_ASSERT(state_(ii, jj, kk).Rho() > 0, "nonphysical density");
+  MSG_ASSERT(state_(ii, jj, kk).P() > 0, "nonphysical pressure");
 }
 
 /* member function to advance the state vector to time n+1 using 4th order
@@ -932,6 +942,8 @@ void procBlock::RK4TimeAdvance(const conservedView &currState,
 
   // calculate updated primitive variables
   state_.InsertBlock(ii, jj, kk, primitive(consVars, eqnState, thermo, turb));
+  MSG_ASSERT(state_(ii, jj, kk).Rho() > 0, "nonphysical density");
+  MSG_ASSERT(state_(ii, jj, kk).P() > 0, "nonphysical pressure");
 }
 
 // member function to reset the residual and wave speed back to zero after an
@@ -6610,9 +6622,11 @@ void procBlock::UpdateAuxillaryVariables(const unique_ptr<eos> &eos,
         if (!this->AtCorner(ii, jj, kk) &&
             (includeGhosts || this->IsPhysical(ii, jj, kk))) {
           temperature_(ii, jj, kk) = state_(ii, jj, kk).Temperature(eos);
+          MSG_ASSERT(temperature_(ii, jj, kk) > 0.0, "nonphysical temperature");
           if (isViscous_) {
             viscosity_(ii, jj, kk) = trans->Viscosity(
                 temperature_(ii, jj, kk), state_(ii, jj, kk).MassFractions());
+            MSG_ASSERT(viscosity_(ii, jj, kk) >= 0.0, "nonphysical viscosity");
           }
         }
       }

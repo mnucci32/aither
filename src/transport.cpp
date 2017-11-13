@@ -74,7 +74,7 @@ double sutherland::WilkesVisc(const vector<double> &specVisc,
                               const vector<double> &mf) const {
   // specVisc -- vector of species viscosities
   // mf -- vector of species mass fractions
-  MSG_ASSERT(mf.size() == mu.size(), "mismatch in species size");
+  MSG_ASSERT(mf.size() == specVisc.size(), "mismatch in species size");
 
   // calculate mole fractions
   auto moleFrac = this->MoleFractions(mf);
