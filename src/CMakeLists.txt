@@ -33,6 +33,7 @@ set(sources
   eos.cpp
   fluid.cpp
   fluxJacobian.cpp
+  ghostStates.cpp
   input.cpp
   inputStates.cpp
   inviscidFlux.cpp

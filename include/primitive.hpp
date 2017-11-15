@@ -81,6 +81,7 @@ class primitive : public varArray {
   primitive& operator=(const primitive&) = default;
 
   // member functions
+  primitive CopyData() const { return *this; }
   const double & RhoN(const int &ii) const { return this->SpeciesN(ii); }
   double Rho() const { return this->SpeciesSum(); }
   vector<double> RhoVec() const {

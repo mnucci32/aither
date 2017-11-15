@@ -30,7 +30,7 @@ idealGas::idealGas(const unique_ptr<thermodynamic> &thermo,
   const auto numSpecies = fl.size();
   nonDimR_.reserve(numSpecies);
   gasConst_.reserve(numSpecies);
-  for (auto ss = 0; ss < numSpecies; ++ss) {
+  for (auto ss = 0U; ss < numSpecies; ++ss) {
     nonDimR_.push_back(1.0 / thermo->SpeciesGamma(t, ss));
     gasConst_.push_back(fl[ss].GasConstant());
   }
@@ -55,7 +55,8 @@ double idealGas::PressFromEnergy(const unique_ptr<thermodynamic> &thermo,
 
 double idealGas::PressureRT(const vector<double> &rho,
                             const double &temperature) const {
-  MSG_ASSERT(this->NumSpecies() == rho.size(), "species size mismatch");
+  MSG_ASSERT(this->NumSpecies() == static_cast<int>(rho.size()),
+             "species size mismatch");
   auto p = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
     p += rho[ss] * nonDimR_[ss] * temperature;
@@ -88,7 +89,8 @@ double idealGas::Enthalpy(const unique_ptr<thermodynamic> &thermo,
 }
 
 double idealGas::SoS(const double &pressure, const vector<double> &rho) const {
-  MSG_ASSERT(this->NumSpecies() == rho.size(), "species size mismatch");
+  MSG_ASSERT(this->NumSpecies() == static_cast<int>(rho.size()),
+             "species size mismatch");
   const auto rhoSum = std::accumulate(rho.begin(), rho.end(), 0.0);
   vector<double> mf(rho.size());
   for (auto ii = 0U; ii < mf.size(); ++ii) {
@@ -103,7 +105,8 @@ double idealGas::SoS(const double &pressure, const vector<double> &rho) const {
 
 double idealGas::Temperature(const double &pressure,
                              const vector<double> &rho) const {
-  MSG_ASSERT(this->NumSpecies() == rho.size(), "species size mismatch");
+  MSG_ASSERT(this->NumSpecies() == static_cast<int>(rho.size()),
+             "species size mismatch");
   auto rhoR = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
     rhoR += rho[ss] * nonDimR_[ss];
@@ -121,7 +124,8 @@ double idealGas::DensityTP(const double &temp, const double &press) const {
 
 double idealGas::PressureDim(const vector<double> &rho,
                              const double &temperature) const {
-  MSG_ASSERT(this->NumSpecies() == rho.size(), "species size mismatch");
+  MSG_ASSERT(this->NumSpecies() == static_cast<int>(rho.size()),
+             "species size mismatch");
   auto p = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
     p += rho[ss] * gasConst_[ss] * temperature;

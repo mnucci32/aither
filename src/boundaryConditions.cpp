@@ -145,6 +145,7 @@ boundarySurface boundaryConditions::GetBCSurface(const int &i, const int &j,
     }
   } else {
     cerr << "ERROR: Surface type " << surf << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
   }
 
   return surface;

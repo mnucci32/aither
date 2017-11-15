@@ -51,7 +51,8 @@ thermallyPerfect::thermallyPerfect(const vector<fluid> &fl) {
 // Member functions for calorically perfect class
 double caloricallyPerfect::Gamma(const double& t,
                                  const vector<double>& mf) const {
-  MSG_ASSERT(this->NumSpecies() == mf.size(), "species size mismatch");
+  MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
+             "species size mismatch");
   auto gamma = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
     gamma += mf[ss] * this->SpeciesGamma(t, ss);
@@ -69,7 +70,8 @@ double caloricallyPerfect::TemperatureFromSpecEnergy(
 // ---------------------------------------------------------------------------
 // thermally perfect functions
 double thermallyPerfect::Cp(const double& t, const vector<double>& mf) const {
-  MSG_ASSERT(this->NumSpecies() == mf.size(), "species size mismatch");
+  MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
+             "species size mismatch");
   auto cp = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
     cp += mf[ss] * this->SpeciesCp(t, ss);
@@ -77,7 +79,8 @@ double thermallyPerfect::Cp(const double& t, const vector<double>& mf) const {
   return cp;
 }
 double thermallyPerfect::Cv(const double& t, const vector<double>& mf) const {
-  MSG_ASSERT(this->NumSpecies() == mf.size(), "species size mismatch");
+  MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
+             "species size mismatch");
   auto cv = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
     cv += mf[ss] * this->SpeciesCv(t, ss);
@@ -87,7 +90,8 @@ double thermallyPerfect::Cv(const double& t, const vector<double>& mf) const {
 
 double thermallyPerfect::SpecEnergy(const double& t,
                                     const vector<double>& mf) const {
-  MSG_ASSERT(this->NumSpecies() == mf.size(), "species size mismatch");
+  MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
+             "species size mismatch");
   auto e = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
     e += mf[ss] * (nonDimR_[ss] * (n_[ss] * t + this->VibEqTerm(t, ss)));
@@ -97,7 +101,8 @@ double thermallyPerfect::SpecEnergy(const double& t,
 
 double thermallyPerfect::SpecEnthalpy(const double& t,
                                     const vector<double>& mf) const {
-  MSG_ASSERT(this->NumSpecies() == mf.size(), "species size mismatch");
+  MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
+             "species size mismatch");
   auto h = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
     h += mf[ss] * (nonDimR_[ss] * ((n_[ss] + 1) * t + this->VibEqTerm(t, ss)));

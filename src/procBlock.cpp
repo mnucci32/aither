@@ -3090,25 +3090,28 @@ void procBlock::AssignInviscidGhostCellsEdge(
   // loop over directions i, j, k
   for (auto dd = 0; dd < 3; dd++) {
     string dir = "";
-    auto max1 = 0, max2 = 0, max3 = 0, surfStart = 0;
+    auto max1 = 0, max2 = 0, max3 = 0, surfStart2 = 0, surfStart3 = 0;
     if (dd == 0) {
       dir = "i";
       max1 = this->NumI();
       max2 = this->NumJ();
       max3 = this->NumK();
-      surfStart = 1;
+      surfStart2 = 3;
+      surfStart3 = 5;
     } else if (dd == 1) {
       dir = "j";
       max1 = this->NumJ();
       max2 = this->NumK();
       max3 = this->NumI();
-      surfStart = 3;
+      surfStart2 = 5;
+      surfStart3 = 1;
     } else {
       dir = "k";
       max1 = this->NumK();
       max2 = this->NumI();
       max3 = this->NumJ();
-      surfStart = 5;
+      surfStart2 = 1;
+      surfStart3 = 3;
     }
 
     // direction 1 is direction of line of cells, directions 2/3 are next in
@@ -3134,8 +3137,8 @@ void procBlock::AssignInviscidGhostCellsEdge(
           const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
           // surface types of surfaces forming edge
-          const auto surf2 = upper2 ? surfStart + 1 : surfStart;
-          const auto surf3 = upper3 ? surfStart + 1 : surfStart;
+          const auto surf2 = upper2 ? surfStart2 + 1 : surfStart2;
+          const auto surf3 = upper3 ? surfStart3 + 1 : surfStart3;
 
           // face indices at corner
           // these only change from cell indices for upper edges
@@ -3197,15 +3200,15 @@ void procBlock::AssignInviscidGhostCellsEdge(
             wallVars wVars;  // not used, only for calling GetGhostState
 
             // assign states -------------------------------------------------
-            // surface-2 is a wall, but surface-3 is not - extend wall bc
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
+              // surface-2 is a wall, but surface-3 is not - extend wall bc
               auto ghost =
                   GetGhostState(state_(dir, d1, pCellD2, gCellD3), bc_2, fArea2,
                                 wDist2, surf2, inp, tag2, eqnState, thermo,
                                 trans, turb, wVars, layer2);
               state_.InsertBlock(dir, d1, gCellD2, gCellD3, ghost);
-              // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
+              // surface-3 is a wall, but surface-2 is not - extend wall bc
               auto ghost =
                   GetGhostState(state_(dir, d1, gCellD2, pCellD3), bc_3, fArea3,
                                 wDist3, surf3, inp, tag3, eqnState, thermo,
@@ -3360,25 +3363,28 @@ void procBlock::AssignViscousGhostCellsEdge(
   // loop over directions i, j, k
   for (auto dd = 0; dd < 3; dd++) {
     string dir = "";
-    auto max1 = 0, max2 = 0, max3 = 0, surfStart = 0;
+    auto max1 = 0, max2 = 0, max3 = 0, surfStart2 = 0, surfStart3 = 0;
     if (dd == 0) {
       dir = "i";
       max1 = this->NumI();
       max2 = this->NumJ();
       max3 = this->NumK();
-      surfStart = 1;
+      surfStart2 = 3;
+      surfStart3 = 5;
     } else if (dd == 1) {
       dir = "j";
       max1 = this->NumJ();
       max2 = this->NumK();
       max3 = this->NumI();
-      surfStart = 3;
+      surfStart2 = 5;
+      surfStart3 = 1;
     } else {
       dir = "k";
       max1 = this->NumK();
       max2 = this->NumI();
       max3 = this->NumJ();
-      surfStart = 5;
+      surfStart2 = 1;
+      surfStart3 = 3;
     }
 
     // direction 1 is direction of line of cells, directions 2/3 are next in
@@ -3404,8 +3410,8 @@ void procBlock::AssignViscousGhostCellsEdge(
           const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
           // surface types of surfaces forming edge
-          const auto surf2 = upper2 ? surfStart + 1 : surfStart;
-          const auto surf3 = upper3 ? surfStart + 1 : surfStart;
+          const auto surf2 = upper2 ? surfStart2 + 1 : surfStart2;
+          const auto surf3 = upper3 ? surfStart3 + 1 : surfStart3;
 
           // face indices at corner
           // these only change from cell indices for upper edges

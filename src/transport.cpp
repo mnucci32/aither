@@ -96,7 +96,8 @@ double sutherland::WilkesVisc(const vector<double> &specVisc,
 
 // Functions for sutherland class
 double sutherland::SpeciesViscosity(const double &t, const int &ii) const {
-  MSG_ASSERT(ii < muRef_.size(), "Accessing index out of range");
+  MSG_ASSERT(ii < static_cast<int>(muRef_.size()),
+             "Accessing index out of range");
   // Dimensionalize temperature
   const auto temp = t * tRef_;
 
@@ -108,7 +109,8 @@ double sutherland::SpeciesViscosity(const double &t, const int &ii) const {
 }
 
 double sutherland::SpeciesConductivity(const double &t, const int &ii) const {
-  MSG_ASSERT(ii < muRef_.size(), "Accessing index out of range");
+  MSG_ASSERT(ii < static_cast<int>(muRef_.size()),
+             "Accessing index out of range");
   // Dimensionalize temperature
   const auto temp = t * tRef_;
 
@@ -121,7 +123,8 @@ double sutherland::SpeciesConductivity(const double &t, const int &ii) const {
 
 
 vector<double> sutherland::MoleFractions(const vector<double> &mf) const {
-  MSG_ASSERT(mf.size() == this->NumSpecies(), "mismatch in species size");
+  MSG_ASSERT(static_cast<int>(mf.size()) == this->NumSpecies(),
+             "mismatch in species size");
 
   vector<double> moleFrac(this->NumSpecies());
   for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
@@ -135,7 +138,8 @@ vector<double> sutherland::MoleFractions(const vector<double> &mf) const {
 
 // member function to use Wilke's method to calculate mixture viscosity
 double sutherland::Viscosity(const double &t, const vector<double> &mf) const {
-  MSG_ASSERT(mf.size() == this->NumSpecies(), "mismatch in species size");
+  MSG_ASSERT(static_cast<int>(mf.size()) == this->NumSpecies(),
+             "mismatch in species size");
 
   if (this->NumSpecies() == 1) {
     return this->SpeciesViscosity(t, 0);

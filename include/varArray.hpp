@@ -43,25 +43,25 @@ class varArray {
 
  public:
   // constructor
+  varArray() {}
   varArray(const int &numEqns, const int &numSpecies, const double &val)
       : data_(numEqns, val),
         momentumIndex_(numSpecies),
         energyIndex_(momentumIndex_ + 3),
         turbulenceIndex_(energyIndex_ + 1) {
-    //MSG_ASSERT(numEqns > numSpecies && numEqns >= 5,
-    //           "number of equations should be greater than number of species");
+    MSG_ASSERT(numEqns > numSpecies && numEqns >= 5,
+               "number of equations should be greater than number of species");
   }
   varArray(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies, 0.0) {}
-  varArray() {}
   varArray(const vector<double>::const_iterator &b,
            const vector<double>::const_iterator &e, const int &numSpecies)
       : data_(b, e),
         momentumIndex_(numSpecies),
         energyIndex_(momentumIndex_ + 3),
         turbulenceIndex_(energyIndex_ + 1) {
-    //MSG_ASSERT(data_.size() > numSpecies && data_.size() >= 5,
-    //           "number of equations should be greater than number of species");
+    MSG_ASSERT(static_cast<int>(data_.size()) > numSpecies && data_.size() >= 5U,
+               "number of equations should be greater than number of species");
   }
 
   // move constructor and assignment operator

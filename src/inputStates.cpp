@@ -310,7 +310,7 @@ vector<double> ReadVectorXd(const string &str) {
   auto vec = str.substr(start, range);
   auto tokens = Tokenize(vec, ",");
   vector<double> vals(tokens.size());
-  for (auto ii = 0; ii < vals.size(); ++ii) {
+  for (auto ii = 0U; ii < vals.size(); ++ii) {
     vals[ii] = stod(tokens[ii]);
   }
   return vals;
