@@ -20,6 +20,8 @@
 #include <string>
 #include <memory>
 #include "arrayView.hpp"
+#include "tensor.hpp"
+#include "primitive.hpp"
 
 using std::string;
 using std::unique_ptr;
@@ -28,7 +30,7 @@ using std::unique_ptr;
 class turbModel;
 struct wallVars;
 class input;
-class primitive;
+class transport;
 
 primitive GetGhostState(
     const primitiveView &interior, const string &bcType, const vector3d<double> &areaVec,
@@ -39,5 +41,9 @@ primitive GetGhostState(
     const double &dt = 0.0, const primitive &stateN = {},
     const vector3d<double> &pressGrad = {}, const tensor<double> &velGrad = {},
     const double &avgMach = 0.0, const double &maxMach = 0.0);
+
+primitive ExtrapolateHoldMixture(const primitive &boundary,
+                                 const double &factor,
+                                 const primitiveView &interior);
 
 #endif
