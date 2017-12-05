@@ -1099,15 +1099,16 @@ blkMultiArray3d<primitive> ReadSolFromRestart(
     const unique_ptr<turbModel> &turb, const vector<string> &restartVars,
     const int &numI, const int &numJ, const int &numK, const int &numSpecies) {
   // intialize multiArray3d
-  blkMultiArray3d<primitive> sol(numI, numJ, numK, 0, restartVars.size(),
-                                 numSpecies);
+  // -1 b/c mf and density written to file
+  auto numEqns = restartVars.size() - 1;
+  blkMultiArray3d<primitive> sol(numI, numJ, numK, 0, numEqns, numSpecies);
 
   // read the primitive variables
   // read dimensional variables -- loop over physical cells
   for (auto kk = sol.StartK(); kk < sol.EndK(); kk++) {
     for (auto jj = sol.StartJ(); jj < sol.EndJ(); jj++) {
       for (auto ii = sol.StartI(); ii < sol.EndI(); ii++) {
-        primitive value(restartVars.size(), numSpecies);
+        primitive value(numEqns, numSpecies);
         auto rho = 0.0;
         // loop over the number of variables to read
         for (auto &var : restartVars) {
@@ -1163,15 +1164,16 @@ blkMultiArray3d<conserved> ReadSolNm1FromRestart(
     const vector<string> &restartVars, const int &numI, const int &numJ,
     const int &numK, const int &numSpecies) {
   // intialize multiArray3d
-  blkMultiArray3d<conserved> sol(numI, numJ, numK, 0, restartVars.size(),
-                                 numSpecies);
+  // -1 b/c mf and density written to file
+  auto numEqns = restartVars.size() - 1;
+  blkMultiArray3d<conserved> sol(numI, numJ, numK, 0, numEqns, numSpecies);
 
   // data is conserved variables
   // read dimensional variables -- loop over physical cells
   for (auto kk = sol.StartK(); kk < sol.EndK(); kk++) {
     for (auto jj = sol.StartJ(); jj < sol.EndJ(); jj++) {
       for (auto ii = sol.StartI(); ii < sol.EndI(); ii++) {
-        conserved value(restartVars.size(), numSpecies);
+        conserved value(numEqns, numSpecies);
         auto rho = 0.0;
         // loop over the number of variables to read
         for (auto &var : restartVars) {
