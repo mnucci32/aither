@@ -29,7 +29,7 @@ fluids: <fluid(name=N2; referenceMassFraction=1.0),
          fluid(name=O2; referenceMassFraction=0.0)>
 thermodynamicModel: caloricallyPerfect
 
-initialConditions: <icState(tag=-1; pressure=101300; density=1.2256; velocity=[100, 0, 0]; massFractions=[N2=1.0])>
+initialConditions: <icState(tag=-1; pressure=101300; density=1.2256; velocity=[115.47, 0, 0]; massFractions=[N2=1.0])>
 
 matrixSolver: lusgs
 matrixSweeps: 1
@@ -37,8 +37,8 @@ matrixRelaxation: 1
 
 turbulenceModel: none
 
-boundaryStates: <characteristic(tag=2; pressure=101300; density=1.2256; velocity=[100, 0, 0]; massFractions=[N2=1.0]),
-                 characteristic(tag=3; pressure=101300; density=1.2256; velocity=[100, 57.74, 0]; massFractions=[N2=1.0]),
+boundaryStates: <characteristic(tag=2; pressure=101300; density=1.2256; velocity=[115.47, 0, 0]; massFractions=[N2=1.0]),
+                 characteristic(tag=3; pressure=101300; density=1.2256; velocity=[100, 57.735, 0]; massFractions=[O2=1.0]),
                  pressureOutlet(tag=4; pressure=101300)
                  >
 

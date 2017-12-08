@@ -222,7 +222,7 @@ conserved PrimToCons(const T &state, const unique_ptr<eos> &eqnState,
   return cv;
 }
 
-// function to take in a genArray of updates to the conservative
+// function to take in a vector of updates to the conservative
 // variables, and update the primitive variables with it.
 // this is used in the implicit solver
 template <typename T>
@@ -238,7 +238,21 @@ primitive UpdatePrimWithCons(const T &state, const unique_ptr<eos> &eqnState,
                 "T requires primitive or primativeView type");
 
   // convert primitive to conservative and update
-  const auto consUpdate = state.ConsVars(eqnState, thermo) + du;
+  auto consUpdate = state.ConsVars(eqnState, thermo) + du;
+  // keep mass fractions positive and renormalize
+  const auto rho = consUpdate.Rho();
+  auto mf = consUpdate.MassFractions();
+  auto total = 0.0;
+  for (auto &frac : mf) {
+    frac = std::max(frac, 0.0);
+    total += frac;
+  }
+  for (auto &frac : mf) {
+    frac /= total;
+  }
+  for (auto ii = 0; ii < consUpdate.NumSpecies(); ++ii) {
+    consUpdate[ii] = rho * mf[ii];
+  }
   return primitive(consUpdate, eqnState, thermo, turb);
 }
                                
