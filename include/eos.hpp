@@ -46,14 +46,14 @@ class eos {
 
   // Member functions for abstract base class
   virtual int NumSpecies() const = 0;
+  virtual double GasConstant(const int &ii) const = 0;
+  virtual const vector<double> &GasConstants() const = 0;
   virtual double PressFromEnergy(const unique_ptr<thermodynamic> &thermo,
                                  const vector<double> &rho,
                                  const double &energy,
                                  const double &vel) const = 0;
   virtual double PressureRT(const vector<double> &rho,
                             const double &temperature) const = 0;
-  virtual double PressureRTScalar(const double &rho,
-                                  const double &temperature) const = 0;
   virtual double SpecEnergy(const unique_ptr<thermodynamic> &thermo,
                             const double &t,
                             const vector<double> &mf) const = 0;
@@ -61,12 +61,11 @@ class eos {
   virtual double Enthalpy(const unique_ptr<thermodynamic> &thermo,
                           const double &t, const double &vel,
                           const vector<double> &mf) const = 0;
-  virtual double SoS(const double &pressure,
+  virtual double SoS(const unique_ptr<thermodynamic> &thermo,
+                     const double &pressure,
                      const vector<double> &rho) const = 0;
   virtual double Temperature(const double &pressure,
                              const vector<double> &rho) const = 0;
-  virtual double PressureDim(const vector<double> &rho,
-                             const double &temperature) const = 0;
   virtual double DensityTP(const double &temp, const double &press) const = 0;
 
   // Destructor
@@ -79,33 +78,30 @@ class eos {
 // nondimensional from it is P = rho * T / gammaRef
 
 class idealGas : public eos {
-  vector<double> nonDimR_;  // 1 / gamma
   vector<double> gasConst_;
 
  public:
   // Constructor
-  idealGas(const unique_ptr<thermodynamic> &, const vector<fluid> &,
-           const double &);
+  idealGas(const vector<fluid> &, const double &, const double &);
 
   // Member functions
-  int NumSpecies() const override { return nonDimR_.size(); }
+  int NumSpecies() const override { return gasConst_.size(); }
+  double GasConstant(const int &ii) const override { return gasConst_[ii]; }
+  const vector<double> &GasConstants() const override { return gasConst_; }
   double PressFromEnergy(const unique_ptr<thermodynamic> &thermo,
                          const vector<double> &rho, const double &energy,
                          const double &vel) const override;
   double PressureRT(const vector<double> &rho,
                     const double &temperature) const override;
-  double PressureRTScalar(const double &rho,
-                          const double &temperature) const override;
   double SpecEnergy(const unique_ptr<thermodynamic> &thermo, const double &t,
                     const vector<double> &mf) const override;
   double Energy(const double &specEn, const double &vel) const override;
   double Enthalpy(const unique_ptr<thermodynamic> &thermo, const double &t,
                   const double &vel, const vector<double> &mf) const override;
-  double SoS(const double &pressure, const vector<double> &rho) const override;
+  double SoS(const unique_ptr<thermodynamic> &thermo, const double &pressure,
+             const vector<double> &rho) const override;
   double Temperature(const double &pressure,
                      const vector<double> &rho) const override;
-  double PressureDim(const vector<double> &rho,
-                     const double &temperature) const override;
   double DensityTP(const double &temp, const double &press) const override;
 
   // Destructor

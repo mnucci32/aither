@@ -115,17 +115,20 @@ class wallLaw {
   double VonKarmen() const { return vonKarmen_; }
   double WallConstant() const { return wallConst_; }
   wallVars AdiabaticBCs(const vector3d<double> &, const vector3d<double> &,
+                        const vector<double> &,
                         const unique_ptr<eos> &,
                         const unique_ptr<thermodynamic> &,
                         const unique_ptr<transport> &,
                         const unique_ptr<turbModel> &, const bool &);
   wallVars HeatFluxBCs(const vector3d<double> &, const vector3d<double> &,
+                       const vector<double> &,
                        const unique_ptr<eos> &,
                        const unique_ptr<thermodynamic> &,
                        const unique_ptr<transport> &,
                        const unique_ptr<turbModel> &, const double &,
                        const bool &);
   wallVars IsothermalBCs(const vector3d<double> &, const vector3d<double> &,
+                         const vector<double> &,
                          const unique_ptr<eos> &,
                          const unique_ptr<thermodynamic> &,
                          const unique_ptr<transport> &,

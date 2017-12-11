@@ -97,7 +97,7 @@ class varArray {
   const double &MomentumZ() const { return (*this)[momentumIndex_ + 2]; }
   const double &Energy() const { return (*this)[energyIndex_]; }
   const double &TurbulenceN(const int &ii) const {
-    MSG_ASSERT(turbulenceIndex_ + ii >= this->Size(),
+    MSG_ASSERT(turbulenceIndex_ + ii < this->Size(),
                "requesting turbulence variable out of range");
     return (*this)[turbulenceIndex_ + ii];
   }

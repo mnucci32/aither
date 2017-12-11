@@ -143,6 +143,7 @@ primitive GetGhostState(
     ghost[imx] = ghostVel.X();
     ghost[imy] = ghostVel.Y();
     ghost[imz] = ghostVel.Z();
+    const auto mf = interior.MassFractions();
 
     if (bcData->IsIsothermal()) {  //-----------------------------------------
       const auto tWall = bcData->Temperature();
@@ -151,7 +152,7 @@ primitive GetGhostState(
       if (bcData->IsWallLaw()) {
         wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), interior,
                    wallDist, inputVars.IsRANS());
-        wVars = wl.IsothermalBCs(normArea, velWall, eqnState, thermo, trans,
+        wVars = wl.IsothermalBCs(normArea, velWall, mf, eqnState, thermo, trans,
                                  turb, tWall, isLower);
 
         if (wVars.SwitchToLowRe()) {
@@ -199,8 +200,8 @@ primitive GetGhostState(
       if (bcData->IsWallLaw()) {
         wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), interior,
                    wallDist, inputVars.IsRANS());
-        wVars = wl.HeatFluxBCs(normArea, velWall, eqnState, thermo, trans, turb,
-                               qWall, isLower);
+        wVars = wl.HeatFluxBCs(normArea, velWall, mf, eqnState, thermo, trans,
+                               turb, qWall, isLower);
 
         if (wVars.SwitchToLowRe()) {
           // don't need turbulent contribution b/c eddy viscosity is 0 at wall
@@ -250,7 +251,7 @@ primitive GetGhostState(
       if (bcData->IsWallLaw()) {
         wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), interior,
                    wallDist, inputVars.IsRANS());
-        wVars = wl.AdiabaticBCs(normArea, velWall, eqnState, thermo, trans,
+        wVars = wl.AdiabaticBCs(normArea, velWall, mf, eqnState, thermo, trans,
                                 turb, isLower);
 
         if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
@@ -307,7 +308,7 @@ primitive GetGhostState(
     freeState[imy] = freeVel.Y();
     freeState[imz] = freeVel.Z();
     freeState[ie] = bcData->Pressure();
-    
+
     // internal variables
     const auto velIntNorm = interior.Velocity().DotProd(normArea);
     const auto SoSInt = interior.SoS(thermo, eqnState);

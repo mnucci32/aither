@@ -127,10 +127,17 @@ class input {
   int IterationStart() const {return iterationStart_;}
 
   double RRef() const {return rRef_;}
-  double LRef() const {return lRef_;}
+  double LRef() const { return lRef_; }
   double TRef() const {return tRef_;}
   double ARef() const {return aRef_;}
   vector<double> MixtureRef() const { return mixtureRef_; }
+  vector<double> RRefVec() const {
+    auto rhoVec = mixtureRef_;
+    for (auto &rho : rhoVec) {
+      rho *= rRef_;
+    }
+    return rhoVec;
+  }
   void NondimensionalizeStateData(const unique_ptr<eos> &);
   void NondimensionalizeFluid();
 
@@ -222,7 +229,7 @@ class input {
   string OrderOfAccuracy() const;
 
   unique_ptr<turbModel> AssignTurbulenceModel() const;
-  unique_ptr<eos> AssignEquationOfState(const unique_ptr<thermodynamic> &);
+  unique_ptr<eos> AssignEquationOfState() const;
   unique_ptr<transport> AssignTransportModel() const;
   unique_ptr<thermodynamic> AssignThermodynamicModel() const;
 

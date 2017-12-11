@@ -33,6 +33,7 @@ using std::cerr;
 // -------------------------------------------------------------------------
 wallVars wallLaw::AdiabaticBCs(const vector3d<double> &area,
                                const vector3d<double> &velWall,
+                               const vector<double> &wallMf,
                                const unique_ptr<eos> &eqnState,
                                const unique_ptr<thermodynamic> &thermo,
                                const unique_ptr<transport> &trans,
@@ -41,6 +42,7 @@ wallVars wallLaw::AdiabaticBCs(const vector3d<double> &area,
   // initialize wallVars
   wallVars wVars;
   wVars.heatFlux_ = 0.0;
+  wVars.mf_ = wallMf;
 
   // get tangential velocity
   const auto vel = state_.Velocity() - velWall;
@@ -93,6 +95,7 @@ wallVars wallLaw::AdiabaticBCs(const vector3d<double> &area,
 
 wallVars wallLaw::HeatFluxBCs(const vector3d<double> &area,
                               const vector3d<double> &velWall,
+                              const vector<double> &wallMf,
                               const unique_ptr<eos> &eqnState,
                               const unique_ptr<thermodynamic> &thermo,
                               const unique_ptr<transport> &trans,
@@ -101,6 +104,7 @@ wallVars wallLaw::HeatFluxBCs(const vector3d<double> &area,
   // initialize wallVars
   wallVars wVars;
   wVars.heatFlux_ = heatFluxW;
+  wVars.mf_ = wallMf;
 
   // get tangential velocity
   const auto vel = state_.Velocity() - velWall;
@@ -153,6 +157,7 @@ wallVars wallLaw::HeatFluxBCs(const vector3d<double> &area,
 
 wallVars wallLaw::IsothermalBCs(const vector3d<double> &area,
                                 const vector3d<double> &velWall,
+                                const vector<double> &wallMf,
                                 const unique_ptr<eos> &eqnState,
                                 const unique_ptr<thermodynamic> &thermo,
                                 const unique_ptr<transport> &trans,
@@ -161,6 +166,7 @@ wallVars wallLaw::IsothermalBCs(const vector3d<double> &area,
   // initialize wallVars
   wallVars wVars;
   wVars.temperature_ = tW;
+  wVars.mf_ = wallMf;
 
   // get tangential velocity
   const auto vel = state_.Velocity() - velWall;

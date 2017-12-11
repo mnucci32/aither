@@ -75,7 +75,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
     if (bound.GetBCTypes(ii) == "viscousWall") {
       const auto surf = bound.GetSurface(ii);
       const auto &bcData = inp.BCData(surf.Tag());
-      wallData_.push_back(wallData(surf, bcData));
+      wallData_.push_back(wallData(surf, bcData, inp.NumSpecies()));
     }
   }
 
@@ -4719,12 +4719,10 @@ void procBlock::PutStateSlice(const blkMultiArray3d<primitive> &slice,
 /*Member function to pack and send procBlock geometry data to appropriate
  * processor. */
 void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
-                                const MPI_Datatype &MPI_vec3dMag,
-                                const MPI_Datatype &MPI_wallData) const {
+                                const MPI_Datatype &MPI_vec3dMag) const {
   // MPI_vec3d -- MPI data type for a vector3d
   // MPI_vec3dMag -- MPI data type for a unitVect3dMag
-  // MPI_vec3dMag -- MPI data type for a wallData
-
+  
   // determine size of buffer to send
   auto sendBufSize = 0;
   auto tempSize = 0;
@@ -4783,7 +4781,7 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
   sendBufSize += stringSize;
 
   for (auto &wd : wallData_) {
-    wd.PackSize(sendBufSize, MPI_wallData);
+    wd.PackSize(sendBufSize, MPI_vec3d);
   }
 
   // allocate buffer to pack data into
@@ -4852,7 +4850,7 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
 
   // pack wall data
   for (auto &wd : wallData_) {
-    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_wallData);
+    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_vec3d);
   }
 
   // send buffer to appropriate processor
@@ -4862,11 +4860,9 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
 
 void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_vec3d,
                                   const MPI_Datatype &MPI_vec3dMag,
-                                  const MPI_Datatype &MPI_wallData,
                                   const input &inp) {
   // MPI_vec3d -- MPI data type for a vector3d
   // MPI_vec3dMag -- MPI data type for a unitVect3dMag
-  // MPI_wallData --  MPI data type for a wallData
   // input -- input variables
 
   MPI_Status status;  // allocate MPI_Status structure
@@ -4962,7 +4958,7 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_vec3d,
   // unpack wall data
   wallData_.resize(bc_.NumViscousSurfaces());
   for (auto &wd : wallData_) {
-    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_wallData, inp);
+    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_vec3d, inp);
   }
 }
 
@@ -5034,12 +5030,10 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
 void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
                                  const MPI_Datatype &MPI_vec3d,
                                  const MPI_Datatype &MPI_tensorDouble,
-                                 const MPI_Datatype &MPI_wallData,
                                  const input &inp) {
   // MPI_uncoupledScalar -- MPI data type for uncoupledScalar
   // MPI_vec3d -- MPI data type for vector3d<double>
   // MPI_tensorDouble -- MPI data taype for tensor<double>
-  // MPI_wallData -- MPI data taype for wallData
   // input -- input variables
 
   MPI_Status status;  // allocate MPI_Status structure
@@ -5139,7 +5133,7 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
   // unpack wall data
   wallData_.resize(bc_.NumViscousSurfaces());
   for (auto &wd : wallData_) {
-    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_wallData, inp);
+    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_vec3d, inp);
   }
 }
 
@@ -5148,12 +5142,10 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
  * solution. */
 void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
                                const MPI_Datatype &MPI_vec3d,
-                               const MPI_Datatype &MPI_tensorDouble,
-                               const MPI_Datatype &MPI_wallData) const {
+                               const MPI_Datatype &MPI_tensorDouble) const {
   // MPI_uncoupledScalar -- MPI data type for uncoupledScalar
   // MPI_vec3d -- MPI data type for vector3d<double>
   // MPI_tensorDouble -- MPI data taype for tensor<double>
-  // MPI_wallData -- MPI data taype for wallData
 
   // determine size of buffer to send
   auto sendBufSize = 0;
@@ -5232,7 +5224,7 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
   }
 
   for (auto &wd : wallData_) {
-    wd.PackSize(sendBufSize, MPI_wallData);
+    wd.PackSize(sendBufSize, MPI_vec3d);
   }
 
   // allocate buffer to pack data into
@@ -5298,7 +5290,7 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
 
   // pack wall data
   for (auto &wd : wallData_) {
-    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_wallData);
+    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_vec3d);
   }
 
   // send buffer to appropriate processor

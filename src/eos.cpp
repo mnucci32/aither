@@ -25,14 +25,13 @@ using std::endl;
 using std::cerr;
 
 // constructor
-idealGas::idealGas(const unique_ptr<thermodynamic> &thermo,
-                   const vector<fluid> &fl, const double &t) {
+idealGas::idealGas(const vector<fluid> &fl, const double &tRef,
+                   const double &aRef) {
   const auto numSpecies = fl.size();
-  nonDimR_.reserve(numSpecies);
   gasConst_.reserve(numSpecies);
   for (auto ss = 0U; ss < numSpecies; ++ss) {
-    nonDimR_.push_back(1.0 / thermo->SpeciesGamma(t, ss));
-    gasConst_.push_back(fl[ss].GasConstant());
+    // nondimensionalize gas constant
+    gasConst_.push_back(fl[ss].GasConstant() * tRef / (aRef * aRef));
   }
 }
 
@@ -59,18 +58,9 @@ double idealGas::PressureRT(const vector<double> &rho,
              "species size mismatch");
   auto p = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    p += rho[ss] * nonDimR_[ss] * temperature;
+    p += rho[ss] * gasConst_[ss] * temperature;
   }
   return p;
-}
-
-double idealGas::PressureRTScalar(const double &rho,
-                                  const double &temperature) const {
-  auto r = 0.0;
-  for (auto &nr : nonDimR_) {
-    r += nr;
-  }
-  return r;
 }
 
 double idealGas::SpecEnergy(const unique_ptr<thermodynamic> &thermo,
@@ -88,7 +78,8 @@ double idealGas::Enthalpy(const unique_ptr<thermodynamic> &thermo,
   return thermo->SpecEnthalpy(t, mf) + 0.5 * vel * vel;
 }
 
-double idealGas::SoS(const double &pressure, const vector<double> &rho) const {
+double idealGas::SoS(const unique_ptr<thermodynamic> &thermo,
+                     const double &pressure, const vector<double> &rho) const {
   MSG_ASSERT(this->NumSpecies() == static_cast<int>(rho.size()),
              "species size mismatch");
   const auto rhoSum = std::accumulate(rho.begin(), rho.end(), 0.0);
@@ -96,10 +87,8 @@ double idealGas::SoS(const double &pressure, const vector<double> &rho) const {
   for (auto ii = 0U; ii < mf.size(); ++ii) {
     mf[ii] = rho[ii] / rhoSum;
   }
-  auto gamma = 0.0;
-  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    gamma += mf[ss] / nonDimR_[ss];
-  }
+  const auto t = this->Temperature(pressure, rho);
+  const auto gamma = thermo->Gamma(t, mf);
   return sqrt(gamma * pressure / rhoSum);
 }
 
@@ -109,7 +98,7 @@ double idealGas::Temperature(const double &pressure,
              "species size mismatch");
   auto rhoR = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    rhoR += rho[ss] * nonDimR_[ss];
+    rhoR += rho[ss] * gasConst_[ss];
   }
   return pressure / rhoR;
 }
@@ -117,18 +106,7 @@ double idealGas::Temperature(const double &pressure,
 double idealGas::DensityTP(const double &temp, const double &press) const {
   auto rho = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    rho += press / (nonDimR_[ss] * temp);
+    rho += press / (gasConst_[ss] * temp);
   }
   return rho;
-}
-
-double idealGas::PressureDim(const vector<double> &rho,
-                             const double &temperature) const {
-  MSG_ASSERT(this->NumSpecies() == static_cast<int>(rho.size()),
-             "species size mismatch");
-  auto p = 0.0;
-  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    p += rho[ss] * gasConst_[ss] * temperature;
-  }
-  return p;
 }

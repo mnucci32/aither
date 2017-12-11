@@ -541,6 +541,13 @@ void input::ReadInput(const int &rank) {
     mixtureRef_[0] = 1.0;
   }
 
+  // assign reference speed of sound (assume cpg for gamma)
+  for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
+    auto gamma = (fluids_[ii].N() + 1) / fluids_[ii].N();
+    aRef_ += mixtureRef_[ii] * gamma * fluids_[ii].GasConstant() * tRef_;
+  }
+  aRef_ = sqrt(aRef_);
+
   // input file sanity checks
   this->CheckNonlinearIterations();
   this->CheckOutputVariables();
@@ -676,26 +683,17 @@ unique_ptr<turbModel> input::AssignTurbulenceModel() const {
 }
 
 // member function to get equation of state
-unique_ptr<eos> input::AssignEquationOfState(
-    const unique_ptr<thermodynamic> &thermo) {
+unique_ptr<eos> input::AssignEquationOfState() const {
   // define equation of state
   unique_ptr<eos> eqnState(nullptr);
   if (equationOfState_ == "idealGas") {
-    // non-dimensional reference temperature is 1.0
     eqnState =
-        unique_ptr<eos>{std::make_unique<idealGas>(thermo, fluids_, 1.0)};
+        unique_ptr<eos>{std::make_unique<idealGas>(fluids_, tRef_, aRef_)};
   } else {
     cerr << "ERROR: Error in input::AssignEquationOfState(). Equation of state "
          << equationOfState_ << " is not recognized!" << endl;
     exit(EXIT_FAILURE);
   }
-  // use equation of state to assign additional reference values
-  auto rhoVec = mixtureRef_;
-  for (auto &rho : rhoVec) {
-    rho *= rRef_;
-  }
-  const auto pRef = eqnState->PressureDim(rhoVec, tRef_);
-  aRef_ = eqnState->SoS(pRef, rhoVec);
   return eqnState;
 }
 
@@ -722,8 +720,8 @@ unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
     thermo = unique_ptr<thermodynamic>{
         std::make_unique<caloricallyPerfect>(fluids_)};
   } else if (thermodynamicModel_ == "thermallyPerfect") {
-    thermo =
-        unique_ptr<thermodynamic>{std::make_unique<thermallyPerfect>(fluids_)};
+    thermo = unique_ptr<thermodynamic>{
+        std::make_unique<thermallyPerfect>(fluids_, tRef_, aRef_)};
   } else {
     cerr << "ERROR: Error in input::AssignThermodynamicModel(). Thermodynamic "
          << "model " << thermodynamicModel_ << " is not recognized!" << endl;

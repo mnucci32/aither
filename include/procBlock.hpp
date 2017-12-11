@@ -511,15 +511,13 @@ class procBlock {
                                        const MPI_Datatype &,
                                        const MPI_Datatype &);
 
-  void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
-                       const MPI_Datatype &) const;
+  void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &) const;
   void RecvUnpackGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
-                         const MPI_Datatype &, const input &);
+                         const input &);
   void PackSendSolMPI(const MPI_Datatype &, const MPI_Datatype &,
-                      const MPI_Datatype &, const MPI_Datatype &) const;
+                      const MPI_Datatype &) const;
   void RecvUnpackSolMPI(const MPI_Datatype &, const MPI_Datatype &,
-                        const MPI_Datatype &, const MPI_Datatype &,
-                        const input &);
+                        const MPI_Datatype &, const input &);
 
   void UpdateAuxillaryVariables(const unique_ptr<eos> &,
                                 const unique_ptr<transport> &,

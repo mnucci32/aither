@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
   // Get thermodynamic model
   const auto thermo = inp.AssignThermodynamicModel();
   // Get equation of state
-  const auto eqnState = inp.AssignEquationOfState(thermo);
+  const auto eqnState = inp.AssignEquationOfState();
   // Get transport model
   const auto trans = inp.AssignTransportModel();
 
@@ -192,10 +192,9 @@ int main(int argc, char *argv[]) {
 
   // Set MPI datatypes
   MPI_Datatype MPI_vec3d, MPI_procBlockInts, MPI_connection, MPI_DOUBLE_5INT,
-      MPI_vec3dMag, MPI_uncoupledScalar, MPI_tensorDouble, MPI_wallData;
+      MPI_vec3dMag, MPI_uncoupledScalar, MPI_tensorDouble;
   SetDataTypesMPI(MPI_vec3d, MPI_procBlockInts, MPI_connection, MPI_DOUBLE_5INT,
-                  MPI_vec3dMag, MPI_uncoupledScalar, MPI_tensorDouble,
-                  MPI_wallData);
+                  MPI_vec3dMag, MPI_uncoupledScalar, MPI_tensorDouble);
 
   // Send number of procBlocks to all processors
   SendNumProcBlocks(decomp.NumBlocksOnAllProc(), numProcBlock);
@@ -203,7 +202,7 @@ int main(int argc, char *argv[]) {
   // Send procBlocks to appropriate processor
   auto localStateBlocks =
       SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_vec3d, MPI_vec3dMag,
-                     MPI_wallData, inp);
+                     inp);
 
   // Update auxillary variables (temperature, viscosity, etc), cell widths
   for (auto &block : localStateBlocks) {
@@ -264,7 +263,7 @@ int main(int argc, char *argv[]) {
 
   // Send/recv solutions - necessary to get wall distances
   GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_uncoupledScalar,
-                MPI_vec3d, MPI_tensorDouble, MPI_wallData, inp);
+                MPI_vec3d, MPI_tensorDouble, inp);
 
   ofstream resFile;
   if (rank == ROOTP) {
@@ -364,7 +363,7 @@ int main(int argc, char *argv[]) {
     if (inp.WriteOutput(nn) || inp.WriteRestart(nn)) {
       // Send/recv solutions
       GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_uncoupledScalar,
-                    MPI_vec3d, MPI_tensorDouble, MPI_wallData, inp);
+                    MPI_vec3d, MPI_tensorDouble, inp);
 
       if (rank == ROOTP && inp.WriteOutput(nn)) {
         cout << "writing out function file at iteration "
@@ -400,7 +399,7 @@ int main(int argc, char *argv[]) {
   // Free datatypes previously created
   FreeDataTypesMPI(MPI_vec3d, MPI_procBlockInts, MPI_connection,
                    MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar,
-                   MPI_tensorDouble, MPI_wallData);
+                   MPI_tensorDouble);
 
   MPI_Finalize();
 

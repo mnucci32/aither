@@ -30,20 +30,21 @@ caloricallyPerfect::caloricallyPerfect(const vector<fluid> &fl) {
   gamma_.reserve(numSpecies);
   for (auto &f : fl) {
     const auto n = f.N();
-    gamma_.push_back((n + 1.0) / n);  // non-dim R = 1 / gamma
+    gamma_.push_back((n + 1.0) / n);
   }
 }
 
-thermallyPerfect::thermallyPerfect(const vector<fluid> &fl) {
+thermallyPerfect::thermallyPerfect(const vector<fluid>& fl, const double& tRef,
+                                   const double& aRef) {
   const auto numSpecies = fl.size();
   n_.reserve(numSpecies);
+  gasConst_.reserve(numSpecies);
   vibTemp_.reserve(numSpecies);
-  nonDimR_.reserve(numSpecies);
   for (auto &f : fl) {
     const auto n = f.N();
     n_.push_back(n);
+    gasConst_.push_back(f.GasConstant() * tRef / (aRef * aRef));
     vibTemp_.push_back(f.VibrationalTemperature());
-    nonDimR_.push_back(n / (n + 1.0));
   }
 }
 
@@ -94,18 +95,18 @@ double thermallyPerfect::SpecEnergy(const double& t,
              "species size mismatch");
   auto e = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    e += mf[ss] * (nonDimR_[ss] * (n_[ss] * t + this->VibEqTerm(t, ss)));
+    e += mf[ss] * (gasConst_[ss] * (n_[ss] * t + this->VibEqTerm(t, ss)));
   }
   return e;
 }
 
 double thermallyPerfect::SpecEnthalpy(const double& t,
-                                    const vector<double>& mf) const {
+                                      const vector<double>& mf) const {
   MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
              "species size mismatch");
   auto h = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    h += mf[ss] * (nonDimR_[ss] * ((n_[ss] + 1) * t + this->VibEqTerm(t, ss)));
+    h += mf[ss] * (gasConst_[ss] * ((n_[ss] + 1) * t + this->VibEqTerm(t, ss)));
   }
   return h;
 }
@@ -118,6 +119,6 @@ double thermallyPerfect::TemperatureFromSpecEnergy(
     return e - this->SpecEnergy(t, mf);
   };
   FindRoot(func, 1.0e-8, 1.0e4, 1.0e-8);
-  
+
   return temperature;
 }
