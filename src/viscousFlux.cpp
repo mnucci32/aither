@@ -135,7 +135,7 @@ wallVars viscousFlux::CalcWallFlux(
   // turbVisc -- turbulent viscosity
   // f1 -- first blending coefficient
 
-  wallVars wVars;
+  wallVars wVars(state.NumSpecies());
 
   // get viscosity with nondimensional normalization
   wVars.viscosity_ = trans->NondimScaling() * lamVisc;

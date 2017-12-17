@@ -3197,7 +3197,8 @@ void procBlock::AssignInviscidGhostCellsEdge(
             const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
             const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
 
-            wallVars wVars;  // not used, only for calling GetGhostState
+            // not used, only for calling GetGhostState
+            wallVars wVars(this->NumSpecies());
 
             // assign states -------------------------------------------------
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
@@ -3467,7 +3468,8 @@ void procBlock::AssignViscousGhostCellsEdge(
             const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
             const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
 
-            wallVars wVars;  // not used, only for calling GetGhostState
+            // not used, only for calling GetGhostState
+            wallVars wVars(this->NumSpecies());
 
             // assign states -------------------------------------------------
             // surface-2 is a wall, but surface-3 is not - extend wall bc
@@ -6714,7 +6716,7 @@ blkMultiArray3d<primitive> procBlock::GetGhostStates(
   for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
     for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
       for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
-        wallVars wVars;
+        wallVars wVars(this->NumSpecies());
         if (consVarsN.IsEmpty()) {
           const auto ghost = GetGhostState(
               bndStates(ii, jj, kk), bcName, faceAreas(ii, jj, kk).UnitVector(),

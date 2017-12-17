@@ -245,7 +245,8 @@ void wallData::UnpackWallData(char *(&recvBuffer), const int &recvBufSize,
   bcData_ = inp.BCData(surf_.Tag());
 
   // unpack wall variables
-  data_.ClearResize(surf_.NumI(), surf_.NumJ(), surf_.NumK(), 0);
+  data_.ClearResize(surf_.NumI(), surf_.NumJ(), surf_.NumK(), 0,
+                    wallVars(numSpecies_));
   for (auto &wv : data_) {
     wv.Unpack(recvBuffer, recvBufSize, position, MPI_vec3d, numSpecies_);
   }
@@ -284,7 +285,8 @@ void wallData::Join(const wallData &upper, const string &dir, bool &joined) {
     inviscidForce_ += upper.inviscidForce_;
     viscousForce_ += upper.viscousForce_;
 
-    multiArray3d<wallVars> newVars(surf_.NumI(), surf_.NumJ(), surf_.NumK(), 0);
+    multiArray3d<wallVars> newVars(surf_.NumI(), surf_.NumJ(), surf_.NumK(), 0,
+                                   1, wallVars(numSpecies_));
     newVars.Insert(dir, {data_.Start(dir), data_.PhysEnd(dir)},
                    data_.Slice(dir, {data_.Start(dir), data_.PhysEnd(dir)}));
     newVars.Insert(dir, {data_.PhysEnd(dir), newVars.End(dir)},
@@ -313,6 +315,7 @@ void wallData::Join(const wallData &upper, const string &dir, bool &joined) {
   void wallData::Print(ostream &os) const {
     os << "Inviscid Force: " << inviscidForce_ << endl;
     os << "Viscous Force: " << viscousForce_ << endl;
+    os << "Number of Species: " << numSpecies_ << endl;
     os << "BC Data: ";
     bcData_->Print(os);
     os << endl;
