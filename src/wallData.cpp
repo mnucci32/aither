@@ -95,8 +95,8 @@ void wallVars::Unpack(char *(&recvBuffer), const int &recvBufSize,
   MPI_Unpack(recvBuffer, recvBufSize, &position, &tke_, 1, MPI_DOUBLE,
              MPI_COMM_WORLD);
   MPI_Unpack(recvBuffer, recvBufSize, &position, &sdr_, 1, MPI_DOUBLE,
-  // unpack mass fractions
              MPI_COMM_WORLD);
+  // unpack mass fractions
   mf_.clear();
   mf_.resize(numSpecies);
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(mf_)),
@@ -204,6 +204,9 @@ void wallData::PackSize(int &sendBufSize, const MPI_Datatype &MPI_vec3d) const {
   auto tempSize = 0;
   // add sizes for force data
   MPI_Pack_size(2, MPI_DOUBLE, MPI_COMM_WORLD, &tempSize);
+  sendBufSize += tempSize;
+  // add sizes for number of species
+  MPI_Pack_size(1, MPI_INT, MPI_COMM_WORLD, &tempSize);
   sendBufSize += tempSize;
   // 8 because iMin, iMax, jMin, jMax, kMin, kMax, tags, string sizes
   MPI_Pack_size(8, MPI_INT, MPI_COMM_WORLD, &tempSize);

@@ -163,12 +163,13 @@ wallVars viscousFlux::CalcWallFlux(
   // calculate other wall data
   wVars.density_ = state.Rho();
   wVars.temperature_ = t;
-  wVars.tke_ = state.Tke();
-  wVars.sdr_ = state.Omega();
   wVars.frictionVelocity_ = sqrt(wVars.shearStress_.Mag() / wVars.density_);
 
   // turbulence viscous flux
   if (this->HasTurbulenceData()) {
+    wVars.tke_ = state.Tke();
+    wVars.sdr_ = state.Omega();
+
     // get molecular diffusion coefficients for turbulence equations
     const auto tkeCoeff = turb->SigmaK(f1);
     const auto omgCoeff = turb->SigmaW(f1);
