@@ -39,6 +39,8 @@ class turbModel;
 class eos;
 class transport;
 class thermodynamic;
+class diffusion;
+class physics;
 
 class input {
   string simName_;  // simulation name
@@ -84,6 +86,7 @@ class input {
   string thermodynamicModel_;  // model for thermodynamics
   string equationOfState_;  // model for equation of state
   string transportModel_;  // model for viscous transport
+  string diffusionModel_;  // model for species diffusion
   int restartFrequency_;  // how often to output restart data
   int iterationStart_;  // starting number for iterations
 
@@ -100,6 +103,11 @@ class input {
   void CheckTurbulenceModel() const;
   void CheckSpecies() const;
   void CheckNonreflecting() const;
+  unique_ptr<turbModel> AssignTurbulenceModel() const;
+  unique_ptr<eos> AssignEquationOfState() const;
+  unique_ptr<transport> AssignTransportModel() const;
+  unique_ptr<diffusion> AssignDiffusionModel() const;
+  unique_ptr<thermodynamic> AssignThermodynamicModel() const;
 
  public:
   // constructor
@@ -204,6 +212,7 @@ class input {
   string ThermodynamicModel() const {return thermodynamicModel_;}
   string EquationOfState() const {return equationOfState_;}
   string TransportModel() const {return transportModel_;}
+  string DiffusionModel() const {return diffusionModel_;}
 
   int NumVars() const {return vars_.size();}
   int NumVarsOutput() const {return outputVariables_.size();}
@@ -225,16 +234,11 @@ class input {
     return timeIntegration_ == "bdf2" || timeIntegration_ == "rk4" ||
            timeIntegration_ == "crankNicholson";
   }
-
   string OrderOfAccuracy() const;
 
-  unique_ptr<turbModel> AssignTurbulenceModel() const;
-  unique_ptr<eos> AssignEquationOfState() const;
-  unique_ptr<transport> AssignTransportModel() const;
-  unique_ptr<thermodynamic> AssignThermodynamicModel() const;
+  physics AssignPhysicsModels() const;
 
   double ViscousCFLCoefficient() const;
-
   int NumberGhostLayers() const;
 
   icState ICStateForBlock(const int &) const;

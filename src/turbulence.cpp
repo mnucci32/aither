@@ -19,6 +19,7 @@
 #include <algorithm>  // max
 #include "turbulence.hpp"
 #include "primitive.hpp"   // primitive
+#include "arrayView.hpp"   // primitiveView
 #include "transport.hpp"  // transport model
 #include "matrix.hpp"     // squareMatrix
 

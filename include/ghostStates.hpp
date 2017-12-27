@@ -18,29 +18,25 @@
 #define GHOSTHEADERDEF
 
 #include <string>
-#include <memory>
 #include "arrayView.hpp"
 #include "tensor.hpp"
 #include "primitive.hpp"
 
 using std::string;
-using std::unique_ptr;
 
 // forward class declarations
-class turbModel;
 struct wallVars;
 class input;
-class transport;
 
-primitive GetGhostState(
-    const primitiveView &interior, const string &bcType, const vector3d<double> &areaVec,
-    const double &wallDist, const int &surf, const input &inputVars,
-    const int &tag, const unique_ptr<eos> &eqnState,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const unique_ptr<turbModel> &turb, wallVars &wVars, const int &layer,
-    const double &dt = 0.0, const primitive &stateN = {},
-    const vector3d<double> &pressGrad = {}, const tensor<double> &velGrad = {},
-    const double &avgMach = 0.0, const double &maxMach = 0.0);
+primitive GetGhostState(const primitiveView &interior, const string &bcType,
+                        const vector3d<double> &areaVec, const double &wallDist,
+                        const int &surf, const input &inputVars, const int &tag,
+                        const physics &phys, wallVars &wVars, const int &layer,
+                        const double &dt = 0.0, const primitive &stateN = {},
+                        const vector3d<double> &pressGrad = {},
+                        const tensor<double> &velGrad = {},
+                        const double &avgMach = 0.0,
+                        const double &maxMach = 0.0);
 
 primitive ExtrapolateHoldMixture(const primitive &boundary,
                                  const double &factor,

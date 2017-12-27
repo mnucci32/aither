@@ -28,10 +28,7 @@
 using std::unique_ptr;
 
 // forward class declaration
-class eos;
-class transport;
-class thermodynamic;
-class turbModel;
+class physics;
 struct wallVars;
 
 class wallLaw {
@@ -61,18 +58,14 @@ class wallLaw {
   void UpdateGamma(const unique_ptr<thermodynamic> &, const double &);
   void CalcYplusWhite();
   double CalcHeatFlux(const unique_ptr<eos> &) const;
-  void SetWallVars(const double &, const unique_ptr<eos> &,
-                   const unique_ptr<transport> &);
-  void EddyVisc(const unique_ptr<eos> &, const unique_ptr<transport> &);
+  void SetWallVars(const double &, const physics &);
+  void EddyVisc(const physics &);
   void CalcVelocities(const double &, const double &);
-  void CalcTurbVars(const unique_ptr<turbModel> &, const unique_ptr<eos> &,
-                    const unique_ptr<transport> &, double &, double &);
+  void CalcTurbVars(const physics &, double &, double &);
   double CalcYplusRoot(const double &) const;
   double ShearStressMag() const {return uStar_ * uStar_ * rhoW_;};
   void CalcRecoveryFactor(const unique_ptr<thermodynamic> &, const double &);
-  double CalcWallTemperature(const unique_ptr<eos> &,
-                             const unique_ptr<thermodynamic> &,
-                             const double &) const;
+  double CalcWallTemperature(const physics &, const double &) const;
 
  public:
   // constructor
@@ -115,25 +108,13 @@ class wallLaw {
   double VonKarmen() const { return vonKarmen_; }
   double WallConstant() const { return wallConst_; }
   wallVars AdiabaticBCs(const vector3d<double> &, const vector3d<double> &,
-                        const vector<double> &,
-                        const unique_ptr<eos> &,
-                        const unique_ptr<thermodynamic> &,
-                        const unique_ptr<transport> &,
-                        const unique_ptr<turbModel> &, const bool &);
+                        const vector<double> &, const physics &, const bool &);
   wallVars HeatFluxBCs(const vector3d<double> &, const vector3d<double> &,
-                       const vector<double> &,
-                       const unique_ptr<eos> &,
-                       const unique_ptr<thermodynamic> &,
-                       const unique_ptr<transport> &,
-                       const unique_ptr<turbModel> &, const double &,
+                       const vector<double> &, const physics &, const double &,
                        const bool &);
   wallVars IsothermalBCs(const vector3d<double> &, const vector3d<double> &,
-                         const vector<double> &,
-                         const unique_ptr<eos> &,
-                         const unique_ptr<thermodynamic> &,
-                         const unique_ptr<transport> &,
-                         const unique_ptr<turbModel> &, const double &,
-                         const bool &);
+                         const vector<double> &, const physics &,
+                         const double &, const bool &);
 
   // destructor
   ~wallLaw() noexcept {}

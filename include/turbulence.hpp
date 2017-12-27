@@ -27,15 +27,17 @@
 #include <algorithm>
 #include "vector3d.hpp"  // vector3d
 #include "tensor.hpp"  // tensor
-#include "arrayView.hpp"  // primitiveView
 #include "matrix.hpp"  // squareMatrix
-#include "transport.hpp"  // transport
 
 using std::string;
 using std::unique_ptr;
 
 // forward class declaration
 class primitive;
+class transport;
+template <typename T1, typename T2>
+class arrayView;
+using primitiveView = arrayView<primitive, double>;
 
 class turbModel {
   const string eddyViscMethod_;

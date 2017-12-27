@@ -33,9 +33,7 @@ supply a ghost state given a boundary condition and boundary cell.  */
 #include <memory>                  // unique_ptr
 #include "vector3d.hpp"            // vector3d
 #include "tensor.hpp"              // tensor
-#include "eos.hpp"                 // equation of state
-#include "transport.hpp"           // transport model
-#include "thermodynamic.hpp"       // thermodynamic model
+#include "physicsModels.hpp"
 #include "multiArray3d.hpp"        // multiArray3d
 #include "varArray.hpp"
 #include "conserved.hpp"
@@ -53,7 +51,6 @@ using std::unique_ptr;
 
 // forward class declarations
 class input;
-class turbModel;
 
 class primitive : public varArray {
  public:
@@ -66,8 +63,7 @@ class primitive : public varArray {
   template <typename T,
             typename = std::enable_if_t<std::is_base_of<varArray, T>::value ||
                                         std::is_same<conservedView, T>::value>>
-  primitive(const T &, const unique_ptr<eos> &,
-            const unique_ptr<thermodynamic> &, const unique_ptr<turbModel> &);
+  primitive(const T &, const physics &);
   primitive(const vector<double>::const_iterator &b,
             const vector<double>::const_iterator &e, const int &numSpecies)
       : varArray(b, e, numSpecies) {}
@@ -106,9 +102,7 @@ class primitive : public varArray {
   const double & Omega() const { return this->TurbulenceN(1); }
   const double & TurbN(const int &ii) const { return this->TurbulenceN(ii); }
 
-  void NondimensionalInitialize(const unique_ptr<eos> &, const input &,
-                                const unique_ptr<transport> &, const int &,
-                                const unique_ptr<turbModel> &);
+  void NondimensionalInitialize(const physics &, const input &, const int &);
 
   primitive Abs() const;
   primitive Squared() const {
@@ -124,40 +118,22 @@ class primitive : public varArray {
     return {this->U(), this->V(), this->W()};
   }
 
-  double Energy(const unique_ptr<eos> &eqnState,
-                const unique_ptr<thermodynamic> &thermo) const {
-    const auto t = this->Temperature(eqnState);
-    return eqnState->Energy(
-        eqnState->SpecEnergy(thermo, t, this->MassFractions()),
-        this->Velocity().Mag());
+  double Energy(const physics &phys) const {
+    return InternalEnergy(*this, phys);
   }
-  double Enthalpy(const unique_ptr<eos> &eqnState,
-                  const unique_ptr<thermodynamic> &thermo) const {
-    const auto t = this->Temperature(eqnState);
-    return eqnState->Enthalpy(thermo, t, this->Velocity().Mag(),
-                              this->MassFractions());
+  double Enthalpy(const physics &phys) const {
+    return EnthalpyFunc(*this, phys);
   }
   double Temperature(const unique_ptr<eos> &eqnState) const {
     return eqnState->Temperature(this->P(), this->RhoVec());
   }
-  double SoS(const unique_ptr<thermodynamic> &thermo,
-             const unique_ptr<eos> &eqnState) const {
-    return sqrt(
-        thermo->Gamma(this->Temperature(eqnState), this->MassFractions()) *
-        this->P() / this->Rho());
-  }
+  double SoS(const physics &phys) const { return SpeedOfSound(*this, phys); }
 
-  inline conserved ConsVars(const unique_ptr<eos> &,
-                            const unique_ptr<thermodynamic> &) const;
-  primitive UpdateWithConsVars(const unique_ptr<eos> &,
-                               const unique_ptr<thermodynamic> &,
-                               const varArrayView &,
-                               const unique_ptr<turbModel> &) const;
+  inline conserved ConsVars(const physics &) const;
+  primitive UpdateWithConsVars(const physics &, const varArrayView &) const;
 
   void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
-                           const double &, const unique_ptr<transport> &,
-                           const unique_ptr<eos> &,
-                           const unique_ptr<turbModel> &);
+                           const double &, const physics &);
   void LimitTurb(const unique_ptr<turbModel> &);
 
   // destructor
@@ -167,13 +143,9 @@ class primitive : public varArray {
 // ---------------------------------------------------------------------------
 // constructors
 template <typename T, typename TT>
-primitive::primitive(const T &cons, const unique_ptr<eos> &eqnState,
-                     const unique_ptr<thermodynamic> &thermo,
-                     const unique_ptr<turbModel> &turb) {
+primitive::primitive(const T &cons, const physics &phys) {
   // cons -- array of conserved variables
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // turb -- turbulence model
+  // phys -- physics models
 
   *this = primitive(cons.Size(), cons.NumSpecies());
 
@@ -187,23 +159,22 @@ primitive::primitive(const T &cons, const unique_ptr<eos> &eqnState,
   (*this)[this->MomentumZIndex()] = cons.MomentumZ() / rho;
   
   const auto energy = cons.Energy() / rho;
-  (*this)[this->EnergyIndex()] = eqnState->PressFromEnergy(
-      thermo, this->RhoVec(), energy, this->Velocity().Mag());
+  (*this)[this->EnergyIndex()] = phys.EoS()->PressFromEnergy(
+      phys.Thermodynamic(), this->RhoVec(), energy, this->Velocity().Mag());
 
   for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
     (*this)[this->TurbulenceIndex() + ii] = cons.TurbulenceN(ii) / rho;
   }
 
   // Adjust turbulence variables to be above minimum if necessary
-  this->LimitTurb(turb);
+  this->LimitTurb(phys.Turbulence());
 }
 
 // ---------------------------------------------------------------------------
 // non member functions
 // function to calculate conserved variables from primitive variables
 template <typename T>
-conserved PrimToCons(const T &state, const unique_ptr<eos> &eqnState,
-                     const unique_ptr<thermodynamic> &thermo) {
+conserved PrimToCons(const T &state, const physics &phys) {
   static_assert(std::is_same<primitive, T>::value ||
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
@@ -215,7 +186,7 @@ conserved PrimToCons(const T &state, const unique_ptr<eos> &eqnState,
   cv[cv.MomentumXIndex()] = rho * state.U();
   cv[cv.MomentumYIndex()] = rho * state.V();
   cv[cv.MomentumZIndex()] = rho * state.W();
-  cv[cv.EnergyIndex()] = rho * state.Energy(eqnState, thermo);
+  cv[cv.EnergyIndex()] = rho * state.Energy(phys);
   for (auto ii = 0; ii < cv.NumTurbulence(); ++ii) {
     cv[cv.TurbulenceIndex() + ii] = rho * state.TurbN(ii);
   }
@@ -226,19 +197,16 @@ conserved PrimToCons(const T &state, const unique_ptr<eos> &eqnState,
 // variables, and update the primitive variables with it.
 // this is used in the implicit solver
 template <typename T>
-primitive UpdatePrimWithCons(const T &state, const unique_ptr<eos> &eqnState,
-                             const unique_ptr<thermodynamic> &thermo,
-                             const varArrayView &du,
-                             const unique_ptr<turbModel> &turb) {
-  // eqnState -- equation of state
+primitive UpdatePrimWithCons(const T &state, const physics &phys,
+                             const varArrayView &du) {
+  // phys -- physics models
   // du -- updates to conservative variables
-  // turb -- turbulence model
   static_assert(std::is_same<primitive, T>::value ||
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
 
   // convert primitive to conservative and update
-  auto consUpdate = state.ConsVars(eqnState, thermo) + du;
+  auto consUpdate = state.ConsVars(phys) + du;
   // keep mass fractions positive and renormalize
   const auto rho = consUpdate.Rho();
   auto mf = consUpdate.MassFractions();
@@ -253,16 +221,15 @@ primitive UpdatePrimWithCons(const T &state, const unique_ptr<eos> &eqnState,
   for (auto ii = 0; ii < consUpdate.NumSpecies(); ++ii) {
     consUpdate[ii] = rho * mf[ii];
   }
-  return primitive(consUpdate, eqnState, thermo, turb);
+  return primitive(consUpdate, phys);
 }
                                
 
 
 // ---------------------------------------------------------------------------
 // member function to calculate conserved variables from primitive variables
-conserved primitive::ConsVars(const unique_ptr<eos> &eqnState,
-                            const unique_ptr<thermodynamic> &thermo) const {
-  return PrimToCons((*this), eqnState, thermo);
+conserved primitive::ConsVars(const physics &phys) const {
+  return PrimToCons((*this), phys);
 }
 
 ostream &operator<<(ostream &os, const primitive &);

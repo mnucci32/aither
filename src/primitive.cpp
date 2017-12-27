@@ -23,7 +23,7 @@
 #include <algorithm>  // max
 #include "primitive.hpp"
 #include "input.hpp"               // input
-#include "turbulence.hpp"          // turbModel
+#include "physicsModels.hpp"
 #include "utility.hpp"
 #include "wallLaw.hpp"
 #include "wallData.hpp"
@@ -38,11 +38,8 @@ using std::min;
 using std::unique_ptr;
 
 // member function to initialize a state with nondimensional values
-void primitive::NondimensionalInitialize(const unique_ptr<eos> &eqnState,
-                                        const input &inp,
-                                        const unique_ptr<transport> &trans,
-                                        const int &parBlock,
-                                        const unique_ptr<turbModel> &turb) {
+void primitive::NondimensionalInitialize(const physics &phys, const input &inp,
+                                         const int &parBlock) {
   // get initial condition state for parent block
   auto ic = inp.ICStateForBlock(parBlock);
   auto massFracs = ic.MassFractions();
@@ -65,7 +62,7 @@ void primitive::NondimensionalInitialize(const unique_ptr<eos> &eqnState,
     // intensity and eddy viscosity ratio. This is the default for
     // STAR-CCM+
     this->ApplyFarfieldTurbBC(this->Velocity(), ic.TurbulenceIntensity(),
-                              ic.EddyViscosityRatio(), trans, eqnState, turb);
+                              ic.EddyViscosityRatio(), phys);
   }
 }
 
@@ -77,35 +74,29 @@ ostream &operator<<(ostream &os, const primitive &prim) {
   return os;
 }
 
-primitive primitive::UpdateWithConsVars(
-    const unique_ptr<eos> &eqnState, const unique_ptr<thermodynamic> &thermo,
-    const varArrayView &du, const unique_ptr<turbModel> &turb) const {
-  return UpdatePrimWithCons((*this), eqnState, thermo, du, turb);
+primitive primitive::UpdateWithConsVars(const physics &phys,
+                                        const varArrayView &du) const {
+  return UpdatePrimWithCons((*this), phys, du);
 }
-
 
 // member function to apply farfield turbulence boundary conditions
 // using the method in STAR-CCM+ involving turbulence intensity and
 // eddy viscosity ratio
 void primitive::ApplyFarfieldTurbBC(const vector3d<double> &vel,
-                                   const double &turbInten,
-                                   const double &viscRatio,
-                                   const unique_ptr<transport> &trans,
-                                   const unique_ptr<eos> &eqnState,
-                                   const unique_ptr<turbModel> &turb) {
+                                    const double &turbInten,
+                                    const double &viscRatio,
+                                    const physics &phys) {
   // vel -- reference velocity (nondimensionalized)
   // turbInten -- turbulence intensity at farfield
   // viscRatio -- eddy viscosity ratio at farfield
-  // trans -- viscous transport model
-  // eqnState -- equation of state
-  // turb --  turbulence model
+  // phys -- physics models
 
   (*this)[this->TurbulenceIndex()] = 1.5 * pow(turbInten * vel.Mag(), 2.0);
   (*this)[this->TurbulenceIndex() + 1] =
       this->Rho() * this->Tke() /
-      (viscRatio *
-       trans->Viscosity(this->Temperature(eqnState), this->MassFractions()));
-  this->LimitTurb(turb);
+      (viscRatio * phys.Transport()->Viscosity(this->Temperature(phys.EoS()),
+                                               this->MassFractions()));
+  this->LimitTurb(phys.Turbulence());
 }
 
 void primitive::LimitTurb(const unique_ptr<turbModel> &turb) {

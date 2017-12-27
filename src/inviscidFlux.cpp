@@ -14,26 +14,11 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include <cmath>  // sqrt
-#include <string>
-#include <memory>
-#include <algorithm>  // max
+#include <iostream>
 #include "inviscidFlux.hpp"
-#include "eos.hpp"
-#include "thermodynamic.hpp"
-#include "primitive.hpp"
-#include "matrix.hpp"
-#include "turbulence.hpp"
-#include "utility.hpp"
 
-using std::cout;
 using std::endl;
-using std::cerr;
-using std::vector;
-using std::string;
-using std::max;
-using std::copysign;
-using std::unique_ptr;
+using std::ostream;
 
 /* Member function to calculate the Roe flux, given the left and right
  * convective fluxes as well as the dissipation term.

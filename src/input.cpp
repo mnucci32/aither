@@ -28,9 +28,7 @@
 #include "input.hpp"
 #include "turbulence.hpp"
 #include "inputStates.hpp"
-#include "eos.hpp"
-#include "transport.hpp"
-#include "thermodynamic.hpp"
+#include "physicsModels.hpp"
 #include "fluid.hpp"
 #include "macros.hpp"
 
@@ -89,6 +87,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   thermodynamicModel_ = "caloricallyPerfect";  // default to cpg
   equationOfState_ = "idealGas";  // default to ideal gas
   transportModel_ = "sutherland";  // default to sutherland
+  diffusionModel_ = "none";  // default to no diffusion
   restartFrequency_ = 0;  // default to not write restarts
   iterationStart_ = 0;  // default to start from iteration zero
 
@@ -125,6 +124,7 @@ input::input(const string &name, const string &resName) : simName_(name),
            "decompositionMethod",
            "turbulenceModel",
            "thermodynamicModel",
+           "diffusionModel",
            "equationOfState",
            "transportModel",
            "outputVariables",
@@ -730,6 +730,30 @@ unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
   return thermo;
 }
 
+// member function to get diffusion model
+unique_ptr<diffusion> input::AssignDiffusionModel() const {
+  // define diffusion model
+  unique_ptr<diffusion> diff(nullptr);
+  if (diffusionModel_ == "none") {
+    diff = unique_ptr<diffusion>{std::make_unique<diffNone>()};
+  } else if (diffusionModel_ == "schmidt") {
+    diff = unique_ptr<diffusion>{std::make_unique<schmidt>(fluids_)};
+  } else {
+    cerr << "ERROR: Error in input::AssignDiffusionModel(). Diffusion "
+         << "model " << diffusionModel_ << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return diff;
+}
+
+physics input::AssignPhysicsModels() const {
+  auto eqnState = this->AssignEquationOfState();
+  auto trans = this->AssignTransportModel();
+  auto thermo = this->AssignThermodynamicModel();
+  auto diff = this->AssignDiffusionModel();
+  auto turb = this->AssignTurbulenceModel();
+  return {eqnState, trans, thermo, diff, turb};
+}
 
 // member function to return the name of the simulation without the file
 // extension i.e. "myInput.inp" would return "myInput"

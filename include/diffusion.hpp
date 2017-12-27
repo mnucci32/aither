@@ -19,7 +19,6 @@
 
 // This header file contains the classes for all diffusion models
 
-#include <memory>
 #include <vector>
 
 using std::vector;

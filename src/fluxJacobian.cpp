@@ -16,7 +16,6 @@
 
 #include <iostream>        // cout
 #include <cmath>  // sqrt
-#include <memory>
 #include <string>
 #include <algorithm>  // max
 #include "fluxJacobian.hpp"
@@ -31,13 +30,13 @@
 #include "conserved.hpp"      // conserved
 #include "spectralRadius.hpp"
 #include "matrix.hpp"
+#include "physicsModels.hpp"
 
 using std::cout;
 using std::endl;
 using std::cerr;
 using std::vector;
 using std::string;
-using std::unique_ptr;
 
 // member functions
 void fluxJacobian::AddToFlowJacobian(const squareMatrix &jac) {
@@ -120,13 +119,13 @@ ostream &operator<<(ostream &os, const fluxJacobian &jacobian) {
   return os;
 }
 
-varArray RusanovScalarOffDiagonal(
-    const primitiveView &state, const varArrayView &update,
-    const unitVec3dMag<double> &fArea, const double &mu, const double &mut,
-    const double &f1, const double &dist, const unique_ptr<eos> &eqnState,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const unique_ptr<turbModel> &turb, const bool &isViscous,
-    const bool &positive) {
+varArray RusanovScalarOffDiagonal(const primitiveView &state,
+                                  const varArrayView &update,
+                                  const unitVec3dMag<double> &fArea,
+                                  const double &mu, const double &mut,
+                                  const double &f1, const double &dist,
+                                  const physics &phys, const bool &isViscous,
+                                  const bool &positive) {
   // state -- primitive variables at off diagonal
   // update -- conserved variable update at off diagonal
   // fArea -- face area vector on off diagonal boundary
@@ -134,21 +133,18 @@ varArray RusanovScalarOffDiagonal(
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
   // dist -- distance from cell center to cell center across face on diagonal
-  // eos -- equation of state
-  // thermo -- thermodynamic model
-  // trans -- viscous transport model
-  // turb -- turbulence model
+  // phys -- physics models
   // isViscous -- flag to determine if simulation is viscous
   // positive -- flag to determine whether to add or subtract dissipation
 
   // calculate updated state
   const auto stateUpdate =
-      state.UpdateWithConsVars(eqnState, thermo, update, turb);
+      state.UpdateWithConsVars(phys, update);
 
   // calculate updated convective flux
   auto fluxChange =
-      0.5 * fArea.Mag() * ConvectiveFluxUpdate(state, stateUpdate, eqnState,
-                                               thermo, fArea.UnitVector());
+      0.5 * fArea.Mag() *
+      ConvectiveFluxUpdate(state, stateUpdate, phys, fArea.UnitVector());
   // zero out turbulence quantities b/c spectral radius is like full jacobian
   for (auto ii = 0; ii < fluxChange.NumTurbulence(); ++ii) {
     fluxChange[fluxChange.TurbulenceIndex() + ii] = 0.0;
@@ -156,10 +152,9 @@ varArray RusanovScalarOffDiagonal(
 
   // can't use stored cell spectral radius b/c it has contributions from i, j, k
   const uncoupledScalar specRad(
-      FaceSpectralRadius(state, fArea, thermo, eqnState, trans, dist, mu, mut,
-                         turb, isViscous),
-      turb->FaceSpectralRadius(state, fArea, mu, trans, dist, mut, f1,
-                               positive));
+      FaceSpectralRadius(state, fArea, phys, dist, mu, mut, isViscous),
+      phys.Turbulence()->FaceSpectralRadius(state, fArea, mu, phys.Transport(),
+                                            dist, mut, f1, positive));
 
   return positive ?
     fluxChange + specRad.ArrayMult(update) :
@@ -169,10 +164,8 @@ varArray RusanovScalarOffDiagonal(
 varArray RusanovBlockOffDiagonal(
     const primitiveView &state, const varArrayView &update,
     const unitVec3dMag<double> &fArea, const double &mu, const double &mut,
-    const double &f1, const double &dist, const unique_ptr<eos> &eqnState,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const unique_ptr<turbModel> &turb, const input &inp, const bool &positive,
-    const tensor<double> &vGrad) {
+    const double &f1, const double &dist, const physics &phys, const input &inp,
+    const bool &positive, const tensor<double> &vGrad) {
   // state -- primitive variables at off diagonal
   // update -- conserved variable update at off diagonal
   // fArea -- face area vector on off diagonal boundary
@@ -180,10 +173,7 @@ varArray RusanovBlockOffDiagonal(
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
   // dist -- distance from cell center to cell center across face on diagonal
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // trans -- viscous transport model
-  // turb -- turbulence model
+  // phys -- physics models
   // inp -- input variables
   // positive -- flag to determine whether to add or subtract dissipation
   // vGrad -- velocity gradient
@@ -191,26 +181,24 @@ varArray RusanovBlockOffDiagonal(
   fluxJacobian jacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
 
   // calculate inviscid jacobian
-  jacobian.RusanovFluxJacobian(state, eqnState, thermo, fArea, positive, inp,
-                               turb);
+  jacobian.RusanovFluxJacobian(state, phys, fArea, positive, inp);
 
   // add viscous contribution
   if (inp.IsViscous()) {
     fluxJacobian viscJac(inp.NumFlowEquations(), inp.NumTurbEquations());
-    viscJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans, thermo,
-                              fArea, dist, turb, inp, positive, vGrad);
+    viscJac.ApproxTSLJacobian(state, mu, mut, f1, phys, fArea, dist, inp,
+                              positive, vGrad);
     positive ? jacobian -= viscJac : jacobian += viscJac;
   }
   return jacobian.ArrayMult(update);
 }
 
-varArray OffDiagonal(
-    const primitiveView &offDiag, const primitiveView &diag,
-    const varArrayView &update, const unitVec3dMag<double> &fArea,
-    const double &mu, const double &mut, const double &f1, const double &dist,
-    const tensor<double> &vGrad, const unique_ptr<eos> &eqnState,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const unique_ptr<turbModel> &turb, const input &inp, const bool &positive) {
+varArray OffDiagonal(const primitiveView &offDiag, const primitiveView &diag,
+                     const varArrayView &update,
+                     const unitVec3dMag<double> &fArea, const double &mu,
+                     const double &mut, const double &f1, const double &dist,
+                     const tensor<double> &vGrad, const physics &phys,
+                     const input &inp, const bool &positive) {
   // offDiag -- primitive variables at off diagonal
   // diag -- primitive variables at diagonal
   // update -- conserved variable update at off diagonal
@@ -220,10 +208,7 @@ varArray OffDiagonal(
   // f1 -- first blending coefficient
   // dist -- distance from cell center to cell center across face on diagonal
   // vGrad -- velocity gradient
-  // eos -- equation of state
-  // thermo -- thermodynamic model
-  // trans -- viscous transport model
-  // turb -- turbulence model
+  // phys -- physics models
   // input -- input variables
   // positive -- flag to determine whether to add or subtract dissipation
 
@@ -232,19 +217,17 @@ varArray OffDiagonal(
   if (inp.InvFluxJac() == "rusanov") {
     if (inp.IsBlockMatrix()) {
       offDiagonal = RusanovBlockOffDiagonal(offDiag, update, fArea, mu, mut, f1,
-                                            dist, eqnState, thermo, trans, turb,
-                                            inp, positive, vGrad);
+                                            dist, phys, inp, positive, vGrad);
     } else {
-      offDiagonal = RusanovScalarOffDiagonal(offDiag, update, fArea, mu, mut,
-                                             f1, dist, eqnState, thermo, trans,
-                                             turb, inp.IsViscous(), positive);
+      offDiagonal =
+          RusanovScalarOffDiagonal(offDiag, update, fArea, mu, mut, f1, dist,
+                                   phys, inp.IsViscous(), positive);
     }
   } else if (inp.InvFluxJac() == "approximateRoe") {
     // always use flux change off diagonal with roe method
-    offDiagonal = RoeOffDiagonal(offDiag, diag, update, fArea, mu, mut,
-                                 f1, dist, eqnState, thermo, trans, turb,
-                                 inp.IsViscous(), inp.IsRANS(),
-                                 positive);
+    offDiagonal =
+        RoeOffDiagonal(offDiag, diag, update, fArea, mu, mut, f1, dist, phys,
+                       inp.IsViscous(), inp.IsRANS(), positive);
   } else {
     cerr << "ERROR: Error in OffDiagonal(), inviscid flux jacobian method of "
          << inp.InvFluxJac() << " is not recognized!" << endl;
@@ -254,13 +237,12 @@ varArray OffDiagonal(
   return offDiagonal;
 }
 
-varArray RoeOffDiagonal(
-    const primitiveView &offDiag, const primitiveView &diag,
-    const varArrayView &update, const unitVec3dMag<double> &fArea,
-    const double &mu, const double &mut, const double &dist, const double &f1,
-    const unique_ptr<eos> &eqnState, const unique_ptr<thermodynamic> &thermo,
-    const unique_ptr<transport> &trans, const unique_ptr<turbModel> &turb,
-    const bool &isViscous, const bool &isRANS, const bool &positive) {
+varArray RoeOffDiagonal(const primitiveView &offDiag, const primitiveView &diag,
+                        const varArrayView &update,
+                        const unitVec3dMag<double> &fArea, const double &mu,
+                        const double &mut, const double &dist, const double &f1,
+                        const physics &phys, const bool &isViscous,
+                        const bool &isRANS, const bool &positive) {
   // offDiag -- primitive variables at off diagonal
   // diag -- primitive variables at diagonal
   // update -- conserved variable update at off diagonal
@@ -269,10 +251,7 @@ varArray RoeOffDiagonal(
   // mu -- laminar viscosity at off diagonal
   // mut -- turbulent viscosity at off diagonal
   // f1 -- first blending coefficient at off diagonal
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // trans -- viscous transport model
-  // turb -- turbulence model
+  // phys -- physics models
   // isViscous -- flag to determine if simulation is viscous
   // isRANS -- flag to determine if simulation is turbulent
   // positive -- flag to determine whether to add or subtract dissipation
@@ -283,15 +262,13 @@ varArray RoeOffDiagonal(
   const auto areaNorm = fArea.UnitVector();
 
   // calculate Roe flux with old variables
-  const auto oldFlux = RoeFlux(offDiag, diag, eqnState, thermo, areaNorm);
+  const auto oldFlux = RoeFlux(offDiag, diag, phys, areaNorm);
 
   // calculate updated Roe flux on off diagonal
-  const auto stateUpdate =
-      offDiag.UpdateWithConsVars(eqnState, thermo, update, turb);
+  const auto stateUpdate = offDiag.UpdateWithConsVars(phys, update);
 
-  const auto newFlux = positive ?
-    RoeFlux(stateUpdate, diag, eqnState, thermo, areaNorm) :
-    RoeFlux(diag, stateUpdate, eqnState, thermo, areaNorm);
+  const auto newFlux = positive ? RoeFlux(stateUpdate, diag, phys, areaNorm)
+                                : RoeFlux(diag, stateUpdate, phys, areaNorm);
 
   // don't need 0.5 factor on roe flux because RoeFlux function already does it
   const auto fluxChange = fArea.Mag() * (newFlux - oldFlux);
@@ -299,12 +276,12 @@ varArray RoeOffDiagonal(
   // add contribution for viscous terms
   uncoupledScalar specRad(0.0, 0.0);
   if (isViscous) {
-    specRad.AddToFlowVariable(ViscFaceSpectralRadius(
-        offDiag, fArea, thermo, eqnState, trans, dist, mu, mut, turb));
+    specRad.AddToFlowVariable(
+        ViscFaceSpectralRadius(offDiag, fArea, phys, dist, mu, mut));
 
     if (isRANS) {
-      specRad.AddToTurbVariable(turb->ViscFaceSpecRad(offDiag, fArea, mu, trans,
-                                                      dist, mut, f1));
+      specRad.AddToTurbVariable(phys.Turbulence()->ViscFaceSpecRad(
+          offDiag, fArea, mu, phys.Transport(), dist, mut, f1));
     }
   }
 
