@@ -18,26 +18,16 @@
 #include <cmath>
 #include "limiter.hpp"
 #include "primitive.hpp"
-#include "utility.hpp"    // Sign
 
 
 // function to calculate minmod limiter
-primitive LimiterMinmod(const primitive &upwind, const primitive &downwind,
-                        const double &kap) {
-  // upwind -- upwind state (primitive)
-  // downwind -- downwind state (primitive)
-  // kap -- MUSCL parameter kappa
+primitive LimiterMinmod(const primitive &r) {
+  // r -- ratio of divided differences
 
-  primitive limiter(upwind.Size(), upwind.NumSpecies());
-
-  // calculate minmod parameter beta
-  const auto beta = (3.0 - kap) / (1.0 - kap);
-
+  primitive limiter(r.Size(), r.NumSpecies());
   // calculate minmod limiter
   for (auto ii = 0; ii < limiter.Size(); ++ii) {
-    auto sign = Sign(upwind[ii]);
-    limiter[ii] = sign * std::max(0.0, std::min(fabs(upwind[ii]),
-                                                sign * downwind[ii] * beta));
+    limiter[ii] = std::max(0.0, std::min(1.0, r[ii]));
   }
   return limiter;
 }
@@ -46,7 +36,8 @@ primitive LimiterMinmod(const primitive &upwind, const primitive &downwind,
 primitive LimiterVanAlbada(const primitive &r) {
   // r -- ratio of divided differences
 
-  auto limiter = (r + r * r) / (1.0 + r * r);
+  const auto r2 = r * r;
+  auto limiter = (r + r2) / (1.0 + r2);
   // if value is negative, return zero
   for (auto ii = 0; ii < limiter.Size(); ++ii) {
     limiter[ii] = std::max(0.0, limiter[ii]);
