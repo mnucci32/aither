@@ -10,6 +10,3 @@ sutherlandViscosityS: 110.4
 # transport properties -- thermal conductivity
 sutherlandConductivityC1: 2.495e-3
 sutherlandConductivityS: 194.0
-
-# diffusion properties
-schmidt: 0.9

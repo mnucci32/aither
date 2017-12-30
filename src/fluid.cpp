@@ -134,8 +134,6 @@ void fluid::GetDatabaseProperties(const string &name) {
         transportConductivity_[0] = std::stod(tokens[1]);
       } else if (key == "sutherlandConductivityS") {
         transportConductivity_[1] = std::stod(tokens[1]);
-      } else if (key == "schmidt") {
-        schmidt_ = std::stod(tokens[1]);
       }
     }
   }

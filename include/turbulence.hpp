@@ -68,6 +68,7 @@ class turbModel {
   }
   virtual double EddyViscosityNoLim(const primitiveView &state) const;
   virtual double TurbPrandtlNumber() const {return 0.9;}
+  virtual double TurbSchmidtNumber() const {return 0.7;}
   virtual double TkeMin() const {return 1.0e-20;}
   virtual double OmegaMin() const {return 1.0e-20;}
   virtual double TurbMinN(const int &ii) const { 

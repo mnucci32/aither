@@ -89,6 +89,7 @@ class input {
   string diffusionModel_;  // model for species diffusion
   int restartFrequency_;  // how often to output restart data
   int iterationStart_;  // starting number for iterations
+  double schmidtNumber_;  // schmidt number for species diffusion
 
   set<string> outputVariables_;  // variables to output
   set<string> wallOutputVariables_;  // wall variables to output
@@ -106,7 +107,7 @@ class input {
   unique_ptr<turbModel> AssignTurbulenceModel() const;
   unique_ptr<eos> AssignEquationOfState() const;
   unique_ptr<transport> AssignTransportModel() const;
-  unique_ptr<diffusion> AssignDiffusionModel() const;
+  unique_ptr<diffusion> AssignDiffusionModel(const double &) const;
   unique_ptr<thermodynamic> AssignThermodynamicModel() const;
 
  public:
@@ -249,6 +250,8 @@ class input {
   bool SpeciesIndex(const string &) const;
 
   bool IsWenoZ() const {return this->FaceReconstruction() == "wenoZ";}
+
+  double SchmidtNumber() const { return schmidtNumber_; }
 
   // destructor
   ~input() noexcept {}

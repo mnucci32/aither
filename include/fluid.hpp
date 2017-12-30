@@ -39,7 +39,6 @@ class fluid {
   double universalGasConst_ = 8.3144598;  // J / mol-K
   array<double, 2> transportViscosity_;
   array<double, 2> transportConductivity_;
-  double schmidt_;
   double massFracRef_ = 1.0;
   string name_ = "air";
   bool nondimensional_ = false;
@@ -69,7 +68,6 @@ class fluid {
   double UniversalGasConstant() const { return universalGasConst_; }
   auto ViscosityCoeffs() const { return transportViscosity_; }
   auto ConductivityCoeffs() const { return transportConductivity_; }
-  double SchmidtNumber() const { return schmidt_; }
   double MassFractionRef() const { return massFracRef_; }
   string Name() const { return name_; }
   bool IsNondimensional() const { return nondimensional_; }

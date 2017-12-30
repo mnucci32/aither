@@ -90,6 +90,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   diffusionModel_ = "none";  // default to no diffusion
   restartFrequency_ = 0;  // default to not write restarts
   iterationStart_ = 0;  // default to start from iteration zero
+  schmidtNumber_ = 0.9;
 
   // default to primitive variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
@@ -130,6 +131,7 @@ input::input(const string &name, const string &resName) : simName_(name),
            "outputVariables",
            "wallOutputVariables",
            "initialConditions",
+           "schmidtNumber",
            "boundaryStates",
            "boundaryConditions"};
 }
@@ -388,6 +390,11 @@ void input::ReadInput(const int &rank) {
           transportModel_ = tokens[1];
           if (rank == ROOTP) {
             cout << key << ": " << this->TransportModel() << endl;
+          }
+        } else if (key == "schmidtNumber") {
+          schmidtNumber_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << ": " << this->SchmidtNumber() << endl;
           }
         } else if (key == "outputVariables") {
           // clear default variables from set
@@ -731,13 +738,14 @@ unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
 }
 
 // member function to get diffusion model
-unique_ptr<diffusion> input::AssignDiffusionModel() const {
+unique_ptr<diffusion> input::AssignDiffusionModel(const double &sct) const {
   // define diffusion model
   unique_ptr<diffusion> diff(nullptr);
   if (diffusionModel_ == "none") {
     diff = unique_ptr<diffusion>{std::make_unique<diffNone>()};
   } else if (diffusionModel_ == "schmidt") {
-    diff = unique_ptr<diffusion>{std::make_unique<schmidt>(fluids_)};
+    diff = unique_ptr<diffusion>{
+        std::make_unique<schmidt>(schmidtNumber_, sct)};
   } else {
     cerr << "ERROR: Error in input::AssignDiffusionModel(). Diffusion "
          << "model " << diffusionModel_ << " is not recognized!" << endl;
@@ -750,8 +758,8 @@ physics input::AssignPhysicsModels() const {
   auto eqnState = this->AssignEquationOfState();
   auto trans = this->AssignTransportModel();
   auto thermo = this->AssignThermodynamicModel();
-  auto diff = this->AssignDiffusionModel();
   auto turb = this->AssignTurbulenceModel();
+  auto diff = this->AssignDiffusionModel(turb->TurbSchmidtNumber());
   return {eqnState, trans, thermo, diff, turb};
 }
 

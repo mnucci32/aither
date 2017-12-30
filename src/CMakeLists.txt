@@ -30,7 +30,6 @@ set(sources
   main.cpp
   boundaryConditions.cpp
   conserved.cpp
-  diffusion.cpp
   eos.cpp
   fluid.cpp
   fluxJacobian.cpp

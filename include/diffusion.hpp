@@ -42,7 +42,8 @@ class diffusion {
   diffusion& operator=(const diffusion&) = default;
 
   // Member functions for abstract base class
-  virtual double SpeciesDiffusion(const int &ii, const int &jj) const = 0;
+  virtual double LaminarDiffCoeff(const double &mu) const = 0;
+  virtual double TurbDiffCoeff(const double &mut) const = 0;
 
   // Destructor
   virtual ~diffusion() noexcept {}
@@ -64,8 +65,10 @@ class diffNone : public diffusion {
   diffNone& operator=(const diffNone&) = default;
 
   // Member functions
-  double SpeciesDiffusion(const int &ii, const int &jj) const override {
-    return 0.0;
+  double LaminarDiffCoeff(const double &mu) const override { return 0.0; }
+  double TurbDiffCoeff(const double &mut) const override { return 0.0; }
+  double DiffCoeff(const double &mu, const double &mut) {
+    return this->LaminarDiffCoeff(mu) + this->TurbDiffCoeff(mut);
   }
 
   // Destructor
@@ -76,14 +79,13 @@ class diffNone : public diffusion {
 
 // this class models diffusion using Schmidt number
 class schmidt : public diffusion {
-  vector<double> diffCoeff_;
-
-  // private member functions
-  double WilkesDiff(const vector<double> &, const vector<double> &) const;
+  double schmidtNumber_;
+  double turbSchmidtNumber_;
 
  public:
   // Constructors
-  schmidt(const vector<fluid> &);
+  schmidt(const double &sc, const double &tsc)
+      : schmidtNumber_(sc), turbSchmidtNumber_(tsc) {}
 
   // move constructor and assignment operator
   schmidt(schmidt&&) noexcept = default;
@@ -94,8 +96,12 @@ class schmidt : public diffusion {
   schmidt& operator=(const schmidt&) = default;
 
   // Member functions
-  int NumSpecies() const { return diffCoeff_.size(); }
-  double SpeciesDiffusion(const int &, const int &) const override;
+  double LaminarDiffCoeff(const double &mu) const override {
+    return mu / schmidtNumber_;
+  }
+  double TurbDiffCoeff(const double &mut) const override {
+    return mut / turbSchmidtNumber_;
+  }
 
   // Destructor
   ~schmidt() noexcept {}

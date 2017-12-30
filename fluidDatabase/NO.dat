@@ -15,6 +15,3 @@ sutherlandViscosityS: 1.2846E+02
 # from [250.0 K - 1000.0 K]
 sutherlandConductivityC1: 2.7255E-03
 sutherlandConductivityS: 2.7027E+02
-
-# diffusion properties
-schmidt: 0.9
