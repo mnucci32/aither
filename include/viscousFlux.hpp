@@ -19,7 +19,7 @@
 #define VISCFLUXHEADERDEF  // define the macro
 
 #include <iostream>        // cout
-#include <memory>          // unique_ptr
+#include <memory>
 #include "vector3d.hpp"    // vector3d
 #include "tensor.hpp"      // tensor
 #include "varArray.hpp"
@@ -32,9 +32,7 @@ using std::unique_ptr;
 
 // forward class declarations
 class primitive;
-class eos;
-class transport;
-class thermodynamic;
+class physics;
 class turbModel;
 class squareMatrix;
 struct wallVars;
@@ -55,18 +53,14 @@ class viscousFlux : public varArray {
   viscousFlux& operator=(const viscousFlux&) = default;
 
   // member functions
-  void CalcFlux(const tensor<double> &, const unique_ptr<transport> &,
-                const unique_ptr<thermodynamic> &,
-                const unique_ptr<eos> &eqnState, const vector3d<double> &,
+  void CalcFlux(const tensor<double> &, const physics &,
                 const vector3d<double> &, const vector3d<double> &,
-                const vector3d<double> &, const unique_ptr<turbModel> &,
+                const vector3d<double> &, const vector3d<double> &,
                 const primitive &, const double &, const double &,
                 const double &);
-  wallVars CalcWallFlux(const tensor<double> &, const unique_ptr<transport> &,
-                        const unique_ptr<thermodynamic> &,
-                        const unique_ptr<eos> &, const vector3d<double> &,
+  wallVars CalcWallFlux(const tensor<double> &, const physics &,
                         const vector3d<double> &, const vector3d<double> &,
-                        const vector3d<double> &, const unique_ptr<turbModel> &,
+                        const vector3d<double> &, const vector3d<double> &,
                         const primitive &, const double &, const double &,
                         const double &);
   void CalcWallLawFlux(const vector3d<double> &, const double &, const double &,

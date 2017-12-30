@@ -40,6 +40,7 @@
 #include "spectralRadius.hpp"
 #include "ghostStates.hpp"
 #include "matMultiArray3d.hpp"
+#include "physicsModels.hpp"
 
 using std::cout;
 using std::endl;
@@ -75,7 +76,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
     if (bound.GetBCTypes(ii) == "viscousWall") {
       const auto surf = bound.GetSurface(ii);
       const auto &bcData = inp.BCData(surf.Tag());
-      wallData_.push_back(wallData(surf, bcData));
+      wallData_.push_back(wallData(surf, bcData, inp.NumSpecies()));
     }
   }
 
@@ -254,14 +255,9 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
 
 //---------------------------------------------------------------------
 // function declarations
-void procBlock::InitializeStates(const input &inp,
-                                 const unique_ptr<eos> &eqnState,
-                                 const unique_ptr<transport> &trans,
-                                 const unique_ptr<turbModel> &turb) {
+void procBlock::InitializeStates(const input &inp, const physics &phys) {
   // inp -- input variables
-  // eqnState -- equation of state
-  // trans -- transport model
-  // turb -- turbulence model
+  // phys -- physics models
 
   // get initial condition state for parent block
   auto ic = inp.ICStateForBlock(parBlock_);
@@ -270,10 +266,8 @@ void procBlock::InitializeStates(const input &inp,
     // create k-d tree from cloud of points
     vector<primitive> cloudStates;
     vector<string> species;
-    const auto tree =
-        CalcTreeFromCloud(ic.File(), inp, trans, cloudStates, species);
-    // check that species are defined
-    inp.CheckSpecies(species);
+    const auto tree = CalcTreeFromCloud(ic.File(), inp, phys.Transport(),
+                                        cloudStates, species);
 
     auto maxDist = std::numeric_limits<double>::min();
     vector3d<double> neighbor;
@@ -285,12 +279,16 @@ void procBlock::InitializeStates(const input &inp,
           auto dist = tree.NearestNeighbor(center_(ii, jj, kk), neighbor, id);
           maxDist = std::max(dist, maxDist);
           state_.InsertBlock(ii, jj, kk, cloudStates[id]);
-          temperature_(ii, jj, kk) = state_(ii, jj, kk).Temperature(eqnState);
+          MSG_ASSERT(state_(ii, jj, kk).Rho() > 0, "nonphysical density");
+          MSG_ASSERT(state_(ii, jj, kk).P() > 0, "nonphysical pressure");
+          temperature_(ii, jj, kk) = state_(ii, jj, kk).Temperature(phys.EoS());
+          MSG_ASSERT(temperature_(ii, jj, kk) > 0, "nonphysical temperature");
           if (inp.IsViscous()) {
-            viscosity_(ii, jj, kk) = trans->Viscosity(temperature_(ii, jj, kk));
+            viscosity_(ii, jj, kk) = phys.Transport()->Viscosity(
+                temperature_(ii, jj, kk), state_(ii, jj, kk).MassFractions());
             if (inp.IsTurbulent()) {
               eddyViscosity_(ii, jj, kk) =
-                  turb->EddyViscNoLim(state_(ii, jj, kk));
+                  phys.Turbulence()->EddyViscNoLim(state_(ii, jj, kk));
             }
           }
         }
@@ -305,7 +303,9 @@ void procBlock::InitializeStates(const input &inp,
   } else {
     // get nondimensional state for initialization
     primitive inputState(inp.NumEquations(), inp.NumSpecies());
-    inputState.NondimensionalInitialize(eqnState, inp, trans, parBlock_, turb);
+    inputState.NondimensionalInitialize(phys, inp, parBlock_);
+    MSG_ASSERT(inputState.Rho() > 0, "nonphysical density");
+    MSG_ASSERT(inputState.P() > 0, "nonphysical pressure");
 
     const auto numI = this->NumI();
     const auto numJ = this->NumJ();
@@ -316,11 +316,13 @@ void procBlock::InitializeStates(const input &inp,
         blkMultiArray3d<primitive>(numI, numJ, numK, 0, inputState),
         numGhosts_);
 
-    const auto inputTemperature = inputState.Temperature(eqnState);
+    const auto inputTemperature = inputState.Temperature(phys.EoS());
+    MSG_ASSERT(inputTemperature > 0, "nonphysical temperature");
     temperature_ = {numI, numJ, numK, numGhosts_, 1, inputTemperature};
 
     if (isViscous_) {
-      const auto inputViscosity = trans->Viscosity(inputTemperature);
+      const auto inputViscosity = phys.Transport()->Viscosity(
+          inputTemperature, inputState.MassFractions());
       viscosity_ = {numI, numJ, numK, numGhosts_, 1, inputViscosity};
       if (isTurbulent_) {
         eddyViscosity_ = {numI, numJ, numK, numGhosts_, 1,
@@ -357,13 +359,9 @@ a cell basis instead of a face bases, it is only calculated for the upper cell
 variable and is eventually used in the time step calculation if the time step
 isn't explicitly specified.
 */
-void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
-                             const unique_ptr<thermodynamic> &thermo,
-                             const input &inp,
-                             const unique_ptr<turbModel> &turb,
+void procBlock::CalcInvFluxI(const physics &phys, const input &inp,
                              matMultiArray3d &mainDiagonal) {
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
+  // phys -- physics models
   // inp -- all input variables
   // mainDiagonal -- main diagonal of LHS to store flux jacobians for implicit
   //                 solver
@@ -414,7 +412,7 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
 
         // calculate inviscid flux at face
         const inviscidFlux tempFlux =
-            InviscidFlux(faceStateLower, faceStateUpper, eqnState, thermo,
+            InviscidFlux(faceStateLower, faceStateUpper, phys,
                          this->FAreaUnitI(ii, jj, kk), inp.InviscidFlux());
 
         // area vector points from left to right, so add to left cell, subtract
@@ -427,9 +425,8 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
           // if using a block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
-            fluxJac.RusanovFluxJacobian(faceStateLower, eqnState, thermo,
-                                        this->FAreaI(ii, jj, kk), true,
-                                        inp, turb);
+            fluxJac.RusanovFluxJacobian(faceStateLower, phys,
+                                        this->FAreaI(ii, jj, kk), true, inp);
             mainDiagonal.Add(ii - 1, jj, kk, fluxJac);
           }
         }
@@ -443,11 +440,13 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
           // basis, so only at the upper faces
           const auto invSpecRad =
               InvCellSpectralRadius(state_(ii, jj, kk), fAreaI_(ii, jj, kk),
-                                    fAreaI_(ii + 1, jj, kk), thermo, eqnState);
+                                    fAreaI_(ii + 1, jj, kk), phys);
 
-          const auto turbInvSpecRad = isRANS_ ?
-              turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaI_(ii, jj, kk),
-                                        fAreaI_(ii + 1, jj, kk)): 0.0;
+          const auto turbInvSpecRad =
+              isRANS_ ? phys.Turbulence()->InviscidCellSpecRad(
+                            state_(ii, jj, kk), fAreaI_(ii, jj, kk),
+                            fAreaI_(ii + 1, jj, kk))
+                      : 0.0;
 
           const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
           specRadius_(ii, jj, kk) += specRad;
@@ -455,9 +454,8 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
           // if using a block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
-            fluxJac.RusanovFluxJacobian(faceStateUpper, eqnState, thermo,
-                                        this->FAreaI(ii, jj, kk), false,
-                                        inp, turb);
+            fluxJac.RusanovFluxJacobian(faceStateUpper, phys,
+                                        this->FAreaI(ii, jj, kk), false, inp);
             mainDiagonal.Subtract(ii, jj, kk, fluxJac);
           } else if (inp.IsImplicit()) {
             mainDiagonal.Add(ii, jj, kk, fluxJacobian(specRad, isRANS_));
@@ -495,13 +493,10 @@ a cell basis instead of a face bases, it is only calculated for the upper cell
 variable and is eventually used in the time step calculation if the time step
 isn't explicitly specified.
 */
-void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
-                             const unique_ptr<thermodynamic> &thermo,
+void procBlock::CalcInvFluxJ(const physics &phys,
                              const input &inp,
-                             const unique_ptr<turbModel> &turb,
                              matMultiArray3d &mainDiagonal) {
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
+  // physics -- physics models
   // inp -- all input variables
   // mainDiagonal -- main diagonal of LHS to store flux jacobians for implicit
   //                 solver
@@ -552,7 +547,7 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
 
         // calculate inviscid flux at face
         const inviscidFlux tempFlux =
-            InviscidFlux(faceStateLower, faceStateUpper, eqnState, thermo,
+            InviscidFlux(faceStateLower, faceStateUpper, phys,
                          this->FAreaUnitJ(ii, jj, kk), inp.InviscidFlux());
 
         // area vector points from left to right, so add to left cell, subtract
@@ -565,9 +560,8 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
-            fluxJac.RusanovFluxJacobian(faceStateLower, eqnState, thermo,
-                                        this->FAreaJ(ii, jj, kk), true,
-                                        inp, turb);
+            fluxJac.RusanovFluxJacobian(faceStateLower, phys,
+                                        this->FAreaJ(ii, jj, kk), true, inp);
             mainDiagonal.Add(ii, jj - 1, kk, fluxJac);
           }
         }
@@ -580,11 +574,13 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
           // basis, so only at the upper faces
           const auto invSpecRad =
               InvCellSpectralRadius(state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
-                                    fAreaJ_(ii, jj + 1, kk), thermo, eqnState);
+                                    fAreaJ_(ii, jj + 1, kk), phys);
 
-          const auto turbInvSpecRad = isRANS_ ?
-              turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
-                                        fAreaJ_(ii, jj + 1, kk)): 0.0;
+          const auto turbInvSpecRad =
+              isRANS_ ? phys.Turbulence()->InviscidCellSpecRad(
+                            state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
+                            fAreaJ_(ii, jj + 1, kk))
+                      : 0.0;
 
           const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
           specRadius_(ii, jj, kk) += specRad;
@@ -592,9 +588,8 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
-            fluxJac.RusanovFluxJacobian(faceStateUpper, eqnState, thermo,
-                                        this->FAreaJ(ii, jj, kk), false,
-                                        inp, turb);
+            fluxJac.RusanovFluxJacobian(faceStateUpper, phys,
+                                        this->FAreaJ(ii, jj, kk), false, inp);
             mainDiagonal.Subtract(ii, jj, kk, fluxJac);
           } else if (inp.IsImplicit()) {
             mainDiagonal.Add(ii, jj, kk, fluxJacobian(specRad, isRANS_));
@@ -632,13 +627,10 @@ a cell basis instead of a face bases, it is only calculated for the upper cell
 variable and is eventually used in the time step calculation if the time step
 isn't explicitly specified.
 */
-void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
-                             const unique_ptr<thermodynamic> &thermo,
+void procBlock::CalcInvFluxK(const physics &phys,
                              const input &inp,
-                             const unique_ptr<turbModel> &turb,
                              matMultiArray3d &mainDiagonal) {
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
+  // phys -- physics models
   // inp -- all input variables
   // mainDiagonal -- main diagonal of LHS to store flux jacobians for implicit
   //                 solver
@@ -689,7 +681,7 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
 
         // calculate inviscid flux at face
         const inviscidFlux tempFlux =
-            InviscidFlux(faceStateLower, faceStateUpper, eqnState, thermo,
+            InviscidFlux(faceStateLower, faceStateUpper, phys,
                          this->FAreaUnitK(ii, jj, kk), inp.InviscidFlux());
 
         // area vector points from left to right, so add to left cell, subtract
@@ -702,9 +694,8 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
-            fluxJac.RusanovFluxJacobian(faceStateLower, eqnState, thermo,
-                                        this->FAreaK(ii, jj, kk), true,
-                                        inp, turb);
+            fluxJac.RusanovFluxJacobian(faceStateLower, phys,
+                                        this->FAreaK(ii, jj, kk), true, inp);
             mainDiagonal.Add(ii, jj, kk - 1, fluxJac);
           }
         }
@@ -717,11 +708,13 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
           // basis, so only at the upper faces
           const auto invSpecRad =
               InvCellSpectralRadius(state_(ii, jj, kk), fAreaK_(ii, jj, kk),
-                                    fAreaK_(ii, jj, kk + 1), thermo, eqnState);
+                                    fAreaK_(ii, jj, kk + 1), phys);
 
-          const auto turbInvSpecRad = isRANS_ ?
-              turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaK_(ii, jj, kk),
-                                        fAreaK_(ii, jj, kk + 1)) : 0.0;
+          const auto turbInvSpecRad =
+              isRANS_ ? phys.Turbulence()->InviscidCellSpecRad(
+                            state_(ii, jj, kk), fAreaK_(ii, jj, kk),
+                            fAreaK_(ii, jj, kk + 1))
+                      : 0.0;
 
           const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
           specRadius_(ii, jj, kk) += specRad;
@@ -729,9 +722,8 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
-            fluxJac.RusanovFluxJacobian(faceStateUpper, eqnState, thermo,
-                                        this->FAreaK(ii, jj, kk), false,
-                                        inp, turb);
+            fluxJac.RusanovFluxJacobian(faceStateUpper, phys,
+                                        this->FAreaK(ii, jj, kk), false, inp);
             mainDiagonal.Subtract(ii, jj, kk, fluxJac);
           } else if (inp.IsImplicit()) {
             mainDiagonal.Add(ii, jj, kk, fluxJacobian(specRad, isRANS_));
@@ -797,11 +789,8 @@ void procBlock::CalcBlockTimeStep(const input &inp) {
 explicit methods it calls the appropriate explicit method to update. For
 implicit methods it uses the correction du and calls the implicit updater.
 */
-void procBlock::UpdateBlock(const input &inputVars, const unique_ptr<eos> &eos,
-                            const unique_ptr<thermodynamic> &thermo,
-                            const unique_ptr<transport> &trans,
-                            const blkMultiArray3d<varArray> &du,
-                            const unique_ptr<turbModel> &turb, const int &rr,
+void procBlock::UpdateBlock(const input &inputVars, const physics &phys,
+                            const blkMultiArray3d<varArray> &du, const int &rr,
                             residual &l2, resid &linf) {
   // inputVars -- all input variables
   // eos -- equation of state
@@ -819,15 +808,13 @@ void procBlock::UpdateBlock(const input &inputVars, const unique_ptr<eos> &eos,
       for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
         // explicit euler time integration
         if (inputVars.TimeIntegration() == "explicitEuler") {
-          this->ExplicitEulerTimeAdvance(eos, thermo, turb, ii, jj, kk);
+          this->ExplicitEulerTimeAdvance(phys, ii, jj, kk);
         // 4-stage runge-kutta method (explicit)
         } else if (inputVars.TimeIntegration() == "rk4") {
           // advance 1 RK stage
-          this->RK4TimeAdvance(consVarsN_(ii, jj, kk), eos, thermo, turb, ii,
-                               jj, kk, rr);
+          this->RK4TimeAdvance(consVarsN_(ii, jj, kk), phys, ii, jj, kk, rr);
         } else if (inputVars.IsImplicit()) {  // if implicit use update (du)
-          this->ImplicitTimeAdvance(du(ii, jj, kk), eos, thermo, turb, ii, jj,
-                                    kk);
+          this->ImplicitTimeAdvance(du(ii, jj, kk), phys, ii, jj, kk);
         } else {
           cerr << "ERROR: Time integration scheme " <<
               inputVars.TimeIntegration() << " is not recognized!" << endl;
@@ -858,45 +845,40 @@ Un is the conserved variables at time n, Un+1 is the conserved variables at time
 n+1, dt_ is the cell's time step, V is the cell's volume, and R is the cell's
 residual.
  */
-void procBlock::ExplicitEulerTimeAdvance(
-    const unique_ptr<eos> &eqnState, const unique_ptr<thermodynamic> &thermo,
-    const unique_ptr<turbModel> &turb, const int &ii, const int &jj,
-    const int &kk) {
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // turb -- turbulence model
+void procBlock::ExplicitEulerTimeAdvance(const physics &phys, const int &ii,
+                                         const int &jj, const int &kk) {
+  // phys -- physics models
   // ii -- i-location of cell
   // jj -- j-location of cell
   // kk -- k-location of cell
 
   // Get conserved variables for current state (time n)
-  auto consVars = state_(ii, jj, kk).ConsVars(eqnState, thermo);
+  auto consVars = state_(ii, jj, kk).ConsVars(phys);
   // calculate updated conserved variables
   consVars -= dt_(ii, jj, kk) / vol_(ii, jj, kk) * residual_(ii, jj, kk);
 
   // calculate updated primitive variables and update state
-  state_.InsertBlock(ii, jj, kk, primitive(consVars, eqnState, thermo, turb));
+  state_.InsertBlock(ii, jj, kk, primitive(consVars, phys));
+  MSG_ASSERT(state_(ii, jj, kk).Rho() > 0, "nonphysical density");
+  MSG_ASSERT(state_(ii, jj, kk).P() > 0, "nonphysical pressure");
 }
 
 // member function to advance the state vector to time n+1 (for implicit
 // methods)
-void procBlock::ImplicitTimeAdvance(const varArrayView &du,
-                                    const unique_ptr<eos> &eqnState,
-                                    const unique_ptr<thermodynamic> &thermo,
-                                    const unique_ptr<turbModel> &turb,
+void procBlock::ImplicitTimeAdvance(const varArrayView &du, const physics &phys,
                                     const int &ii, const int &jj,
                                     const int &kk) {
   // du -- update for a specific cell (to move from time n to n+1)
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // turb -- turbulence model
+  // phys -- physics models
   // ii -- i-location of cell
   // jj -- j-location of cell
   // kk -- k-location of cell
 
   // calculate updated state (primitive variables)
   state_.InsertBlock(ii, jj, kk,
-      state_(ii, jj, kk).UpdateWithConsVars(eqnState, thermo, du, turb));
+                     state_(ii, jj, kk).UpdateWithConsVars(phys, du));
+  MSG_ASSERT(state_(ii, jj, kk).Rho() > 0, "nonphysical density");
+  MSG_ASSERT(state_(ii, jj, kk).P() > 0, "nonphysical pressure");
 }
 
 /* member function to advance the state vector to time n+1 using 4th order
@@ -909,15 +891,10 @@ n+1, dt is the cell's time step, V is the cell's volume, alpha is the runge-kutt
 coefficient, and R is the cell's residual.
  */
 void procBlock::RK4TimeAdvance(const conservedView &currState,
-                               const unique_ptr<eos> &eqnState,
-                               const unique_ptr<thermodynamic> &thermo,
-                               const unique_ptr<turbModel> &turb,
-                               const int &ii, const int &jj, const int &kk,
-                               const int &rk) {
+                               const physics &phys, const int &ii,
+                               const int &jj, const int &kk, const int &rk) {
   // currState -- current state (including steps within RK4)
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // turb -- turbulence model
+  // physcs -- physics models
   // ii -- i-location of cell (including ghost cells)
   // jj -- j-location of cell (including ghost cells)
   // kk -- k-location of cell (including ghost cells)
@@ -931,7 +908,9 @@ void procBlock::RK4TimeAdvance(const conservedView &currState,
       alpha[rk] * residual_(ii, jj, kk);
 
   // calculate updated primitive variables
-  state_.InsertBlock(ii, jj, kk, primitive(consVars, eqnState, thermo, turb));
+  state_.InsertBlock(ii, jj, kk, primitive(consVars, phys));
+  MSG_ASSERT(state_(ii, jj, kk).Rho() > 0, "nonphysical density");
+  MSG_ASSERT(state_(ii, jj, kk).P() > 0, "nonphysical pressure");
 }
 
 // member function to reset the residual and wave speed back to zero after an
@@ -1000,11 +979,9 @@ double procBlock::SolDeltaNCoeff(const int &ii, const int &jj, const int &kk,
 }
 
 varArray procBlock::SolDeltaMmN(const int &ii, const int &jj, const int &kk,
-                                const input &inp, const unique_ptr<eos> &eos,
-                                const unique_ptr<thermodynamic> &thermo) const {
+                                const input &inp, const physics &phys) const {
   const auto coeff = this->SolDeltaNCoeff(ii, jj, kk, inp);
-  return coeff *
-         (state_(ii, jj, kk).ConsVars(eos, thermo) - consVarsN_(ii, jj, kk));
+  return coeff * (state_(ii, jj, kk).ConsVars(phys) - consVarsN_(ii, jj, kk));
 }
 
 double procBlock::SolDeltaNm1Coeff(const int &ii, const int &jj, const int &kk,
@@ -1048,15 +1025,13 @@ void procBlock::InvertDiagonal(matMultiArray3d &mainDiagonal,
 }
 
 // assign current solution held in state_ to time n solution held in consVarsN_
-void procBlock::AssignSolToTimeN(const unique_ptr<eos> &eos,
-                                 const unique_ptr<thermodynamic> &thermo) {
+void procBlock::AssignSolToTimeN(const physics &phys) {
   // loop over physical cells
   for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
     for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
       for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
         // convert state to conservative variables
-        consVarsN_.InsertBlock(ii, jj, kk,
-                               state_(ii, jj, kk).ConsVars(eos, thermo));
+        consVarsN_.InsertBlock(ii, jj, kk, state_(ii, jj, kk).ConsVars(phys));
       }
     }
   }
@@ -1175,20 +1150,14 @@ For viscous simulations, the viscous contribution to the spectral radius K is
 used, and everything else remains the same.
  */
 void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
-                              blkMultiArray3d<varArray> &x,
-                              const unique_ptr<eos> &eqnState, const input &inp,
-                              const unique_ptr<thermodynamic> &thermo,
-                              const unique_ptr<transport> &trans,
-                              const unique_ptr<turbModel> &turb,
-                              const matMultiArray3d &aInv,
+                              blkMultiArray3d<varArray> &x, const physics &phys,
+                              const input &inp, const matMultiArray3d &aInv,
                               const int &sweep) const {
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   //      to be zero to start)
-  // eqnState -- equation of state
+  // phys -- physics models
   // inp -- all input variables
-  // trans -- viscous transport model
-  // turb -- turbulence model
   // aInv -- inverse of main diagonal
   // sweep -- sweep number through domain
 
@@ -1214,13 +1183,11 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
       // update L matrix
-      L += OffDiagonal(state_(ii - 1, jj, kk), state_(ii, jj, kk),
-                       x(ii - 1 , jj, kk), fAreaI_(ii, jj, kk),
-                       this->Viscosity(ii - 1, jj, kk),
-                       this->EddyViscosity(ii - 1, jj, kk),
-                       this->F1(ii - 1, jj, kk), projDist,
-                       this->VelGrad(ii - 1, jj, kk),
-                       eqnState, thermo, trans, turb, inp, true);
+      L += OffDiagonal(
+          state_(ii - 1, jj, kk), state_(ii, jj, kk), x(ii - 1, jj, kk),
+          fAreaI_(ii, jj, kk), this->Viscosity(ii - 1, jj, kk),
+          this->EddyViscosity(ii - 1, jj, kk), this->F1(ii - 1, jj, kk),
+          projDist, this->VelGrad(ii - 1, jj, kk), phys, inp, true);
     }
 
     // -----------------------------------------------------------------------
@@ -1232,13 +1199,11 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
       // update L matrix
-      L += OffDiagonal(state_(ii, jj - 1, kk), state_(ii, jj, kk),
-                       x(ii, jj - 1, kk), fAreaJ_(ii, jj, kk),
-                       this->Viscosity(ii, jj - 1, kk),
-                       this->EddyViscosity(ii, jj - 1, kk),
-                       this->F1(ii, jj - 1, kk), projDist,
-                       this->VelGrad(ii, jj - 1, kk),
-                       eqnState, thermo, trans, turb, inp, true);
+      L += OffDiagonal(
+          state_(ii, jj - 1, kk), state_(ii, jj, kk), x(ii, jj - 1, kk),
+          fAreaJ_(ii, jj, kk), this->Viscosity(ii, jj - 1, kk),
+          this->EddyViscosity(ii, jj - 1, kk), this->F1(ii, jj - 1, kk),
+          projDist, this->VelGrad(ii, jj - 1, kk), phys, inp, true);
     }
 
     // -----------------------------------------------------------------------
@@ -1250,15 +1215,12 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
       // update L matrix
-      L += OffDiagonal(state_(ii, jj, kk - 1), state_(ii, jj, kk),
-                       x(ii, jj, kk - 1), fAreaK_(ii, jj, kk),
-                       this->Viscosity(ii, jj, kk - 1),
-                       this->EddyViscosity(ii, jj, kk - 1),
-                       this->F1(ii, jj, kk - 1), projDist,
-                       this->VelGrad(ii, jj, kk - 1),
-                       eqnState, thermo, trans, turb, inp, true);
+      L += OffDiagonal(
+          state_(ii, jj, kk - 1), state_(ii, jj, kk), x(ii, jj, kk - 1),
+          fAreaK_(ii, jj, kk), this->Viscosity(ii, jj, kk - 1),
+          this->EddyViscosity(ii, jj, kk - 1), this->F1(ii, jj, kk - 1),
+          projDist, this->VelGrad(ii, jj, kk - 1), phys, inp, true);
     }
-
 
     // Only need to calculate contribution for U if matrix update has been
     // initialized, or if this is not the first sweep through the domain.
@@ -1274,13 +1236,11 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
         const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
         // update U matrix
-        U += OffDiagonal(state_(ii + 1, jj, kk), state_(ii, jj, kk),
-                         x(ii + 1 , jj, kk), fAreaI_(ii + 1, jj, kk),
-                         this->Viscosity(ii + 1, jj, kk),
-                         this->EddyViscosity(ii + 1, jj, kk),
-                         this->F1(ii + 1, jj, kk), projDist,
-                         this->VelGrad(ii + 1, jj, kk),
-                         eqnState, thermo, trans, turb, inp, false);
+        U += OffDiagonal(
+            state_(ii + 1, jj, kk), state_(ii, jj, kk), x(ii + 1, jj, kk),
+            fAreaI_(ii + 1, jj, kk), this->Viscosity(ii + 1, jj, kk),
+            this->EddyViscosity(ii + 1, jj, kk), this->F1(ii + 1, jj, kk),
+            projDist, this->VelGrad(ii + 1, jj, kk), phys, inp, false);
       }
 
       // -----------------------------------------------------------------------
@@ -1292,13 +1252,11 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
         const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
         // update U matrix
-        U += OffDiagonal(state_(ii, jj + 1, kk), state_(ii, jj, kk),
-                         x(ii, jj + 1, kk), fAreaJ_(ii, jj + 1, kk),
-                         this->Viscosity(ii, jj + 1, kk),
-                         this->EddyViscosity(ii, jj + 1, kk),
-                         this->F1(ii, jj + 1, kk), projDist,
-                         this->VelGrad(ii, jj + 1, kk),
-                         eqnState, thermo, trans, turb, inp, false);
+        U += OffDiagonal(
+            state_(ii, jj + 1, kk), state_(ii, jj, kk), x(ii, jj + 1, kk),
+            fAreaJ_(ii, jj + 1, kk), this->Viscosity(ii, jj + 1, kk),
+            this->EddyViscosity(ii, jj + 1, kk), this->F1(ii, jj + 1, kk),
+            projDist, this->VelGrad(ii, jj + 1, kk), phys, inp, false);
       }
 
       // -----------------------------------------------------------------------
@@ -1310,19 +1268,16 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
         const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
         // update U matrix
-        U += OffDiagonal(state_(ii, jj, kk + 1), state_(ii, jj, kk),
-                         x(ii, jj, kk + 1), fAreaK_(ii, jj, kk + 1),
-                         this->Viscosity(ii, jj, kk + 1),
-                         this->EddyViscosity(ii, jj, kk + 1),
-                         this->F1(ii, jj, kk + 1), projDist,
-                         this->VelGrad(ii, jj, kk + 1),
-                         eqnState, thermo, trans, turb, inp, false);
+        U += OffDiagonal(
+            state_(ii, jj, kk + 1), state_(ii, jj, kk), x(ii, jj, kk + 1),
+            fAreaK_(ii, jj, kk + 1), this->Viscosity(ii, jj, kk + 1),
+            this->EddyViscosity(ii, jj, kk + 1), this->F1(ii, jj, kk + 1),
+            projDist, this->VelGrad(ii, jj, kk + 1), phys, inp, false);
       }
     }
     // -----------------------------------------------------------------------
     const auto solDeltaNm1 = this->SolDeltaNm1(ii, jj, kk, inp);
-    const auto solDeltaMmN =
-        this->SolDeltaMmN(ii, jj, kk, inp, eqnState, thermo);
+    const auto solDeltaMmN = this->SolDeltaMmN(ii, jj, kk, inp, phys);
 
     // calculate intermediate update
     // normal at lower boundaries needs to be reversed, so add instead
@@ -1334,19 +1289,16 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
   }  // end forward sweep
 }
 
-double procBlock::LUSGS_Backward(
-    const vector<vector3d<int>> &reorder, blkMultiArray3d<varArray> &x,
-    const unique_ptr<eos> &eqnState, const input &inp,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const unique_ptr<turbModel> &turb, const matMultiArray3d &aInv,
-    const int &sweep) const {
+double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
+                                 blkMultiArray3d<varArray> &x,
+                                 const physics &phys, const input &inp,
+                                 const matMultiArray3d &aInv,
+                                 const int &sweep) const {
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   //      to be zero to start)
-  // eqnState -- equation of state
+  // phys -- physics models
   // inp -- all input variables
-  // trans -- viscous transport model
-  // turb -- turbulence model
   // aInv -- inverse of main diagonal
   // sweep -- sweep number through domain
 
@@ -1374,13 +1326,11 @@ double procBlock::LUSGS_Backward(
       const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
       // update U matrix
-      U += OffDiagonal(state_(ii + 1, jj, kk), state_(ii, jj, kk),
-                       x(ii + 1, jj, kk), fAreaI_(ii + 1, jj, kk),
-                       this->Viscosity(ii + 1, jj, kk),
-                       this->EddyViscosity(ii + 1, jj, kk),
-                       this->F1(ii + 1, jj, kk), projDist,
-                       this->VelGrad(ii + 1, jj, kk),
-                       eqnState, thermo, trans, turb, inp, false);
+      U += OffDiagonal(
+          state_(ii + 1, jj, kk), state_(ii, jj, kk), x(ii + 1, jj, kk),
+          fAreaI_(ii + 1, jj, kk), this->Viscosity(ii + 1, jj, kk),
+          this->EddyViscosity(ii + 1, jj, kk), this->F1(ii + 1, jj, kk),
+          projDist, this->VelGrad(ii + 1, jj, kk), phys, inp, false);
     }
 
     // -----------------------------------------------------------------------
@@ -1392,13 +1342,11 @@ double procBlock::LUSGS_Backward(
       const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
       // update U matrix
-      U += OffDiagonal(state_(ii, jj + 1, kk), state_(ii, jj, kk),
-                       x(ii, jj + 1, kk), fAreaJ_(ii, jj + 1, kk),
-                       this->Viscosity(ii, jj + 1, kk),
-                       this->EddyViscosity(ii, jj + 1, kk),
-                       this->F1(ii, jj + 1, kk), projDist,
-                       this->VelGrad(ii, jj + 1, kk),
-                       eqnState, thermo, trans, turb, inp, false);
+      U += OffDiagonal(
+          state_(ii, jj + 1, kk), state_(ii, jj, kk), x(ii, jj + 1, kk),
+          fAreaJ_(ii, jj + 1, kk), this->Viscosity(ii, jj + 1, kk),
+          this->EddyViscosity(ii, jj + 1, kk), this->F1(ii, jj + 1, kk),
+          projDist, this->VelGrad(ii, jj + 1, kk), phys, inp, false);
     }
 
     // -----------------------------------------------------------------------
@@ -1410,15 +1358,12 @@ double procBlock::LUSGS_Backward(
       const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
       // update U matrix
-      U += OffDiagonal(state_(ii, jj, kk + 1), state_(ii, jj, kk),
-                       x(ii, jj, kk + 1), fAreaK_(ii, jj, kk + 1),
-                       this->Viscosity(ii, jj, kk + 1),
-                       this->EddyViscosity(ii, jj, kk + 1),
-                       this->F1(ii, jj, kk + 1), projDist,
-                       this->VelGrad(ii, jj, kk + 1),
-                       eqnState, thermo, trans, turb, inp, false);
+      U += OffDiagonal(
+          state_(ii, jj, kk + 1), state_(ii, jj, kk), x(ii, jj, kk + 1),
+          fAreaK_(ii, jj, kk + 1), this->Viscosity(ii, jj, kk + 1),
+          this->EddyViscosity(ii, jj, kk + 1), this->F1(ii, jj, kk + 1),
+          projDist, this->VelGrad(ii, jj, kk + 1), phys, inp, false);
     }
-
 
     // Only need to calculate contribution for L if matrix update has been
     // initialized, or if this is not the first sweep through the domain.
@@ -1434,13 +1379,11 @@ double procBlock::LUSGS_Backward(
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
         // update U matrix
-        L += OffDiagonal(state_(ii - 1, jj, kk), state_(ii, jj, kk),
-                         x(ii - 1, jj, kk), fAreaI_(ii, jj, kk),
-                         this->Viscosity(ii - 1, jj, kk),
-                         this->EddyViscosity(ii - 1, jj, kk),
-                         this->F1(ii - 1, jj, kk), projDist,
-                         this->VelGrad(ii - 1, jj, kk),
-                         eqnState, thermo, trans, turb, inp, true);
+        L += OffDiagonal(
+            state_(ii - 1, jj, kk), state_(ii, jj, kk), x(ii - 1, jj, kk),
+            fAreaI_(ii, jj, kk), this->Viscosity(ii - 1, jj, kk),
+            this->EddyViscosity(ii - 1, jj, kk), this->F1(ii - 1, jj, kk),
+            projDist, this->VelGrad(ii - 1, jj, kk), phys, inp, true);
       }
 
       // -----------------------------------------------------------------------
@@ -1452,13 +1395,11 @@ double procBlock::LUSGS_Backward(
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
         // update U matrix
-        L += OffDiagonal(state_(ii, jj - 1, kk), state_(ii, jj, kk),
-                         x(ii, jj - 1, kk), fAreaJ_(ii, jj, kk),
-                         this->Viscosity(ii, jj - 1, kk),
-                         this->EddyViscosity(ii, jj - 1, kk),
-                         this->F1(ii, jj - 1, kk), projDist,
-                         this->VelGrad(ii, jj - 1, kk),
-                         eqnState, thermo, trans, turb, inp, true);
+        L += OffDiagonal(
+            state_(ii, jj - 1, kk), state_(ii, jj, kk), x(ii, jj - 1, kk),
+            fAreaJ_(ii, jj, kk), this->Viscosity(ii, jj - 1, kk),
+            this->EddyViscosity(ii, jj - 1, kk), this->F1(ii, jj - 1, kk),
+            projDist, this->VelGrad(ii, jj - 1, kk), phys, inp, true);
       }
 
       // -----------------------------------------------------------------------
@@ -1470,19 +1411,16 @@ double procBlock::LUSGS_Backward(
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
         // update U matrix
-        L += OffDiagonal(state_(ii, jj, kk - 1), state_(ii, jj, kk),
-                         x(ii, jj, kk - 1), fAreaK_(ii, jj, kk),
-                         this->Viscosity(ii, jj, kk - 1),
-                         this->EddyViscosity(ii, jj, kk - 1),
-                         this->F1(ii, jj, kk - 1), projDist,
-                         this->VelGrad(ii, jj, kk - 1),
-                         eqnState, thermo, trans, turb, inp, true);
+        L += OffDiagonal(
+            state_(ii, jj, kk - 1), state_(ii, jj, kk), x(ii, jj, kk - 1),
+            fAreaK_(ii, jj, kk), this->Viscosity(ii, jj, kk - 1),
+            this->EddyViscosity(ii, jj, kk - 1), this->F1(ii, jj, kk - 1),
+            projDist, this->VelGrad(ii, jj, kk - 1), phys, inp, true);
       }
     }
     // -----------------------------------------------------------------------
     const auto solDeltaNm1 = this->SolDeltaNm1(ii, jj, kk, inp);
-    const auto solDeltaMmN =
-        this->SolDeltaMmN(ii, jj, kk, inp, eqnState, thermo);
+    const auto solDeltaMmN = this->SolDeltaMmN(ii, jj, kk, inp, phys);
 
     // calculate update
     const auto xold = x.GetCopy(ii, jj, kk);
@@ -1504,18 +1442,12 @@ double procBlock::LUSGS_Backward(
 
 /* Member function to calculate the implicit update via the DP-LUR method
  */
-double procBlock::DPLUR(blkMultiArray3d<varArray> &x,
-                        const unique_ptr<eos> &eqnState, const input &inp,
-                        const unique_ptr<thermodynamic> &thermo,
-                        const unique_ptr<transport> &trans,
-                        const unique_ptr<turbModel> &turb,
-                        const matMultiArray3d &aInv) const {
+double procBlock::DPLUR(blkMultiArray3d<varArray> &x, const physics &phys,
+                        const input &inp, const matMultiArray3d &aInv) const {
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   //                   to be zero to start)
-  // eqnState -- equation of state
+  // phys --  physics models
   // inp -- all input variables
-  // trans -- viscous transport model
-  // turb -- turbulence model
   // aInv -- inverse of main diagonal
 
   const auto thetaInv = 1.0 / inp.Theta();
@@ -1541,13 +1473,11 @@ double procBlock::DPLUR(blkMultiArray3d<varArray> &x,
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
           // update off diagonal
-          offDiagonal += OffDiagonal(state_(ii - 1, jj, kk), state_(ii, jj, kk),
-                                     xold(ii - 1, jj, kk), fAreaI_(ii, jj, kk),
-                                     this->Viscosity(ii - 1, jj, kk),
-                                     this->EddyViscosity(ii - 1, jj, kk),
-                                     this->F1(ii - 1, jj, kk), projDist,
-                                     this->VelGrad(ii - 1, jj, kk),
-                                     eqnState, thermo, trans, turb, inp, true);
+          offDiagonal += OffDiagonal(
+              state_(ii - 1, jj, kk), state_(ii, jj, kk), xold(ii - 1, jj, kk),
+              fAreaI_(ii, jj, kk), this->Viscosity(ii - 1, jj, kk),
+              this->EddyViscosity(ii - 1, jj, kk), this->F1(ii - 1, jj, kk),
+              projDist, this->VelGrad(ii - 1, jj, kk), phys, inp, true);
         }
 
         // --------------------------------------------------------------
@@ -1559,13 +1489,11 @@ double procBlock::DPLUR(blkMultiArray3d<varArray> &x,
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
           // update off diagonal
-          offDiagonal += OffDiagonal(state_(ii, jj - 1, kk), state_(ii, jj, kk),
-                                     xold(ii, jj - 1, kk), fAreaJ_(ii, jj, kk),
-                                     this->Viscosity(ii, jj - 1 , kk),
-                                     this->EddyViscosity(ii, jj - 1 , kk),
-                                     this->F1(ii, jj - 1 , kk), projDist,
-                                     this->VelGrad(ii, jj - 1, kk),
-                                     eqnState, thermo, trans, turb, inp, true);
+          offDiagonal += OffDiagonal(
+              state_(ii, jj - 1, kk), state_(ii, jj, kk), xold(ii, jj - 1, kk),
+              fAreaJ_(ii, jj, kk), this->Viscosity(ii, jj - 1, kk),
+              this->EddyViscosity(ii, jj - 1, kk), this->F1(ii, jj - 1, kk),
+              projDist, this->VelGrad(ii, jj - 1, kk), phys, inp, true);
         }
 
         // --------------------------------------------------------------
@@ -1577,13 +1505,11 @@ double procBlock::DPLUR(blkMultiArray3d<varArray> &x,
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
           // update off diagonal
-          offDiagonal += OffDiagonal(state_(ii, jj, kk - 1), state_(ii, jj, kk),
-                                     xold(ii, jj, kk - 1), fAreaK_(ii, jj, kk),
-                                     this->Viscosity(ii, jj, kk - 1),
-                                     this->EddyViscosity(ii, jj, kk - 1),
-                                     this->F1(ii, jj, kk - 1), projDist,
-                                     this->VelGrad(ii, jj, kk - 1),
-                                     eqnState, thermo, trans, turb, inp, true);
+          offDiagonal += OffDiagonal(
+              state_(ii, jj, kk - 1), state_(ii, jj, kk), xold(ii, jj, kk - 1),
+              fAreaK_(ii, jj, kk), this->Viscosity(ii, jj, kk - 1),
+              this->EddyViscosity(ii, jj, kk - 1), this->F1(ii, jj, kk - 1),
+              projDist, this->VelGrad(ii, jj, kk - 1), phys, inp, true);
         }
 
         // --------------------------------------------------------------
@@ -1595,14 +1521,11 @@ double procBlock::DPLUR(blkMultiArray3d<varArray> &x,
           const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
           // update off diagonal
-          offDiagonal -= OffDiagonal(state_(ii + 1, jj, kk), state_(ii, jj, kk),
-                                     xold(ii + 1, jj, kk),
-                                     fAreaI_(ii + 1, jj, kk),
-                                     this->Viscosity(ii + 1, jj, kk),
-                                     this->EddyViscosity(ii + 1, jj, kk),
-                                     this->F1(ii + 1, jj, kk), projDist,
-                                     this->VelGrad(ii + 1, jj, kk),
-                                     eqnState, thermo, trans, turb, inp, false);
+          offDiagonal -= OffDiagonal(
+              state_(ii + 1, jj, kk), state_(ii, jj, kk), xold(ii + 1, jj, kk),
+              fAreaI_(ii + 1, jj, kk), this->Viscosity(ii + 1, jj, kk),
+              this->EddyViscosity(ii + 1, jj, kk), this->F1(ii + 1, jj, kk),
+              projDist, this->VelGrad(ii + 1, jj, kk), phys, inp, false);
         }
 
         // --------------------------------------------------------------
@@ -1614,14 +1537,11 @@ double procBlock::DPLUR(blkMultiArray3d<varArray> &x,
           const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
           // update off diagonal
-          offDiagonal -= OffDiagonal(state_(ii, jj + 1, kk), state_(ii, jj, kk),
-                                     xold(ii, jj + 1, kk),
-                                     fAreaJ_(ii, jj + 1, kk),
-                                     this->Viscosity(ii, jj + 1, kk),
-                                     this->EddyViscosity(ii, jj + 1, kk),
-                                     this->F1(ii, jj + 1, kk), projDist,
-                                     this->VelGrad(ii, jj + 1, kk),
-                                     eqnState, thermo, trans, turb, inp, false);
+          offDiagonal -= OffDiagonal(
+              state_(ii, jj + 1, kk), state_(ii, jj, kk), xold(ii, jj + 1, kk),
+              fAreaJ_(ii, jj + 1, kk), this->Viscosity(ii, jj + 1, kk),
+              this->EddyViscosity(ii, jj + 1, kk), this->F1(ii, jj + 1, kk),
+              projDist, this->VelGrad(ii, jj + 1, kk), phys, inp, false);
         }
 
         // --------------------------------------------------------------
@@ -1633,20 +1553,16 @@ double procBlock::DPLUR(blkMultiArray3d<varArray> &x,
           const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
           // update off diagonal
-          offDiagonal -= OffDiagonal(state_(ii, jj, kk + 1), state_(ii, jj, kk),
-                                     xold(ii, jj, kk + 1),
-                                     fAreaK_(ii, jj, kk + 1),
-                                     this->Viscosity(ii, jj, kk + 1),
-                                     this->EddyViscosity(ii, jj, kk + 1),
-                                     this->F1(ii, jj, kk + 1), projDist,
-                                     this->VelGrad(ii, jj, kk + 1),
-                                     eqnState, thermo, trans, turb, inp, false);
+          offDiagonal -= OffDiagonal(
+              state_(ii, jj, kk + 1), state_(ii, jj, kk), xold(ii, jj, kk + 1),
+              fAreaK_(ii, jj, kk + 1), this->Viscosity(ii, jj, kk + 1),
+              this->EddyViscosity(ii, jj, kk + 1), this->F1(ii, jj, kk + 1),
+              projDist, this->VelGrad(ii, jj, kk + 1), phys, inp, false);
         }
 
         // --------------------------------------------------------------
         const auto solDeltaNm1 = this->SolDeltaNm1(ii, jj, kk, inp);
-        const auto solDeltaMmN =
-            this->SolDeltaMmN(ii, jj, kk, inp, eqnState, thermo);
+        const auto solDeltaMmN = this->SolDeltaMmN(ii, jj, kk, inp, phys);
 
         // calculate update
         x.InsertBlock(
@@ -1666,12 +1582,9 @@ double procBlock::DPLUR(blkMultiArray3d<varArray> &x,
 }
 
 blkMultiArray3d<varArray> procBlock::InitializeMatrixUpdate(
-    const input &inp, const unique_ptr<eos> &eqnState,
-    const unique_ptr<thermodynamic> &thermo,
-    const matMultiArray3d &aInv) const {
+    const input &inp, const physics &phys, const matMultiArray3d &aInv) const {
   // inp -- input variables
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
+  // phys -- physics models
   // aInv -- inverse of main diagonal
 
   // allocate multiarray for update
@@ -1688,11 +1601,10 @@ blkMultiArray3d<varArray> procBlock::InitializeMatrixUpdate(
           // calculate update
           x.InsertBlock(
               ii, jj, kk,
-              aInv.ArrayMult(
-                  ii, jj, kk,
-                  -thetaInv * residual_(ii, jj, kk) -
-                      this->SolDeltaNm1(ii, jj, kk, inp) -
-                      this->SolDeltaMmN(ii, jj, kk, inp, eqnState, thermo)));
+              aInv.ArrayMult(ii, jj, kk,
+                             -thetaInv * residual_(ii, jj, kk) -
+                                 this->SolDeltaNm1(ii, jj, kk, inp) -
+                                 this->SolDeltaMmN(ii, jj, kk, inp, phys)));
         }
       }
     }
@@ -1772,18 +1684,10 @@ in/out of the page). The stencil for the gradients of all faces in a cell
 touches 15 cells. The gradient calculation with this stencil uses the "edge"
 ghost cells, but not the "corner" ghost cells.
 */
-void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
-                              const unique_ptr<thermodynamic> &thermo,
-                              const unique_ptr<eos> &eqnState, const input &inp,
-                              const unique_ptr<turbModel> &turb,
+void procBlock::CalcViscFluxI(const physics &phys, const input &inp,
                               matMultiArray3d &mainDiagonal) {
-  // trans -- viscous transport model
-  // thermo -- thermodynamic model
-  // eqnState -- equation of state
+  // phys -- physics models
   // inp -- all input variables
-  // grads -- class holding gradients at face for velocity, temperature, tke,
-  //          and omega
-  // turb -- turbulence model
   // mainDiagonal -- main diagonal of LHS used to store flux jacobians for
   //                 implicit solver
 
@@ -1837,17 +1741,18 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
           f1 = 1.0;
           f2 = 1.0;
           mu = wallData_[wallDataInd].WallViscosity(ii, jj, kk) *
-               trans->InvNondimScaling();
+               phys.Transport()->InvNondimScaling();
           mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
-                trans->InvNondimScaling();
-          wallData_[wallDataInd].WallState(ii, jj, kk, eqnState, state);
+                phys.Transport()->InvNondimScaling();
+          wallData_[wallDataInd].WallState(ii, jj, kk, phys.EoS(), state);
           tempViscFlux.CalcWallLawFlux(
               wallData_[wallDataInd].WallShearStress(ii, jj, kk),
               wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
               wallData_[wallDataInd].WallViscosity(ii, jj, kk),
               wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk),
               wallData_[wallDataInd].WallVelocity(),
-              this->FAreaUnitI(ii, jj, kk), tkeGrad, omegaGrad, turb);
+              this->FAreaUnitI(ii, jj, kk), tkeGrad, omegaGrad,
+              phys.Turbulence());
         } else {  // not boundary, or low Re wall boundary
           auto wDist = 0.0;
           if (inp.ViscousFaceReconstruction() == "central") {
@@ -1858,7 +1763,7 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
             // Get state at face
             state = FaceReconCentral(state_(ii - 1, jj, kk), state_(ii, jj, kk),
                                      cellWidth);
-            state.LimitTurb(turb);
+            state.LimitTurb(phys.Turbulence());
 
             // Get wall distance at face
             wDist = FaceReconCentral(wallDist_(ii - 1, jj, kk),
@@ -1878,7 +1783,7 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
             state = FaceReconCentral4th(
                 state_(ii - 2, jj, kk), state_(ii - 1, jj, kk),
                 state_(ii, jj, kk), state_(ii + 1, jj, kk), cellWidth);
-            state.LimitTurb(turb);
+            state.LimitTurb(phys.Turbulence());
 
             // Get wall distance at face
             wDist = FaceReconCentral4th(
@@ -1896,16 +1801,16 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
             // calculate length scale
             const auto lengthScale =
                 0.5 * (cellWidthI_(ii - 1, jj, kk) + cellWidthI_(ii, jj, kk));
-            turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
-                                      wDist, trans, lengthScale, mut, f1, f2);
+            phys.Turbulence()->EddyViscAndBlending(
+                state, velGrad, tkeGrad, omegaGrad, mu, wDist, phys.Transport(),
+                lengthScale, mut, f1, f2);
           }
 
           if (isLowReBoundary) {
             // calculate viscous flux
             auto wVars = tempViscFlux.CalcWallFlux(
-                velGrad, trans, thermo, eqnState, tempGrad,
-                this->FAreaUnitI(ii, jj, kk), tkeGrad, omegaGrad, turb, state,
-                mu, mut, f1);
+                velGrad, phys, tempGrad, this->FAreaUnitI(ii, jj, kk), tkeGrad,
+                omegaGrad, state, mu, mut, f1);
             auto y = (surfType == 1) ? wallDist_(ii, jj, kk)
                                      : wallDist_(ii - 1, jj, kk);
             wVars.yplus_ = y * wVars.frictionVelocity_ * wVars.density_ /
@@ -1913,9 +1818,9 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
             wallData_[wallDataInd](ii, jj, kk) = wVars;
           } else {
             // calculate viscous flux
-            tempViscFlux.CalcFlux(velGrad, trans, thermo, eqnState, tempGrad,
+            tempViscFlux.CalcFlux(velGrad, phys, tempGrad,
                                   this->FAreaUnitI(ii, jj, kk), tkeGrad,
-                                  omegaGrad, turb, state, mu, mut, f1);
+                                  omegaGrad, state, mu, mut, f1);
           }
         }
 
@@ -1949,9 +1854,9 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
           if (inp.IsBlockMatrix()) {
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
-            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans,
-                                      thermo, this->FAreaI(ii, jj, kk), c2cDist,
-                                      turb, inp, true, velGrad);
+            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, phys,
+                                      this->FAreaI(ii, jj, kk), c2cDist, inp,
+                                      true, velGrad);
             mainDiagonal.Subtract(ii - 1, jj, kk, fluxJac);
           }
         }
@@ -1979,15 +1884,14 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
           // basis, so only at the upper faces
           const auto viscSpecRad = ViscCellSpectralRadius(
               state_(ii, jj, kk), fAreaI_(ii, jj, kk), fAreaI_(ii + 1, jj, kk),
-              thermo, eqnState, trans, vol_(ii, jj, kk), viscosity_(ii, jj, kk),
-              mut, turb);
+              phys, vol_(ii, jj, kk), viscosity_(ii, jj, kk), mut);
 
-          const auto turbViscSpecRad = isRANS_ ?
-              turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaI_(ii, jj, kk),
-                                    fAreaI_(ii + 1, jj, kk),
-                                    viscosity_(ii, jj, kk),
-                                    trans, vol_(ii, jj, kk), mut, f1)
-              : 0.0;
+          const auto turbViscSpecRad =
+              isRANS_ ? phys.Turbulence()->ViscCellSpecRad(
+                            state_(ii, jj, kk), fAreaI_(ii, jj, kk),
+                            fAreaI_(ii + 1, jj, kk), viscosity_(ii, jj, kk),
+                            phys.Transport(), vol_(ii, jj, kk), mut, f1)
+                      : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
           specRadius_(ii, jj, kk) += specRad * viscCoeff;
@@ -1996,9 +1900,9 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
           if (inp.IsBlockMatrix()) {
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
-            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans,
-                                      thermo, this->FAreaI(ii, jj, kk), c2cDist,
-                                      turb, inp, false, velGrad);
+            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, phys,
+                                      this->FAreaI(ii, jj, kk), c2cDist, inp,
+                                      false, velGrad);
             mainDiagonal.Add(ii, jj, kk, fluxJac);
           } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
@@ -2081,18 +1985,10 @@ In three dimensions each gradient calculation touches the values at 10 cells
 faces in a cell touches 15 cells. The gradient calculation with this stencil uses
 the "edge" ghost cells, but not the "corner" ghost cells.
 */
-void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
-                              const unique_ptr<thermodynamic> &thermo,
-                              const unique_ptr<eos> &eqnState, const input &inp,
-                              const unique_ptr<turbModel> &turb,
+void procBlock::CalcViscFluxJ(const physics &phys, const input &inp,
                               matMultiArray3d &mainDiagonal) {
-  // trans -- viscous transport model
-  // thermo -- thermodynamic model
-  // eqnState -- equation of state
+  // phys -- physics models
   // inp -- all input variables
-  // grads -- class holding gradients at face for velocity, temperature, tke,
-  //          and omega
-  // turb -- turbulence model
   // mainDiagonal -- main diagonal of LHS used to store flux jacobians for
   //                 implicit solver
 
@@ -2146,17 +2042,18 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
           f1 = 1.0;
           f2 = 1.0;
           mu = wallData_[wallDataInd].WallViscosity(ii, jj, kk) *
-               trans->InvNondimScaling();
+               phys.Transport()->InvNondimScaling();
           mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
-                trans->InvNondimScaling();
-          wallData_[wallDataInd].WallState(ii, jj, kk, eqnState, state);
+                phys.Transport()->InvNondimScaling();
+          wallData_[wallDataInd].WallState(ii, jj, kk, phys.EoS(), state);
           tempViscFlux.CalcWallLawFlux(
               wallData_[wallDataInd].WallShearStress(ii, jj, kk),
               wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
               wallData_[wallDataInd].WallViscosity(ii, jj, kk),
               wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk),
               wallData_[wallDataInd].WallVelocity(),
-              this->FAreaUnitJ(ii, jj, kk), tkeGrad, omegaGrad, turb);
+              this->FAreaUnitJ(ii, jj, kk), tkeGrad, omegaGrad,
+              phys.Turbulence());
         } else {  // not boundary, or low Re wall boundary
           auto wDist = 0.0;
           if (inp.ViscousFaceReconstruction() == "central") {
@@ -2167,7 +2064,7 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
             // Get velocity at face
             state = FaceReconCentral(state_(ii, jj - 1, kk), state_(ii, jj, kk),
                                      cellWidth);
-            state.LimitTurb(turb);
+            state.LimitTurb(phys.Turbulence());
 
             // Get wall distance at face
             wDist = FaceReconCentral(wallDist_(ii, jj - 1, kk),
@@ -2187,7 +2084,7 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
             state = FaceReconCentral4th(
                 state_(ii, jj - 2, kk), state_(ii, jj - 1, kk),
                 state_(ii, jj, kk), state_(ii, jj + 1, kk), cellWidth);
-            state.LimitTurb(turb);
+            state.LimitTurb(phys.Turbulence());
 
             // Get wall distance at face
             wDist = FaceReconCentral4th(
@@ -2205,16 +2102,16 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
             // calculate length scale
             const auto lengthScale =
                 0.5 * (cellWidthJ_(ii, jj - 1, kk) + cellWidthJ_(ii, jj, kk));
-            turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
-                                      wDist, trans, lengthScale, mut, f1, f2);
+            phys.Turbulence()->EddyViscAndBlending(
+                state, velGrad, tkeGrad, omegaGrad, mu, wDist, phys.Transport(),
+                lengthScale, mut, f1, f2);
           }
 
           if (isLowReBoundary) {
             // calculate viscous flux
             auto wVars = tempViscFlux.CalcWallFlux(
-                velGrad, trans, thermo, eqnState, tempGrad,
-                this->FAreaUnitJ(ii, jj, kk), tkeGrad, omegaGrad, turb, state,
-                mu, mut, f1);
+                velGrad, phys, tempGrad, this->FAreaUnitJ(ii, jj, kk), tkeGrad,
+                omegaGrad, state, mu, mut, f1);
             auto y = (surfType == 3) ? wallDist_(ii, jj, kk)
                                      : wallDist_(ii, jj - 1, kk);
             wVars.yplus_ = y * wVars.frictionVelocity_ * wVars.density_ /
@@ -2222,9 +2119,9 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
             wallData_[wallDataInd](ii, jj, kk) = wVars;
           } else {
             // calculate viscous flux
-            tempViscFlux.CalcFlux(velGrad, trans, thermo, eqnState, tempGrad,
+            tempViscFlux.CalcFlux(velGrad, phys, tempGrad,
                                   this->FAreaUnitJ(ii, jj, kk), tkeGrad,
-                                  omegaGrad, turb, state, mu, mut, f1);
+                                  omegaGrad, state, mu, mut, f1);
           }
         }
 
@@ -2259,9 +2156,9 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
           if (inp.IsBlockMatrix()) {
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
-            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans,
-                                      thermo, this->FAreaJ(ii, jj, kk), c2cDist,
-                                      turb, inp, true, velGrad);
+            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, phys,
+                                      this->FAreaJ(ii, jj, kk), c2cDist, inp,
+                                      true, velGrad);
             mainDiagonal.Subtract(ii, jj - 1, kk, fluxJac);
           }
         }
@@ -2289,15 +2186,14 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
           // basis, so only at the upper faces
           const auto viscSpecRad = ViscCellSpectralRadius(
               state_(ii, jj, kk), fAreaJ_(ii, jj, kk), fAreaJ_(ii, jj + 1, kk),
-              thermo, eqnState, trans, vol_(ii, jj, kk), viscosity_(ii, jj, kk),
-              mut, turb);
+              phys, vol_(ii, jj, kk), viscosity_(ii, jj, kk), mut);
 
-          const auto turbViscSpecRad = isRANS_ ?
-              turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
-                                    fAreaJ_(ii, jj + 1, kk),
-                                    viscosity_(ii, jj, kk),
-                                    trans, vol_(ii, jj, kk), mut, f1)
-              : 0.0;
+          const auto turbViscSpecRad =
+              isRANS_ ? phys.Turbulence()->ViscCellSpecRad(
+                            state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
+                            fAreaJ_(ii, jj + 1, kk), viscosity_(ii, jj, kk),
+                            phys.Transport(), vol_(ii, jj, kk), mut, f1)
+                      : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
           specRadius_(ii, jj, kk) += specRad * viscCoeff;
@@ -2307,9 +2203,9 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
           if (inp.IsBlockMatrix()) {
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
-            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans,
-                                      thermo, this->FAreaJ(ii, jj, kk), c2cDist,
-                                      turb, inp, false, velGrad);
+            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, phys,
+                                      this->FAreaJ(ii, jj, kk), c2cDist, inp,
+                                      false, velGrad);
             mainDiagonal.Add(ii, jj, kk, fluxJac);
           } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
@@ -2391,10 +2287,7 @@ In three dimensions each gradient calculation touches the values at 10 cells
 faces in a cell touches 15 cells. The gradient calculation with this stencil uses
 the "edge" ghost cells, but not the "corner" ghost cells.
 */
-void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
-                              const unique_ptr<thermodynamic> &thermo,
-                              const unique_ptr<eos> &eqnState, const input &inp,
-                              const unique_ptr<turbModel> &turb,
+void procBlock::CalcViscFluxK(const physics &phys, const input &inp,
                               matMultiArray3d &mainDiagonal) {
   // trans -- viscous transport model
   // thermo -- thermodynamic model
@@ -2456,17 +2349,18 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
           f1 = 1.0;
           f2 = 1.0;
           mu = wallData_[wallDataInd].WallViscosity(ii, jj, kk) *
-               trans->InvNondimScaling();
+               phys.Transport()->InvNondimScaling();
           mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
-                trans->InvNondimScaling();
-          wallData_[wallDataInd].WallState(ii, jj, kk, eqnState, state);
+                phys.Transport()->InvNondimScaling();
+          wallData_[wallDataInd].WallState(ii, jj, kk, phys.EoS(), state);
           tempViscFlux.CalcWallLawFlux(
               wallData_[wallDataInd].WallShearStress(ii, jj, kk),
               wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
               wallData_[wallDataInd].WallViscosity(ii, jj, kk),
               wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk),
               wallData_[wallDataInd].WallVelocity(),
-              this->FAreaUnitK(ii, jj, kk), tkeGrad, omegaGrad, turb);
+              this->FAreaUnitK(ii, jj, kk), tkeGrad, omegaGrad,
+              phys.Turbulence());
         } else {  // not boundary, or low Re wall boundary
           auto wDist = 0.0;
           if (inp.ViscousFaceReconstruction() == "central") {
@@ -2477,7 +2371,7 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
             // Get state at face
             state = FaceReconCentral(state_(ii, jj, kk - 1), state_(ii, jj, kk),
                                      cellWidth);
-            state.LimitTurb(turb);
+            state.LimitTurb(phys.Turbulence());
 
             // Get wall distance at face
             wDist = FaceReconCentral(wallDist_(ii, jj, kk - 1),
@@ -2497,7 +2391,7 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
             state = FaceReconCentral4th(
                 state_(ii, jj, kk - 2), state_(ii, jj, kk - 1),
                 state_(ii, jj, kk), state_(ii, jj, kk + 1), cellWidth);
-            state.LimitTurb(turb);
+            state.LimitTurb(phys.Turbulence());
 
             // Get wall distance at face
             wDist = FaceReconCentral4th(
@@ -2515,16 +2409,16 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
             // calculate length scale
             const auto lengthScale =
                 0.5 * (cellWidthK_(ii, jj, kk - 1) + cellWidthK_(ii, jj, kk));
-            turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
-                                      wDist, trans, lengthScale, mut, f1, f2);
+            phys.Turbulence()->EddyViscAndBlending(
+                state, velGrad, tkeGrad, omegaGrad, mu, wDist, phys.Transport(),
+                lengthScale, mut, f1, f2);
           }
 
           if (isLowReBoundary) {
             // calculate viscous flux
             auto wVars = tempViscFlux.CalcWallFlux(
-                velGrad, trans, thermo, eqnState, tempGrad,
-                this->FAreaUnitK(ii, jj, kk), tkeGrad, omegaGrad, turb, state,
-                mu, mut, f1);
+                velGrad, phys, tempGrad, this->FAreaUnitK(ii, jj, kk), tkeGrad,
+                omegaGrad, state, mu, mut, f1);
             auto y = (surfType == 5) ? wallDist_(ii, jj, kk)
                                      : wallDist_(ii, jj, kk - 1);
             wVars.yplus_ = y * wVars.frictionVelocity_ * wVars.density_ /
@@ -2532,9 +2426,9 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
             wallData_[wallDataInd](ii, jj, kk) = wVars;
           } else {
             // calculate viscous flux
-            tempViscFlux.CalcFlux(velGrad, trans, thermo, eqnState, tempGrad,
+            tempViscFlux.CalcFlux(velGrad, phys, tempGrad,
                                   this->FAreaUnitK(ii, jj, kk), tkeGrad,
-                                  omegaGrad, turb, state, mu, mut, f1);
+                                  omegaGrad, state, mu, mut, f1);
           }
         }
 
@@ -2569,9 +2463,9 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
           if (inp.IsBlockMatrix()) {
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
-            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans,
-                                      thermo, this->FAreaK(ii, jj, kk), c2cDist,
-                                      turb, inp, true, velGrad);
+            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, phys,
+                                      this->FAreaK(ii, jj, kk), c2cDist, inp,
+                                      true, velGrad);
             mainDiagonal.Subtract(ii, jj, kk - 1, fluxJac);
           }
         }
@@ -2599,15 +2493,14 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
           // basis, so only at the upper faces
           const auto viscSpecRad = ViscCellSpectralRadius(
               state_(ii, jj, kk), fAreaK_(ii, jj, kk), fAreaK_(ii, jj, kk + 1),
-              thermo, eqnState, trans, vol_(ii, jj, kk), viscosity_(ii, jj, kk),
-              mut, turb);
+              phys, vol_(ii, jj, kk), viscosity_(ii, jj, kk), mut);
 
-          const auto turbViscSpecRad = isRANS_ ?
-              turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaK_(ii, jj, kk),
-                                    fAreaK_(ii, jj, kk + 1),
-                                    viscosity_(ii, jj, kk),
-                                    trans, vol_(ii, jj, kk), mut, f1)
-              : 0.0;
+          const auto turbViscSpecRad =
+              isRANS_ ? phys.Turbulence()->ViscCellSpecRad(
+                            state_(ii, jj, kk), fAreaK_(ii, jj, kk),
+                            fAreaK_(ii, jj, kk + 1), viscosity_(ii, jj, kk),
+                            phys.Transport(), vol_(ii, jj, kk), mut, f1)
+                      : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
           specRadius_(ii, jj, kk) += specRad * viscCoeff;
@@ -2616,9 +2509,9 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
           if (inp.IsBlockMatrix()) {
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
-            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans,
-                                      thermo, this->FAreaK(ii, jj, kk), c2cDist,
-                                      turb, inp, false, velGrad);
+            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, phys,
+                                      this->FAreaK(ii, jj, kk), c2cDist, inp,
+                                      false, velGrad);
             mainDiagonal.Add(ii, jj, kk, fluxJac);
           } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
@@ -2944,15 +2837,10 @@ In the above diagram where X represents the physical cells, cells marked G
 values. G1 represents the first layer of ghost cells and G2 represents the
 second layer.
 */
-void procBlock::AssignInviscidGhostCells(
-    const input &inp, const unique_ptr<eos> &eqnState,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const unique_ptr<turbModel> &turb) {
+void procBlock::AssignInviscidGhostCells(const input &inp,
+                                         const physics &phys) {
   // inp -- all input variables
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // trans -- viscous transport model
-  // turb -- turbulence model
+  // phys -- physics models
 
   // loop over all layers of ghost cells
   for (auto layer = 1; layer <= numGhosts_; layer++) {
@@ -3020,8 +2908,8 @@ void procBlock::AssignInviscidGhostCells(
             state_.Slice(dir, iCell, r1, r2) : state_.Slice(dir, aCell, r1, r2);
 
         const auto ghostStates = this->GetGhostStates(
-            boundaryStates, bcName, faceAreas, wDist, surf, inp, eqnState,
-            thermo, trans, turb, layer, dt, consVarsN, pGrad, velGrad);
+            boundaryStates, bcName, faceAreas, wDist, surf, inp, phys, layer,
+            dt, consVarsN, pGrad, velGrad);
 
         state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
@@ -3066,37 +2954,35 @@ When this occurs the wall boundaries are "extended" into the ghost cells. This
 implementation is described in Blazek.
 */
 void procBlock::AssignInviscidGhostCellsEdge(
-    const input &inp, const unique_ptr<eos> &eqnState,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const unique_ptr<turbModel> &turb) {
+    const input &inp, const physics &phys) {
   // inp -- all input variables
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // trans -- unique_ptr<transport>'s law for viscosity
-  // turb -- turbulence model
+  // phys -- physics models
 
   // loop over directions i, j, k
   for (auto dd = 0; dd < 3; dd++) {
     string dir = "";
-    auto max1 = 0, max2 = 0, max3 = 0, surfStart = 0;
+    auto max1 = 0, max2 = 0, max3 = 0, surfStart2 = 0, surfStart3 = 0;
     if (dd == 0) {
       dir = "i";
       max1 = this->NumI();
       max2 = this->NumJ();
       max3 = this->NumK();
-      surfStart = 1;
+      surfStart2 = 3;
+      surfStart3 = 5;
     } else if (dd == 1) {
       dir = "j";
       max1 = this->NumJ();
       max2 = this->NumK();
       max3 = this->NumI();
-      surfStart = 3;
+      surfStart2 = 5;
+      surfStart3 = 1;
     } else {
       dir = "k";
       max1 = this->NumK();
       max2 = this->NumI();
       max3 = this->NumJ();
-      surfStart = 5;
+      surfStart2 = 1;
+      surfStart3 = 3;
     }
 
     // direction 1 is direction of line of cells, directions 2/3 are next in
@@ -3122,8 +3008,8 @@ void procBlock::AssignInviscidGhostCellsEdge(
           const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
           // surface types of surfaces forming edge
-          const auto surf2 = upper2 ? surfStart + 1 : surfStart;
-          const auto surf3 = upper3 ? surfStart + 1 : surfStart;
+          const auto surf2 = upper2 ? surfStart2 + 1 : surfStart2;
+          const auto surf3 = upper3 ? surfStart3 + 1 : surfStart3;
 
           // face indices at corner
           // these only change from cell indices for upper edges
@@ -3182,22 +3068,21 @@ void procBlock::AssignInviscidGhostCellsEdge(
             const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
             const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
 
-            wallVars wVars;  // not used, only for calling GetGhostState
+            // not used, only for calling GetGhostState
+            wallVars wVars(this->NumSpecies());
 
             // assign states -------------------------------------------------
-            // surface-2 is a wall, but surface-3 is not - extend wall bc
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
+              // surface-2 is a wall, but surface-3 is not - extend wall bc
               auto ghost =
                   GetGhostState(state_(dir, d1, pCellD2, gCellD3), bc_2, fArea2,
-                                wDist2, surf2, inp, tag2, eqnState, thermo,
-                                trans, turb, wVars, layer2);
+                                wDist2, surf2, inp, tag2, phys, wVars, layer2);
               state_.InsertBlock(dir, d1, gCellD2, gCellD3, ghost);
-              // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
+              // surface-3 is a wall, but surface-2 is not - extend wall bc
               auto ghost =
                   GetGhostState(state_(dir, d1, gCellD2, pCellD3), bc_3, fArea3,
-                                wDist3, surf3, inp, tag3, eqnState, thermo,
-                                trans, turb, wVars, layer3);
+                                wDist3, surf3, inp, tag3, phys, wVars, layer3);
               state_.InsertBlock(dir, d1, gCellD2, gCellD3, ghost);
             } else {  // both surfaces or neither are walls - proceed as normal
               if (layer2 == layer3) {  // need to average
@@ -3225,15 +3110,9 @@ void procBlock::AssignInviscidGhostCellsEdge(
  condition. It overwrites both regular and edge ghost cells.
 */
 void procBlock::AssignViscousGhostCells(const input &inp,
-                                        const unique_ptr<eos> &eqnState,
-                                        const unique_ptr<thermodynamic> &thermo,
-                                        const unique_ptr<transport> &trans,
-                                        const unique_ptr<turbModel> &turb) {
+                                        const physics &phys) {
   // inp -- all input variables
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // trans -- viscous transport model
-  // turb -- turbulence model
+  // phys -- physics models
 
   // loop over all layers of ghost cells
   for (auto layer = 1; layer <= numGhosts_; layer++) {
@@ -3288,15 +3167,14 @@ void procBlock::AssignViscousGhostCells(const input &inp,
         // get interior boundary states and ghost states
         const auto boundaryStates = state_.Slice(dir, iCell, r1, r2);
         const auto ghostStates = this->GetGhostStates(
-            boundaryStates, bcName, faceAreas, wDist, surf, inp, eqnState,
-            thermo, trans, turb, layer);
+            boundaryStates, bcName, faceAreas, wDist, surf, inp, phys, layer);
 
         state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
     }
   }
   // Assign edge ghost cells
-  this->AssignViscousGhostCellsEdge(inp, eqnState, thermo, trans, turb);
+  this->AssignViscousGhostCellsEdge(inp, phys);
 }
 
 
@@ -3335,38 +3213,36 @@ meet at the corner are viscousWall boundaries and the other is not. When this
 occurs the viscousWall boundaries are "extended" into the ghost cells. This
 implementation is described in Blazek.
 */
-void procBlock::AssignViscousGhostCellsEdge(
-    const input &inp, const unique_ptr<eos> &eqnState,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const unique_ptr<turbModel> &turb) {
+void procBlock::AssignViscousGhostCellsEdge(const input &inp,
+                                            const physics &phys) {
   // inp -- all input variables
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // trans -- unique_ptr<transport>'s law for viscosity
-  // turb -- turbulence model
+  // phys -- physics models
 
   // loop over directions i, j, k
   for (auto dd = 0; dd < 3; dd++) {
     string dir = "";
-    auto max1 = 0, max2 = 0, max3 = 0, surfStart = 0;
+    auto max1 = 0, max2 = 0, max3 = 0, surfStart2 = 0, surfStart3 = 0;
     if (dd == 0) {
       dir = "i";
       max1 = this->NumI();
       max2 = this->NumJ();
       max3 = this->NumK();
-      surfStart = 1;
+      surfStart2 = 3;
+      surfStart3 = 5;
     } else if (dd == 1) {
       dir = "j";
       max1 = this->NumJ();
       max2 = this->NumK();
       max3 = this->NumI();
-      surfStart = 3;
+      surfStart2 = 5;
+      surfStart3 = 1;
     } else {
       dir = "k";
       max1 = this->NumK();
       max2 = this->NumI();
       max3 = this->NumJ();
-      surfStart = 5;
+      surfStart2 = 1;
+      surfStart3 = 3;
     }
 
     // direction 1 is direction of line of cells, directions 2/3 are next in
@@ -3392,8 +3268,8 @@ void procBlock::AssignViscousGhostCellsEdge(
           const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
           // surface types of surfaces forming edge
-          const auto surf2 = upper2 ? surfStart + 1 : surfStart;
-          const auto surf3 = upper3 ? surfStart + 1 : surfStart;
+          const auto surf2 = upper2 ? surfStart2 + 1 : surfStart2;
+          const auto surf3 = upper3 ? surfStart3 + 1 : surfStart3;
 
           // face indices at corner
           // these only change from cell indices for upper edges
@@ -3449,22 +3325,21 @@ void procBlock::AssignViscousGhostCellsEdge(
             const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
             const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
 
-            wallVars wVars;  // not used, only for calling GetGhostState
+            // not used, only for calling GetGhostState
+            wallVars wVars(this->NumSpecies());
 
             // assign states -------------------------------------------------
             // surface-2 is a wall, but surface-3 is not - extend wall bc
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
               auto ghost =
                   GetGhostState(state_(dir, d1, pCellD2, gCellD3), bc_2, fArea2,
-                                wDist2, surf2, inp, tag2, eqnState, thermo,
-                                trans, turb, wVars, layer2);
+                                wDist2, surf2, inp, tag2, phys, wVars, layer2);
               state_.InsertBlock(dir, d1, gCellD2, gCellD3, ghost);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
               auto ghost =
                   GetGhostState(state_(dir, d1, gCellD2, pCellD3), bc_3, fArea3,
-                                wDist3, surf3, inp, tag3, eqnState, thermo,
-                                trans, turb, wVars, layer3);
+                                wDist3, surf3, inp, tag3, phys, wVars, layer3);
               state_.InsertBlock(dir, d1, gCellD2, gCellD3, ghost);
               // both surfaces are walls - proceed as normal
             } else if (bc_2 == "viscousWall" && bc_3 == "viscousWall") {
@@ -4701,12 +4576,10 @@ void procBlock::PutStateSlice(const blkMultiArray3d<primitive> &slice,
 /*Member function to pack and send procBlock geometry data to appropriate
  * processor. */
 void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
-                                const MPI_Datatype &MPI_vec3dMag,
-                                const MPI_Datatype &MPI_wallData) const {
+                                const MPI_Datatype &MPI_vec3dMag) const {
   // MPI_vec3d -- MPI data type for a vector3d
   // MPI_vec3dMag -- MPI data type for a unitVect3dMag
-  // MPI_vec3dMag -- MPI data type for a wallData
-
+  
   // determine size of buffer to send
   auto sendBufSize = 0;
   auto tempSize = 0;
@@ -4765,7 +4638,7 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
   sendBufSize += stringSize;
 
   for (auto &wd : wallData_) {
-    wd.PackSize(sendBufSize, MPI_wallData);
+    wd.PackSize(sendBufSize, MPI_vec3d);
   }
 
   // allocate buffer to pack data into
@@ -4834,7 +4707,7 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
 
   // pack wall data
   for (auto &wd : wallData_) {
-    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_wallData);
+    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_vec3d);
   }
 
   // send buffer to appropriate processor
@@ -4844,11 +4717,9 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
 
 void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_vec3d,
                                   const MPI_Datatype &MPI_vec3dMag,
-                                  const MPI_Datatype &MPI_wallData,
                                   const input &inp) {
   // MPI_vec3d -- MPI data type for a vector3d
   // MPI_vec3dMag -- MPI data type for a unitVect3dMag
-  // MPI_wallData --  MPI data type for a wallData
   // input -- input variables
 
   MPI_Status status;  // allocate MPI_Status structure
@@ -4944,7 +4815,7 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_vec3d,
   // unpack wall data
   wallData_.resize(bc_.NumViscousSurfaces());
   for (auto &wd : wallData_) {
-    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_wallData, inp);
+    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_vec3d, inp);
   }
 }
 
@@ -5016,12 +4887,10 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
 void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
                                  const MPI_Datatype &MPI_vec3d,
                                  const MPI_Datatype &MPI_tensorDouble,
-                                 const MPI_Datatype &MPI_wallData,
                                  const input &inp) {
   // MPI_uncoupledScalar -- MPI data type for uncoupledScalar
   // MPI_vec3d -- MPI data type for vector3d<double>
   // MPI_tensorDouble -- MPI data taype for tensor<double>
-  // MPI_wallData -- MPI data taype for wallData
   // input -- input variables
 
   MPI_Status status;  // allocate MPI_Status structure
@@ -5121,7 +4990,7 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
   // unpack wall data
   wallData_.resize(bc_.NumViscousSurfaces());
   for (auto &wd : wallData_) {
-    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_wallData, inp);
+    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_vec3d, inp);
   }
 }
 
@@ -5130,12 +4999,10 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
  * solution. */
 void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
                                const MPI_Datatype &MPI_vec3d,
-                               const MPI_Datatype &MPI_tensorDouble,
-                               const MPI_Datatype &MPI_wallData) const {
+                               const MPI_Datatype &MPI_tensorDouble) const {
   // MPI_uncoupledScalar -- MPI data type for uncoupledScalar
   // MPI_vec3d -- MPI data type for vector3d<double>
   // MPI_tensorDouble -- MPI data taype for tensor<double>
-  // MPI_wallData -- MPI data taype for wallData
 
   // determine size of buffer to send
   auto sendBufSize = 0;
@@ -5214,7 +5081,7 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
   }
 
   for (auto &wd : wallData_) {
-    wd.PackSize(sendBufSize, MPI_wallData);
+    wd.PackSize(sendBufSize, MPI_vec3d);
   }
 
   // allocate buffer to pack data into
@@ -5280,7 +5147,7 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
 
   // pack wall data
   for (auto &wd : wallData_) {
-    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_wallData);
+    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_vec3d);
   }
 
   // send buffer to appropriate processor
@@ -6428,12 +6295,9 @@ void procBlock::CalcGradsK() {
 }
 
 // Member function to calculate the source terms and add them to the residual
-void procBlock::CalcSrcTerms(const unique_ptr<transport> &trans,
-                             const unique_ptr<turbModel> &turb,
-                             const input &inp,
+void procBlock::CalcSrcTerms(const physics &phys, const input &inp,
                              matMultiArray3d &mainDiagonal) {
-  // trans -- unique_ptr<transport>'s law for viscosity
-  // turb -- turbulence model
+  // phys -- phyics models
   // mainDiagonal -- main diagonal of LHS used to store flux jacobians for
   //                 implicit solver
 
@@ -6442,12 +6306,13 @@ void procBlock::CalcSrcTerms(const unique_ptr<transport> &trans,
     for (auto jj = 0; jj < this->NumJ(); jj++) {
       for (auto ii = 0; ii < this->NumI(); ii++) {
         // calculate turbulent source terms
-        const auto phi = turb->UsePhi() ? this->MaxCellWidth(ii, jj, kk) : 1.0;
+        const auto phi =
+            phys.Turbulence()->UsePhi() ? this->MaxCellWidth(ii, jj, kk) : 1.0;
         source src(this->NumEquations(), this->NumSpecies());
         const auto srcJac = src.CalcTurbSrc(
-            turb, state_(ii, jj, kk), velocityGrad_(ii, jj, kk),
+            phys.Turbulence(), state_(ii, jj, kk), velocityGrad_(ii, jj, kk),
             temperatureGrad_(ii, jj, kk), tkeGrad_(ii, jj, kk),
-            omegaGrad_(ii, jj, kk), trans, vol_(ii, jj, kk),
+            omegaGrad_(ii, jj, kk), phys.Transport(), vol_(ii, jj, kk),
             eddyViscosity_(ii, jj, kk), f1_(ii, jj, kk), f2_(ii, jj, kk), phi);
 
         // add source terms to residual
@@ -6456,8 +6321,8 @@ void procBlock::CalcSrcTerms(const unique_ptr<transport> &trans,
 
         // add source spectral radius for turbulence equations
         // subtract because residual is initially on opposite side of equation
-        const auto turbSpecRad = turb->SrcSpecRad(state_(ii, jj, kk), trans,
-                                                  vol_(ii, jj, kk), phi);
+        const auto turbSpecRad = phys.Turbulence()->SrcSpecRad(
+            state_(ii, jj, kk), phys.Transport(), vol_(ii, jj, kk), phi);
         specRadius_(ii, jj, kk).SubtractFromTurbVariable(turbSpecRad);
 
         // add contribution of source spectral radius to flux jacobian
@@ -6537,11 +6402,7 @@ void procBlock::CalcWallDistance(const kdtree &tree) {
 
 // member function to calculate the residual (RHS) excluding any contributions
 // from source terms
-void procBlock::CalcResidualNoSource(const unique_ptr<transport> &trans,
-                                     const unique_ptr<thermodynamic> &thermo,
-                                     const unique_ptr<eos> &eos,
-                                     const input &inp,
-                                     const unique_ptr<turbModel> &turb,
+void procBlock::CalcResidualNoSource(const physics &phys, const input &inp,
                                      matMultiArray3d &mainDiagonal) {
   // Zero spectral radii, residuals, gradients, turbulence variables
   this->ResetResidWS();
@@ -6551,26 +6412,26 @@ void procBlock::CalcResidualNoSource(const unique_ptr<transport> &trans,
   }
 
   // Calculate inviscid fluxes
-  this->CalcInvFluxI(eos, thermo, inp, turb, mainDiagonal);
-  this->CalcInvFluxJ(eos, thermo, inp, turb, mainDiagonal);
-  this->CalcInvFluxK(eos, thermo, inp, turb, mainDiagonal);
+  this->CalcInvFluxI(phys, inp, mainDiagonal);
+  this->CalcInvFluxJ(phys, inp, mainDiagonal);
+  this->CalcInvFluxK(phys, inp, mainDiagonal);
 
   // If viscous change ghost cells and calculate viscous fluxes
   if (isViscous_) {
     // Determine ghost cell values for viscous fluxes
-    this->AssignViscousGhostCells(inp, eos, thermo, trans, turb);
+    this->AssignViscousGhostCells(inp, phys);
 
     // Update temperature and viscosity
-    this->UpdateAuxillaryVariables(eos, trans);
+    this->UpdateAuxillaryVariables(phys);
 
     // Calculate viscous fluxes
-    this->CalcViscFluxI(trans, thermo, eos, inp, turb, mainDiagonal);
-    this->CalcViscFluxJ(trans, thermo, eos, inp, turb, mainDiagonal);
-    this->CalcViscFluxK(trans, thermo, eos, inp, turb, mainDiagonal);
+    this->CalcViscFluxI(phys, inp, mainDiagonal);
+    this->CalcViscFluxJ(phys, inp, mainDiagonal);
+    this->CalcViscFluxK(phys, inp, mainDiagonal);
 
   } else {
     // Update temperature
-    this->UpdateAuxillaryVariables(eos, trans);
+    this->UpdateAuxillaryVariables(phys);
 
     // calculate gradients
     this->CalcGradsI();
@@ -6601,17 +6462,19 @@ multiArray3d<vector3d<double>> procBlock::SliceBoundaryCenters(
   }
 }
 
-void procBlock::UpdateAuxillaryVariables(const unique_ptr<eos> &eos,
-                                         const unique_ptr<transport> &trans,
+void procBlock::UpdateAuxillaryVariables(const physics &phys,
                                          const bool includeGhosts) {
   for (auto kk = temperature_.StartK(); kk < temperature_.EndK(); kk++) {
     for (auto jj = temperature_.StartJ(); jj < temperature_.EndJ(); jj++) {
       for (auto ii = temperature_.StartI(); ii < temperature_.EndI(); ii++) {
         if (!this->AtCorner(ii, jj, kk) &&
             (includeGhosts || this->IsPhysical(ii, jj, kk))) {
-          temperature_(ii, jj, kk) = state_(ii, jj, kk).Temperature(eos);
+          temperature_(ii, jj, kk) = state_(ii, jj, kk).Temperature(phys.EoS());
+          MSG_ASSERT(temperature_(ii, jj, kk) > 0.0, "nonphysical temperature");
           if (isViscous_) {
-            viscosity_(ii, jj, kk) = trans->Viscosity(temperature_(ii, jj, kk));
+            viscosity_(ii, jj, kk) = phys.Transport()->Viscosity(
+                temperature_(ii, jj, kk), state_(ii, jj, kk).MassFractions());
+            MSG_ASSERT(viscosity_(ii, jj, kk) >= 0.0, "nonphysical viscosity");
           }
         }
       }
@@ -6640,9 +6503,7 @@ blkMultiArray3d<primitive> procBlock::GetGhostStates(
     const blkMultiArray3d<primitive> &bndStates, const string &bcName,
     const multiArray3d<unitVec3dMag<double>> &faceAreas,
     const multiArray3d<double> &wDist, const boundarySurface &surf,
-    const input &inp, const unique_ptr<eos> &eqnState,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const unique_ptr<turbModel> &turb, const int &layer,
+    const input &inp, const physics &phys, const int &layer,
     const multiArray3d<double> &dt, const blkMultiArray3d<conserved> &consVarsN,
     const multiArray3d<vector3d<double>> &pGrad,
     const multiArray3d<tensor<double>> &velGrad) {
@@ -6651,10 +6512,7 @@ blkMultiArray3d<primitive> procBlock::GetGhostStates(
   // faceAreas -- face areas of boundary
   // surf -- boundary surface
   // inp -- input variables
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // trans -- viscous transport model
-  // turb -- turbulence model
+  // phys -- physics models
   // layer -- layer of ghost cell to return
   //          (1 closest to boundary, or 2 farthest)
   // dt -- time step at cells adjacent to boundary
@@ -6684,7 +6542,7 @@ blkMultiArray3d<primitive> procBlock::GetGhostStates(
                                   ? -1.0 * faceAreas(ii, jj, kk).UnitVector()
                                   : faceAreas(ii, jj, kk).UnitVector();
             auto mach = bndStates(ii, jj, kk).Velocity().DotProd(area) /
-                        bndStates(ii, jj, kk).SoS(thermo, eqnState);
+                        bndStates(ii, jj, kk).SoS(phys);
             maxMach = std::max(maxMach, mach);
             avgMach += mach;
           }
@@ -6701,21 +6559,19 @@ blkMultiArray3d<primitive> procBlock::GetGhostStates(
   for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
     for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
       for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
-        wallVars wVars;
+        wallVars wVars(this->NumSpecies());
         if (consVarsN.IsEmpty()) {
           const auto ghost = GetGhostState(
               bndStates(ii, jj, kk), bcName, faceAreas(ii, jj, kk).UnitVector(),
-              wDist(ii, jj, kk), surfType, inp, tag, eqnState, thermo, trans,
-              turb, wVars, layer);
+              wDist(ii, jj, kk), surfType, inp, tag, phys, wVars, layer);
           ghostStates.InsertBlock(ii, jj, kk, ghost);
         } else {  // using dt, state at time n, press grad, vel grad in BC
-          const auto stateN =
-              primitive(consVarsN(ii, jj, kk), eqnState, thermo, turb);
+          const auto stateN = primitive(consVarsN(ii, jj, kk), phys);
           const auto ghost = GetGhostState(
               bndStates(ii, jj, kk), bcName, faceAreas(ii, jj, kk).UnitVector(),
-              wDist(ii, jj, kk), surfType, inp, tag, eqnState, thermo, trans,
-              turb, wVars, layer, dt(ii, jj, kk), stateN, pGrad(ii, jj, kk),
-              velGrad(ii, jj, kk), avgMach, maxMach);
+              wDist(ii, jj, kk), surfType, inp, tag, phys, wVars, layer,
+              dt(ii, jj, kk), stateN, pGrad(ii, jj, kk), velGrad(ii, jj, kk),
+              avgMach, maxMach);
           ghostStates.InsertBlock(ii, jj, kk, ghost);
         }
         if (bcName == "viscousWall" && layer == 1) {

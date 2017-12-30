@@ -33,12 +33,10 @@ using std::unique_ptr;
 
 // forward class declarations
 class procBlock;
-class eos;
+class physics;
 class transport;
-class thermodynamic;
 class input;
 class residual;
-class turbModel;
 class matMultiArray3d;
 class kdtree;
 class resid;
@@ -64,30 +62,21 @@ vector3d<double> ScalarGradGG(
 void SwapGeomSlice(connection &, procBlock &, procBlock &);
 
 void GetBoundaryConditions(vector<procBlock> &, const input &,
-                           const unique_ptr<eos> &,
-                           const unique_ptr<thermodynamic> &,
-                           const unique_ptr<transport> &,
-                           const unique_ptr<turbModel> &, vector<connection> &,
+                           const physics &phys, vector<connection> &,
                            const int &);
 
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
 void CalcWallDistance(vector<procBlock> &, const kdtree &);
 
-void AssignSolToTimeN(vector<procBlock> &, const unique_ptr<eos> &,
-                      const unique_ptr<thermodynamic> &);
+void AssignSolToTimeN(vector<procBlock> &, const physics &phys);
 void AssignSolToTimeNm1(vector<procBlock> &);
 
-void ExplicitUpdate(vector<procBlock> &, const input &, const unique_ptr<eos> &,
-                    const unique_ptr<thermodynamic> &,
-                    const unique_ptr<transport> &,
-                    const unique_ptr<turbModel> &, const int &, residual &,
-                    resid &);
+void ExplicitUpdate(vector<procBlock> &, const input &, const physics &phys,
+                    const int &, residual &, resid &);
 double ImplicitUpdate(vector<procBlock> &, vector<matMultiArray3d> &,
-                      const input &, const unique_ptr<eos> &,
-                      const unique_ptr<thermodynamic> &,
-                      const unique_ptr<transport> &,
-                      const unique_ptr<turbModel> &, const int &, residual &,
-                      resid &, const vector<connection> &, const int &);
+                      const input &, const physics &phys, const int &,
+                      residual &, resid &, const vector<connection> &,
+                      const int &);
 
 void SwapImplicitUpdate(vector<blkMultiArray3d<varArray>> &,
                         const vector<connection> &, const int &, const int &);
@@ -100,9 +89,7 @@ void SwapEddyViscAndGradients(vector<procBlock> &, const vector<connection> &,
                               const MPI_Datatype &, const int &);
 
 void CalcResidual(vector<procBlock> &, vector<matMultiArray3d> &,
-                  const unique_ptr<transport> &,
-                  const unique_ptr<thermodynamic> &, const unique_ptr<eos> &,
-                  const input &, const unique_ptr<turbModel> &,
+                  const physics &phys, const input &,
                   const vector<connection> &, const int &, const MPI_Datatype &,
                   const MPI_Datatype &);
 
@@ -136,6 +123,10 @@ tensor<double> CalcVelGradTSL(const primitive&, const primitive&,
 kdtree CalcTreeFromCloud(const string &, const input &,
                          const unique_ptr<transport> &, vector<primitive> &,
                          vector<string> &);
+
+string GetEnvironmentVariable(const string &);
+
+double Kronecker(const int &, const int &);
 
 // ---------------------------------------------------------------------------
 // inline function definitions

@@ -25,9 +25,9 @@ restartFrequency: 1000
 # reference conditions
 referenceTemperature: 2000
 referenceDensity: 0.4
-lengthRef: 1
+referenceLength: 1
 
-fluids: <fluid(name=air; n=2.5; molarMass=0.02897)>
+fluids: <fluid(name=air; referenceMassFraction=1.0)>
 thermodynamicModel: thermallyPerfect
 
 initialConditions: <icState(tag=-1; pressure=229600; density=0.4; velocity=[2689.3, 0, 0]; massFractions=[air=1.0])>

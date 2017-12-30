@@ -48,26 +48,39 @@ struct wallVars {
   double frictionVelocity_ = 0.0;
   double tke_ = 0.0;
   double sdr_ = 0.0;
+  vector<double> mf_;
+
+  // constructor
+  explicit wallVars(const int &ns) : mf_(ns, 0.0) {}
+  wallVars() : wallVars(0) {}
 
   bool SwitchToLowRe() const {return yplus_ < 10.;}
+  void Pack(char *(&), const int &, int &, const MPI_Datatype &) const;
+  void PackSize(int &, const MPI_Datatype &) const;
+  void Unpack(char *(&), const int &, int &, const MPI_Datatype &,
+              const int &);
 };
 
 class wallData {
   double inviscidForce_;
   double viscousForce_;
+  int numSpecies_;
   shared_ptr<inputState> bcData_;
   boundarySurface surf_;
   multiArray3d<wallVars> data_;
 
  public:
   // constructor
-  wallData(const boundarySurface &surf, const shared_ptr<inputState> &bc)
+  wallData(const boundarySurface &surf, const shared_ptr<inputState> &bc,
+           const int &numSpecies)
       : inviscidForce_(0.0),
         viscousForce_(0.0),
+        numSpecies_(numSpecies),
         bcData_(bc),
         surf_(surf),
-        data_(surf.NumI(), surf.NumJ(), surf.NumK(), 0) {}
-  wallData() : wallData(boundarySurface(), nullptr) {}
+        data_(surf.NumI(), surf.NumJ(), surf.NumK(), 0, 1,
+              wallVars(numSpecies)) {}
+  wallData() : wallData(boundarySurface(), nullptr, 0) {}
 
   // move constructor and assignment operator
   wallData(wallData &&) = default;
@@ -82,6 +95,7 @@ class wallData {
   int NumJ() const { return data_.NumJ(); }
   int NumK() const { return data_.NumK(); }
   int Size() const { return data_.Size(); }
+  int NumSpecies() const { return numSpecies_; }
   double InviscidForce() const { return inviscidForce_; }
   double ViscousForce() const { return viscousForce_; }
   vector3d<double> WallShearStress(const int &ii, const int &jj,
@@ -92,6 +106,8 @@ class wallData {
   double WallEddyViscosity(const int &ii, const int &jj, const int &kk) const;
   double WallViscosity(const int &ii, const int &jj, const int &kk) const;
   double WallDensity(const int &ii, const int &jj, const int &kk) const;
+  vector<double> WallMassFractions(const int &ii, const int &jj, const int &kk) const;
+  vector<double> WallDensityVec(const int &ii, const int &jj, const int &kk) const;
   double WallTke(const int &ii, const int &jj, const int &kk) const;
   double WallSdr(const int &ii, const int &jj, const int &kk) const;
   double WallPressure(const int &ii, const int &jj, const int &kk,

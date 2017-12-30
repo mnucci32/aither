@@ -22,14 +22,11 @@
 #include <utility>  // pair
 #include <cmath>
 #include "output.hpp"
-#include "turbulence.hpp"
 #include "vector3d.hpp"  // vector3d
 #include "multiArray3d.hpp"  // multiArray3d
 #include "tensor.hpp"    // tensor
 #include "plot3d.hpp"    // plot3d
-#include "eos.hpp"
-#include "transport.hpp"
-#include "thermodynamic.hpp"
+#include "physicsModels.hpp"
 #include "primitive.hpp"           // primitive
 #include "procBlock.hpp"           // procBlock
 #include "inviscidFlux.hpp"        // inviscidFlux
@@ -52,7 +49,6 @@ using std::max;
 using std::pair;
 using std::setw;
 using std::setprecision;
-using std::unique_ptr;
 
 //-----------------------------------------------------------------------
 // function declarations
@@ -169,11 +165,9 @@ void WriteWallFaceCenter(const string &gridName, const vector<procBlock> &vars,
 
 //----------------------------------------------------------------------
 // function to write out variables in function file format
-void WriteFun(const vector<procBlock> &vars, const unique_ptr<eos> &eqnState,
-              const unique_ptr<thermodynamic> &thermo,
-              const unique_ptr<transport> &trans, const int &solIter,
-              const decomposition &decomp, const input &inp,
-              const unique_ptr<turbModel> &turb) {
+void WriteFun(const vector<procBlock> &vars, const physics &phys,
+              const int &solIter, const decomposition &decomp,
+              const input &inp) {
   // recombine blocks into original structure
   auto recombVars = Recombine(vars, decomp);
 
@@ -220,9 +214,9 @@ void WriteFun(const vector<procBlock> &vars, const unique_ptr<eos> &eqnState,
               value *= inp.RRef() * inp.ARef() * inp.ARef();
             } else if (var == "mach") {
               auto vel = blk.State(ii, jj, kk).Velocity();
-              value = vel.Mag() / blk.State(ii, jj, kk).SoS(thermo, eqnState);
+              value = vel.Mag() / blk.State(ii, jj, kk).SoS(phys);
             } else if (var == "sos") {
-              value = blk.State(ii, jj, kk).SoS(thermo, eqnState);
+              value = blk.State(ii, jj, kk).SoS(phys);
               value *= inp.ARef();
             } else if (var == "dt") {
               value = blk.Dt(ii, jj, kk);
@@ -243,16 +237,17 @@ void WriteFun(const vector<procBlock> &vars, const unique_ptr<eos> &eqnState,
                   : 0.0;
             } else if (var == "turbulentViscosity") {
               value = blk.EddyViscosity(ii, jj, kk);
-              value *= trans->MuRef();
+              value *= phys.Transport()->MuRef();
             } else if (var == "viscosity") {
               value = blk.Viscosity(ii, jj, kk);
-              value *= trans->MuRef();
+              value *= phys.Transport()->MuRef();
             } else if (var == "tke") {
               value = blk.State(ii, jj, kk).Tke();
               value *= inp.ARef() * inp.ARef();
             } else if (var == "sdr") {
               value = blk.State(ii, jj, kk).Omega();
-              value *= inp.ARef() * inp.ARef() * inp.RRef() / trans->MuRef();
+              value *= inp.ARef() * inp.ARef() * inp.RRef() /
+                       phys.Transport()->MuRef();
             } else if (var == "f1") {
               value = blk.F1(ii, jj, kk);
             } else if (var == "f2") {
@@ -326,15 +321,15 @@ void WriteFun(const vector<procBlock> &vars, const unique_ptr<eos> &eqnState,
             } else if (var == "omegaGrad_x") {
               value = blk.OmegaGrad(ii, jj, kk).X();
               value *= inp.ARef() * inp.ARef() * inp.RRef() /
-                  (trans->MuRef() * inp.LRef());
+                  (phys.Transport()->MuRef() * inp.LRef());
             } else if (var == "omegaGrad_y") {
               value = blk.OmegaGrad(ii, jj, kk).Y();
               value *= inp.ARef() * inp.ARef() * inp.RRef() /
-                  (trans->MuRef() * inp.LRef());
+                  (phys.Transport()->MuRef() * inp.LRef());
             } else if (var == "omegaGrad_z") {
               value = blk.OmegaGrad(ii, jj, kk).Z();
               value *= inp.ARef() * inp.ARef() * inp.RRef() /
-                  (trans->MuRef() * inp.LRef());
+                  (phys.Transport()->MuRef() * inp.LRef());
             } else if (var == "resid_mass") {
               value = blk.Residual(ii, jj, kk, 0);
               value *= inp.RRef() * inp.ARef() * inp.LRef() * inp.LRef();
@@ -361,7 +356,11 @@ void WriteFun(const vector<procBlock> &vars, const unique_ptr<eos> &eqnState,
             } else if (var == "resid_sdr") {
               value = blk.Residual(ii, jj, kk, 6);
               value *= inp.RRef() * inp.RRef() * pow(inp.ARef(), 4.0) *
-                  inp.LRef() * inp.LRef() / trans->MuRef();
+                  inp.LRef() * inp.LRef() / phys.Transport()->MuRef();
+            } else if (var.substr(0, 3) == "mf_" &&
+                       inp.HaveSpecies(var.substr(3, string::npos))) {
+              auto ind = inp.SpeciesIndex(var.substr(3, string::npos));
+              value = blk.State(ii, jj, kk).MassFractionN(ind);
             } else {
               cerr << "ERROR: Variable " << var
                    << " to write to function file is not defined!" << endl;
@@ -380,15 +379,13 @@ void WriteFun(const vector<procBlock> &vars, const unique_ptr<eos> &eqnState,
   outFile.close();
 
   if (inp.NumWallVarsOutput() > 0) {
-    WriteWallFun(recombVars, eqnState, trans, solIter, inp, turb);
+    WriteWallFun(recombVars, phys, solIter, inp);
   }
 }
 
 // function to write out variables in function file format
-void WriteWallFun(const vector<procBlock> &vars,
-                  const unique_ptr<eos> &eqnState,
-                  const unique_ptr<transport> &trans, const int &solIter,
-                  const input &inp, const unique_ptr<turbModel> &turb) {
+void WriteWallFun(const vector<procBlock> &vars, const physics &phys,
+                  const int &solIter, const input &inp) {
   // open binary plot3d function file
   const string fEnd = "_wall_center";
   const string fPostfix = ".fun";
@@ -438,14 +435,14 @@ void WriteWallFun(const vector<procBlock> &vars,
                 value = blk.WallYplus(ll, ii, jj, kk);
               } else if (var == "shearStress") {
                 value = blk.WallShearStress(ll, ii, jj, kk).Mag();
-                value *= trans->InvNondimScaling() * trans->MuRef() * inp.ARef() /
-                         inp.LRef();
+                value *= phys.Transport()->InvNondimScaling() *
+                         phys.Transport()->MuRef() * inp.ARef() / inp.LRef();
               } else if (var == "viscosityRatio") {
                 value = blk.WallEddyVisc(ll, ii, jj, kk) /
                         (blk.WallViscosity(ll, ii, jj, kk) + EPS);
               } else if (var == "heatFlux") {
                 value = blk.WallHeatFlux(ll, ii, jj, kk);
-                value *= trans->MuRef() * inp.TRef() / inp.LRef();
+                value *= phys.Transport()->MuRef() * inp.TRef() / inp.LRef();
               } else if (var == "frictionVelocity") {
                 value = blk.WallFrictionVelocity(ll, ii, jj, kk);
                 value *= inp.ARef();
@@ -453,20 +450,22 @@ void WriteWallFun(const vector<procBlock> &vars,
                 value = blk.WallDensity(ll, ii, jj, kk);
                 value *= inp.RRef();
               } else if (var == "pressure") {
-                value = blk.WallPressure(ll, ii, jj, kk, eqnState);
+                value = blk.WallPressure(ll, ii, jj, kk, phys.EoS());
                 value *= inp.RRef() * inp.ARef() * inp.ARef();
               } else if (var == "temperature") {
                 value = blk.WallTemperature(ll, ii, jj, kk);
                 value *= inp.TRef();
               } else if (var == "viscosity") {
                 value = blk.WallViscosity(ll, ii, jj, kk);
-                value *= trans->MuRef() * trans->InvNondimScaling();
+                value *= phys.Transport()->MuRef() *
+                         phys.Transport()->InvNondimScaling();
               } else if (var == "tke") {
                 value = blk.WallTke(ll, ii, jj, kk);
                 value *= inp.ARef() * inp.ARef();
               } else if (var == "sdr") {
                 value = blk.WallSdr(ll, ii, jj, kk);
-                value *= inp.ARef() * inp.ARef() * inp.RRef() / trans->MuRef();
+                value *= inp.ARef() * inp.ARef() * inp.RRef() /
+                         phys.Transport()->MuRef();
               } else {
                 cerr << "ERROR: Variable " << var
                      << " to write to wall function file is not defined!"
@@ -487,17 +486,16 @@ void WriteWallFun(const vector<procBlock> &vars,
 }
 
 // function to write out restart variables
-void WriteRestart(const vector<procBlock> &splitVars,
-                  const unique_ptr<eos> &eqnState,
-                  const unique_ptr<transport> &trans, const int &solIter,
-                  const decomposition &decomp, const input &inp,
-                  const residual &residL2First) {
+void WriteRestart(const vector<procBlock> &splitVars, const physics &phys,
+                  const int &solIter, const decomposition &decomp,
+                  const input &inp, const residual &residL2First) {
   // recombine blocks into original structure
   auto vars = Recombine(splitVars, decomp);
 
   // open binary restart file
   const string fPostfix = ".rst";
-  const auto writeName = inp.SimNameRoot() + "_" + to_string(solIter) + fPostfix;
+  const auto writeName =
+      inp.SimNameRoot() + "_" + to_string(solIter) + fPostfix;
   ofstream outFile(writeName, ios::out | ios::binary);
 
   // check to see if file opened correctly
@@ -523,16 +521,29 @@ void WriteRestart(const vector<procBlock> &splitVars,
   auto numSpecies = inp.NumSpecies();
   outFile.write(reinterpret_cast<char *>(&numSpecies), sizeof(numSpecies));
 
+  // write species names (including sizes)
+  for (auto ii = 0; ii < numSpecies; ++ii) {
+    auto specName = inp.Fluid(ii).Name();
+    auto specSize = specName.size();
+    outFile.write(reinterpret_cast<char *>(&specSize), sizeof(specSize));
+    outFile.write(specName.c_str(), specSize * sizeof(char));
+  }
+
   // write residual values
   outFile.write(
       const_cast<char *>(reinterpret_cast<const char *>(&residL2First[0])),
       residL2First.Size() * sizeof(residL2First[0]));
 
   // variables to write to restart file
-  vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
+  vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z",
+                                "pressure"};
   if (inp.IsRANS()) {
     restartVars.push_back("tke");
     restartVars.push_back("sdr");
+  }
+  for (auto ii = 0; ii < numSpecies; ++ii) {
+    auto var = "mf_" + inp.Fluid(ii).Name();
+    restartVars.push_back(var);
   }
 
   WriteBlockDims(outFile, vars, restartVars.size());
@@ -566,7 +577,12 @@ void WriteRestart(const vector<procBlock> &splitVars,
               value *= inp.ARef() * inp.ARef();
             } else if (var == "sdr") {
               value = blk.State(ii, jj, kk).Omega();
-              value *= inp.ARef() * inp.ARef() * inp.RRef() / trans->MuRef();
+              value *= inp.ARef() * inp.ARef() * inp.RRef() /
+                       phys.Transport()->MuRef();
+            } else if (var.substr(0, 3) == "mf_" &&
+                       inp.HaveSpecies(var.substr(3, string::npos))) {
+              auto ind = inp.SpeciesIndex(var.substr(3, string::npos));
+              value = blk.State(ii, jj, kk).MassFractionN(ind);
             } else {
               cerr << "ERROR: Variable " << var
                    << " to write to restart file is not defined!" << endl;
@@ -611,7 +627,12 @@ void WriteRestart(const vector<procBlock> &splitVars,
                 value *= inp.ARef() * inp.ARef() * inp.RRef();
               } else if (var == "sdr") {  // conserved var is rho-sdr
                 value = blk.ConsVarsNm1(ii, jj, kk)[6];
-                value *= inp.ARef() * inp.ARef() * inp.RRef() * inp.RRef() / trans->MuRef();
+                value *= inp.ARef() * inp.ARef() * inp.RRef() * inp.RRef() /
+                         phys.Transport()->MuRef();
+              } else if (var.substr(0, 3) == "mf_" &&
+                         inp.HaveSpecies(var.substr(3, string::npos))) {
+                auto ind = inp.SpeciesIndex(var.substr(3, string::npos));
+                value = blk.ConsVarsNm1(ii, jj, kk).MassFractionN(ind);
               } else {
                 cerr << "ERROR: Variable " << var
                      << " to write to restart file is not defined!" << endl;
@@ -631,11 +652,8 @@ void WriteRestart(const vector<procBlock> &splitVars,
 }
 
 void ReadRestart(vector<procBlock> &vars, const string &restartName,
-                 const decomposition &decomp, input &inp,
-                 const unique_ptr<eos> &eqnState,
-                 const unique_ptr<thermodynamic> &thermo,
-                 const unique_ptr<transport> &trans,
-                 const unique_ptr<turbModel> &turb, residual &residL2First,
+                 const decomposition &decomp, input &inp, const physics &phys,
+                 residual &residL2First,
                  const vector<vector3d<int>> &gridSizes) {
   // open binary restart file
   ifstream fName(restartName, ios::in | ios::binary);
@@ -670,10 +688,23 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   cout << "Number of equations: " << numEqns << endl;
 
   // read the number of species
-  // DEBUG -- need to know which species these are
   auto numSpecies = 0;
   fName.read(reinterpret_cast<char *>(&numSpecies), sizeof(numSpecies));
   cout << "Number of species: " << numSpecies << endl;
+
+  // read species names (including sizes)
+  vector<string> speciesNames(numSpecies);
+  for (auto ii = 0; ii < numSpecies; ++ii) {
+    size_t nameSize = 0;
+    fName.read(reinterpret_cast<char *>(&nameSize), sizeof(nameSize));
+    
+    auto buffer = unique_ptr<char>(new char[nameSize]);
+    fName.read(buffer.get(), nameSize * sizeof(char));
+    string sname(buffer.get(), nameSize);
+    speciesNames[ii] = sname;
+  }
+  // check that species are defined
+  inp.CheckSpecies(speciesNames);
 
   // read the residuals to normalize by
   fName.read(reinterpret_cast<char *>(&residL2First[0]),
@@ -698,7 +729,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
     fName.read(reinterpret_cast<char *>(&numK), sizeof(numK));
     fName.read(reinterpret_cast<char *>(&numVars), sizeof(numVars));
     if (numI != gridSizes[ii].X() || numJ != gridSizes[ii].Y() ||
-        numK != gridSizes[ii].Z() || numVars != numEqns) {
+        numK != gridSizes[ii].Z() || numVars - 1 != numEqns) {
       cerr << "ERROR: Problem with restart file. Block size does not match "
            << "grid, or number of variables in block does not match number of "
            << "equations!" << endl;
@@ -707,19 +738,24 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   }
 
   // variables to read from restart file
-  vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
-  if (numEqns == 7) {
+  vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z",
+                                "pressure"};
+  if (numEqns == numSpecies + 6) {  // have turbulence variables
     restartVars.push_back("tke");
     restartVars.push_back("sdr");
+  }
+  for (auto &spec : speciesNames) {
+    auto var = "mf_" + spec;
+    restartVars.push_back(var);
   }
 
   // loop over blocks and initialize
   cout << "Reading solution from time n..." << endl;
   vector<blkMultiArray3d<primitive>> solN(numBlks);
   for (auto ii = 0U; ii < solN.size(); ++ii) {
-    solN[ii] = ReadSolFromRestart(
-        fName, inp, eqnState, thermo, trans, turb, restartVars,
-        gridSizes[ii].X(), gridSizes[ii].Y(), gridSizes[ii].Z(), numSpecies);
+    solN[ii] =
+        ReadSolFromRestart(fName, inp, phys, restartVars, gridSizes[ii].X(),
+                           gridSizes[ii].Y(), gridSizes[ii].Z(), numSpecies);
   }
   // decompose solution
   decomp.DecompArray(solN);
@@ -734,9 +770,9 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
       cout << "Reading solution from time n-1..." << endl;
       vector<blkMultiArray3d<conserved>> solNm1(numBlks);
       for (auto ii = 0U; ii < solNm1.size(); ++ii) {
-        solNm1[ii] = ReadSolNm1FromRestart(
-            fName, inp, eqnState, trans, turb, restartVars, gridSizes[ii].X(),
-            gridSizes[ii].Y(), gridSizes[ii].Z(), numSpecies);
+        solNm1[ii] = ReadSolNm1FromRestart(fName, inp, phys, restartVars,
+                                           gridSizes[ii].X(), gridSizes[ii].Y(),
+                                           gridSizes[ii].Z(), numSpecies);
       }
       // decompose solution
       decomp.DecompArray(solNm1);
@@ -750,7 +786,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
       cerr << "WARNING: Using multilevel time integration scheme, but only one "
            << "time level found in restart file" << endl;
       // assign solution at time n to n-1
-      AssignSolToTimeN(vars, eqnState, thermo);
+      AssignSolToTimeN(vars, phys);
       AssignSolToTimeNm1(vars);
     }
   }
@@ -1050,25 +1086,26 @@ int SplitBlockNumber(const vector<procBlock> &vars, const decomposition &decomp,
 }
 
 blkMultiArray3d<primitive> ReadSolFromRestart(
-    ifstream &resFile, const input &inp, const unique_ptr<eos> &eqnState,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const unique_ptr<turbModel> &turb, const vector<string> &restartVars,
-    const int &numI, const int &numJ, const int &numK, const int &numSpecies) {
+    ifstream &resFile, const input &inp, const physics &phys,
+    const vector<string> &restartVars, const int &numI, const int &numJ,
+    const int &numK, const int &numSpecies) {
   // intialize multiArray3d
-  blkMultiArray3d<primitive> sol(numI, numJ, numK, 0, restartVars.size(),
-                                 numSpecies);
+  // -1 b/c mf and density written to file
+  auto numEqns = restartVars.size() - 1;
+  blkMultiArray3d<primitive> sol(numI, numJ, numK, 0, numEqns, numSpecies);
 
   // read the primitive variables
   // read dimensional variables -- loop over physical cells
   for (auto kk = sol.StartK(); kk < sol.EndK(); kk++) {
     for (auto jj = sol.StartJ(); jj < sol.EndJ(); jj++) {
       for (auto ii = sol.StartI(); ii < sol.EndI(); ii++) {
-        primitive value(restartVars.size(), numSpecies);
+        primitive value(numEqns, numSpecies);
+        auto rho = 0.0;
         // loop over the number of variables to read
         for (auto &var : restartVars) {
           if (var == "density") {
-            resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
-            value[0] /= inp.RRef();
+            resFile.read(reinterpret_cast<char *>(&rho), sizeof(rho));
+            rho /= inp.RRef();
           } else if (var == "vel_x") {
             auto n = value.MomentumXIndex();
             resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
@@ -1092,7 +1129,14 @@ blkMultiArray3d<primitive> ReadSolFromRestart(
           } else if (var == "sdr") {
             auto n = value.TurbulenceIndex() + 1;
             resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
-            value[n] /= inp.ARef() * inp.ARef() * inp.RRef() / trans->MuRef();
+            value[n] /= inp.ARef() * inp.ARef() * inp.RRef() /
+                        phys.Transport()->MuRef();
+          } else if (var.substr(0, 3) == "mf_" &&
+                     inp.HaveSpecies(var.substr(3, string::npos))) {
+            auto n = inp.SpeciesIndex(var.substr(3, string::npos));
+            auto mf = 0.0;
+            resFile.read(reinterpret_cast<char *>(&mf), sizeof(mf));
+            value[n] = rho * mf;
           } else {
             cerr << "ERROR: Variable " << var
                  << " to read from restart file is not defined!" << endl;
@@ -1107,25 +1151,26 @@ blkMultiArray3d<primitive> ReadSolFromRestart(
 }
 
 blkMultiArray3d<conserved> ReadSolNm1FromRestart(
-    ifstream &resFile, const input &inp, const unique_ptr<eos> &eqnState,
-    const unique_ptr<transport> &trans, const unique_ptr<turbModel> &turb,
+    ifstream &resFile, const input &inp, const physics &phys,
     const vector<string> &restartVars, const int &numI, const int &numJ,
     const int &numK, const int &numSpecies) {
   // intialize multiArray3d
-  blkMultiArray3d<conserved> sol(numI, numJ, numK, 0, restartVars.size(),
-                                 numSpecies);
+  // -1 b/c mf and density written to file
+  auto numEqns = restartVars.size() - 1;
+  blkMultiArray3d<conserved> sol(numI, numJ, numK, 0, numEqns, numSpecies);
 
   // data is conserved variables
   // read dimensional variables -- loop over physical cells
   for (auto kk = sol.StartK(); kk < sol.EndK(); kk++) {
     for (auto jj = sol.StartJ(); jj < sol.EndJ(); jj++) {
       for (auto ii = sol.StartI(); ii < sol.EndI(); ii++) {
-        conserved value(restartVars.size(), numSpecies);
+        conserved value(numEqns, numSpecies);
+        auto rho = 0.0;
         // loop over the number of variables to read
         for (auto &var : restartVars) {
           if (var == "density") {
-            resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
-            value[0] /= inp.RRef();
+            resFile.read(reinterpret_cast<char *>(&rho), sizeof(rho));
+            rho /= inp.RRef();
           } else if (var == "vel_x") {  // conserved var is rho-u
             auto n = value.MomentumXIndex();
             resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
@@ -1150,7 +1195,13 @@ blkMultiArray3d<conserved> ReadSolNm1FromRestart(
             auto n = value.TurbulenceIndex() + 1;
             resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
             value[n] /= inp.ARef() * inp.ARef() * inp.RRef() * inp.RRef() /
-                        trans->MuRef();
+                        phys.Transport()->MuRef();
+          } else if (var.substr(0, 3) == "mf_" &&
+                     inp.HaveSpecies(var.substr(3, string::npos))) {
+            auto n = inp.SpeciesIndex(var.substr(3, string::npos));
+            auto mf = 0.0;
+            resFile.read(reinterpret_cast<char *>(&mf), sizeof(mf));
+            value[n] = rho * mf;
           } else {
             cerr << "ERROR: Variable " << var
                  << " to read from restart file is not defined!" << endl;

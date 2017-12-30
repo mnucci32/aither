@@ -34,6 +34,20 @@ class conserved : public varArray {
   // member functions
   const double & RhoN(const int &ii) const { return this->SpeciesN(ii); }
   double Rho() const { return this->SpeciesSum(); }
+  vector<double> RhoVec() const {
+    return {this->begin(), this->begin() + this->NumSpecies()};
+  }
+  double MassFractionN(const int &ii) const {
+    return this->RhoN(ii) / this->Rho();
+  }
+  vector<double> MassFractions() const {
+    vector<double> mf(this->NumSpecies());
+    const auto totalRho = this->Rho();
+    for (auto ii = 0U; ii < mf.size(); ++ii) {
+      mf[ii] = this->RhoN(ii) / totalRho;
+    }
+    return mf;
+  }
   const double & RhoU() const { return this->MomentumX(); }
   const double & RhoV() const { return this->MomentumY(); }
   const double & RhoW() const { return this->MomentumZ(); }

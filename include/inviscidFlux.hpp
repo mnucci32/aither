@@ -48,8 +48,7 @@ class turbModel;
 class inviscidFlux : public varArray {
   // private member functions
   template <typename T>
-  void ConstructFromPrim(const T &, const unique_ptr<eos> &,
-                         const unique_ptr<thermodynamic> &,
+  void ConstructFromPrim(const T &, const physics &phys,
                          const vector3d<double> &);
 
  public:
@@ -58,22 +57,20 @@ class inviscidFlux : public varArray {
   inviscidFlux(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies) {}
   template <typename T>
-  inviscidFlux(const T &state, const unique_ptr<eos> &eqnState,
-               const unique_ptr<thermodynamic> &thermo,
+  inviscidFlux(const T &state, const physics &phys,
                const vector3d<double> &area)
       : inviscidFlux(state.Size(), state.NumSpecies()) {
     static_assert(std::is_same<primitive, T>::value ||
                       std::is_same<primitiveView, T>::value,
                   "T requires primitive or primativeView type");
-    this->ConstructFromPrim(state, eqnState, thermo, area);
+    this->ConstructFromPrim(state, phys, area);
   }
-  inviscidFlux(const conserved &cons, const unique_ptr<eos> &eqnState,
-               const unique_ptr<thermodynamic> &thermo,
-               const unique_ptr<turbModel> &turb, const vector3d<double> &area)
+  inviscidFlux(const conserved &cons, const physics &phys,
+               const vector3d<double> &area)
       : inviscidFlux(cons.Size(), cons.NumSpecies()) {
     // convert conserved variables to primitive variables
-    const primitive state(cons, eqnState, thermo, turb);
-    this->ConstructFromPrim(state, eqnState, thermo, area);
+    const primitive state(cons, phys);
+    this->ConstructFromPrim(state, phys, area);
   }
 
   // move constructor and assignment operator
@@ -88,10 +85,9 @@ class inviscidFlux : public varArray {
   const double & MassN(const int &ii) const { return this->SpeciesN(ii); }
   void RoeFlux(const inviscidFlux&, const varArray&);
   template <typename T1, typename T2>
-  void AUSMFlux(const T1 &, const T2 &, const unique_ptr<eos> &,
-                const unique_ptr<thermodynamic> &, const vector3d<double> &,
-                const double &, const double &, const double &, const double &,
-                const double &);
+  void AUSMFlux(const T1 &, const T2 &, const physics &phys,
+                const vector3d<double> &, const double &, const double &,
+                const double &, const double &, const double &);
 
   // destructor
   ~inviscidFlux() noexcept {}
@@ -131,8 +127,7 @@ to avoid code duplication.
 */
 template <typename T>
 void inviscidFlux::ConstructFromPrim(const T &state,
-                                     const unique_ptr<eos> &eqnState,
-                                     const unique_ptr<thermodynamic> &thermo,
+                                     const physics &phys,
                                      const vector3d<double> &normArea) {
   // state -- primitive variables
   // eqnState -- equation of state
@@ -147,26 +142,25 @@ void inviscidFlux::ConstructFromPrim(const T &state,
   for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
     (*this)[ii] = state.RhoN(ii) * velNorm;
   }
+  const auto rho = state.Rho();
   (*this)[this->MomentumXIndex()] =
-      state.Rho() * velNorm * vel.X() + state.P() * normArea.X();
+      rho * velNorm * vel.X() + state.P() * normArea.X();
   (*this)[this->MomentumYIndex()] =
-      state.Rho() * velNorm * vel.Y() + state.P() * normArea.Y();
+      rho * velNorm * vel.Y() + state.P() * normArea.Y();
   (*this)[this->MomentumZIndex()] =
-      state.Rho() * velNorm * vel.Z() + state.P() * normArea.Z();
+      rho * velNorm * vel.Z() + state.P() * normArea.Z();
   (*this)[this->EnergyIndex()] =
-      state.Rho() * velNorm * state.Enthalpy(eqnState, thermo);
+      rho * velNorm * state.Enthalpy(phys);
 
   for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
     (*this)[this->TurbulenceIndex() + ii] =
-        state.Rho() * velNorm * state.TurbulenceN(ii);
+        rho * velNorm * state.TurbulenceN(ii);
   }
 }
 
 template <typename T1, typename T2>
 void inviscidFlux::AUSMFlux(const T1 &left, const T2 &right,
-                            const unique_ptr<eos> &eqnState,
-                            const unique_ptr<thermodynamic> &thermo,
-                            const vector3d<double> &area,
+                            const physics &phys, const vector3d<double> &area,
                             const double &sos, const double &mPlusLBar,
                             const double &mMinusRBar, const double &pPlus,
                             const double &pMinus) {
@@ -182,17 +176,21 @@ void inviscidFlux::AUSMFlux(const T1 &left, const T2 &right,
   for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
     (*this)[ii] = left.RhoN(ii) * vl;
   }
+
+  // get indices
+  auto imx = this->MomentumXIndex();
+  auto imy = this->MomentumYIndex();
+  auto imz = this->MomentumZIndex();
+  auto ie = this->EnergyIndex();
+  auto it = this->TurbulenceIndex();
+
   auto rhoL = left.Rho();
-  (*this)[this->MomentumXIndex()] =
-      rhoL * vl * left.U() + pPlus * left.P() * area.X();
-  (*this)[this->MomentumYIndex()] =
-      rhoL * vl * left.V() + pPlus * left.P() * area.Y();
-  (*this)[this->MomentumZIndex()] =
-      rhoL * vl * left.W() + pPlus * left.P() * area.Z();
-  (*this)[this->EnergyIndex()] =
-      left.Rho() * vl * left.Enthalpy(eqnState, thermo);
+  (*this)[imx] = rhoL * vl * left.U() + pPlus * left.P() * area.X();
+  (*this)[imy] = rhoL * vl * left.V() + pPlus * left.P() * area.Y();
+  (*this)[imz] = rhoL * vl * left.W() + pPlus * left.P() * area.Z();
+  (*this)[ie] = rhoL * vl * left.Enthalpy(phys);
   for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
-    (*this)[this->TurbulenceIndex() + ii] = rhoL * vl * left.TurbulenceN(ii);
+    (*this)[it + ii] = rhoL * vl * left.TurbulenceN(ii);
   }
 
   // calculate right flux (add contribution)
@@ -201,16 +199,12 @@ void inviscidFlux::AUSMFlux(const T1 &left, const T2 &right,
     (*this)[ii] += right.RhoN(ii) * vr;
   }
   auto rhoR = right.Rho();
-  (*this)[this->MomentumXIndex()] +=
-      rhoR * vr * right.U() + pMinus * right.P() * area.X();
-  (*this)[this->MomentumYIndex()] +=
-      rhoR * vr * right.V() + pMinus * right.P() * area.Y();
-  (*this)[this->MomentumZIndex()] +=
-      rhoR * vr * right.W() + pMinus * right.P() * area.Z();
-  (*this)[this->EnergyIndex()] +=
-      rhoR * vr * right.Enthalpy(eqnState, thermo);
+  (*this)[imx] += rhoR * vr * right.U() + pMinus * right.P() * area.X();
+  (*this)[imy] += rhoR * vr * right.V() + pMinus * right.P() * area.Y();
+  (*this)[imz] += rhoR * vr * right.W() + pMinus * right.P() * area.Z();
+  (*this)[ie] += rhoR * vr * right.Enthalpy(phys);
   for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
-    (*this)[this->TurbulenceIndex() + ii] += rhoR * vr * right.TurbulenceN(ii);
+    (*this)[it + ii] += rhoR * vr * right.TurbulenceN(ii);
   }
 }
 
@@ -263,14 +257,12 @@ wave strength across the face.
 
 */
 template <typename T1, typename T2>
-inviscidFlux RoeFlux(const T1 &left, const T2 &right,
-                     const unique_ptr<eos> &eqnState,
-                     const unique_ptr<thermodynamic> &thermo,
-                     const vector3d<double> &areaNorm) {
+inviscidFlux RoeFlux(const T1 &left, const T2 &right, const physics &phys,
+                     const vector3d<double> &n) {
   // left -- primitive variables from left
   // right -- primitive variables from right
-  // eqnState -- equation of state
-  // areaNorm -- norm area vector of face
+  // phys -- physics models
+  // n -- norm area vector of face
   static_assert(std::is_same<primitive, T1>::value ||
                     std::is_same<primitiveView, T1>::value,
                 "T1 requires primitive or primativeView type");
@@ -281,44 +273,41 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
   // compute Rho averaged quantities
   // Roe averaged state
   const auto roe = RoeAveragedState(left, right);
-
   // Roe averaged total enthalpy
-  const auto hR = roe.Enthalpy(eqnState, thermo);
-
+  const auto hR = roe.Enthalpy(phys);
   // Roe averaged speed of sound
-  const auto aR = roe.SoS(thermo, eqnState);
-
+  const auto aR = roe.SoS(phys);
+  // Roe averaged density
+  const auto rhoR = roe.Rho();
   // Roe velocity dotted with normalized area vector
-  const auto velRSum = roe.Velocity().DotProd(areaNorm);
-
+  const auto velNormR = roe.Velocity().DotProd(n);
+  // Roe mass fractions
+  const auto mfR = roe.MassFractions();
   // Delta between right and left states
   const auto delta = right - left;
-
   // normal velocity difference between left and right states
-  const auto normVelDiff = delta.Velocity().DotProd(areaNorm);
+  const auto normVelDiff = delta.Velocity().DotProd(n);
 
   // calculate wave strengths (Cr - Cl)
-  vector<double> waveStrength(left.Size() - 1);
-  waveStrength[0] =
-      (delta.P() - roe.Rho() * aR * normVelDiff) / (2.0 * aR * aR);
+  vector<double> waveStrength(4 + left.NumTurbulence());
+  waveStrength[0] = (delta.P() - rhoR * aR * normVelDiff) / (2.0 * aR * aR);
   waveStrength[1] = delta.Rho() - delta.P() / (aR * aR);
-  waveStrength[2] =
-      (delta.P() + roe.Rho() * aR * normVelDiff) / (2.0 * aR * aR);
-  waveStrength[3] = roe.Rho();
+  waveStrength[2] = (delta.P() + rhoR * aR * normVelDiff) / (2.0 * aR * aR);
+  waveStrength[3] = rhoR;
   for (auto ii = 0; ii < left.NumTurbulence(); ++ii) {
-    waveStrength[4 + ii] = roe.Rho() * delta.TurbulenceN(ii) +
+    waveStrength[4 + ii] = rhoR * delta.TurbulenceN(ii) +
                            roe.TurbulenceN(ii) * delta.Rho() -
                            delta.P() * roe.TurbulenceN(ii) / (aR * aR);
   }
 
   // calculate absolute value of wave speeds (L)
-  vector<double> waveSpeed(left.Size() - 1);
-  waveSpeed[0] = fabs(velRSum - aR);  // left moving acoustic wave speed
-  waveSpeed[1] = fabs(velRSum);       // entropy wave speed
-  waveSpeed[2] = fabs(velRSum + aR);  // right moving acoustic wave speed
-  waveSpeed[3] = fabs(velRSum);       // shear wave speed
+  vector<double> waveSpeed(4 + left.NumTurbulence());
+  waveSpeed[0] = fabs(velNormR - aR);  // left moving acoustic wave speed
+  waveSpeed[1] = fabs(velNormR);       // entropy wave speed
+  waveSpeed[2] = fabs(velNormR + aR);  // right moving acoustic wave speed
+  waveSpeed[3] = fabs(velNormR);       // shear wave speed
   for (auto ii = 0; ii < left.NumTurbulence(); ++ii) {
-    waveSpeed[4 + ii] = fabs(velRSum);  // turbulent eqn wave speed
+    waveSpeed[4 + ii] = fabs(velNormR);  // turbulent eqn wave speed
   }
 
   // calculate entropy fix (Harten) and adjust wave speeds if necessary
@@ -330,22 +319,29 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
         0.5 * (waveSpeed[0] * waveSpeed[0] / entropyFix + entropyFix);
   }
   if (waveSpeed[2] < entropyFix) {
-    waveSpeed[2] = 0.5 * (waveSpeed[2] * waveSpeed[2] /
-                          entropyFix + entropyFix);
+    waveSpeed[2] =
+        0.5 * (waveSpeed[2] * waveSpeed[2] / entropyFix + entropyFix);
   }
-  
+
   // calculate right eigenvectors (T)
+  // get indices
+  const auto imx = left.MomentumXIndex();
+  const auto imy = left.MomentumYIndex();
+  const auto imz = left.MomentumZIndex();
+  const auto ie = left.EnergyIndex();
+  const auto it = left.TurbulenceIndex();
+
   // calculate eigenvector due to left acoustic wave
   varArray lAcousticEigV(left.Size(), left.NumSpecies());
   for (auto ii = 0; ii < lAcousticEigV.NumSpecies(); ++ii) {
-    lAcousticEigV[ii] = 1.0;
+    lAcousticEigV[ii] = mfR[ii];
   }
-  lAcousticEigV[lAcousticEigV.MomentumXIndex()] = roe.U() - aR * areaNorm.X();
-  lAcousticEigV[lAcousticEigV.MomentumYIndex()] = roe.V() - aR * areaNorm.Y();
-  lAcousticEigV[lAcousticEigV.MomentumZIndex()] = roe.W() - aR * areaNorm.Z();
-  lAcousticEigV[lAcousticEigV.EnergyIndex()] = hR - aR * velRSum;
+  lAcousticEigV[imx] = roe.U() - aR * n.X();
+  lAcousticEigV[imy] = roe.V() - aR * n.Y();
+  lAcousticEigV[imz] = roe.W() - aR * n.Z();
+  lAcousticEigV[ie] = hR - aR * velNormR;
   for (auto ii = 0; ii < lAcousticEigV.NumTurbulence(); ++ii) {
-    lAcousticEigV[lAcousticEigV.TurbulenceIndex() + ii] = roe.TurbulenceN(ii);
+    lAcousticEigV[it + ii] = roe.TurbulenceN(ii);
   }
 
   // calculate eigenvector due to entropy wave
@@ -353,50 +349,46 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
   for (auto ii = 0; ii < entropyEigV.NumSpecies(); ++ii) {
     entropyEigV[ii] = 1.0;
   }
-  entropyEigV[entropyEigV.MomentumXIndex()] = roe.U();
-  entropyEigV[entropyEigV.MomentumYIndex()] = roe.V();
-  entropyEigV[entropyEigV.MomentumZIndex()] = roe.W();
-  entropyEigV[entropyEigV.EnergyIndex()] = 0.5 * roe.Velocity().MagSq();
+  // non-species values are repated for number of species
+  entropyEigV[imx] = roe.U() * entropyEigV.NumSpecies();
+  entropyEigV[imy] = roe.V() * entropyEigV.NumSpecies();
+  entropyEigV[imz] = roe.W() * entropyEigV.NumSpecies();
+  entropyEigV[ie] = 0.5 * roe.Velocity().MagSq() * entropyEigV.NumSpecies();
   // turbulence values are zero
 
   // calculate eigenvector due to right acoustic wave
   varArray rAcousticEigV(left.Size(), left.NumSpecies());
   for (auto ii = 0; ii < rAcousticEigV.NumSpecies(); ++ii) {
-    rAcousticEigV[ii] = 1.0;
+    rAcousticEigV[ii] = mfR[ii];
   }
-  rAcousticEigV[rAcousticEigV.MomentumXIndex()] = roe.U() + aR * areaNorm.X();
-  rAcousticEigV[rAcousticEigV.MomentumYIndex()] = roe.V() + aR * areaNorm.Y();
-  rAcousticEigV[rAcousticEigV.MomentumZIndex()] = roe.W() + aR * areaNorm.Z();
-  rAcousticEigV[rAcousticEigV.EnergyIndex()] = hR + aR * velRSum;
+  rAcousticEigV[imx] = roe.U() + aR * n.X();
+  rAcousticEigV[imy] = roe.V() + aR * n.Y();
+  rAcousticEigV[imz] = roe.W() + aR * n.Z();
+  rAcousticEigV[ie] = hR + aR * velNormR;
   for (auto ii = 0; ii < rAcousticEigV.NumTurbulence(); ++ii) {
-    rAcousticEigV[rAcousticEigV.TurbulenceIndex() + ii] = roe.TurbulenceN(ii);
+    rAcousticEigV[it + ii] = roe.TurbulenceN(ii);
   }
 
   // calculate eigenvector due to shear wave
   varArray shearEigV(left.Size(), left.NumSpecies());
-  for (auto ii = 0; ii < shearEigV.NumSpecies(); ++ii) {
-    shearEigV[ii] = 0.0;
-  }
-  shearEigV[shearEigV.MomentumXIndex()] =
-      delta.U() - normVelDiff * areaNorm.X();
-  shearEigV[shearEigV.MomentumYIndex()] =
-      delta.V() - normVelDiff * areaNorm.Y();
-  shearEigV[shearEigV.MomentumZIndex()] =
-      delta.W() - normVelDiff * areaNorm.Z();
-  shearEigV[shearEigV.EnergyIndex()] =
-      roe.Velocity().DotProd(delta.Velocity()) - velRSum * normVelDiff;
+  // species values are zero
+  shearEigV[imx] = delta.U() - normVelDiff * n.X();
+  shearEigV[imy] = delta.V() - normVelDiff * n.Y();
+  shearEigV[imz] = delta.W() - normVelDiff * n.Z();
+  shearEigV[ie] =
+      roe.Velocity().DotProd(delta.Velocity()) - velNormR * normVelDiff;
   // turbulence values are zero
 
   // calculate eigenvector due to turbulent equation 1
   varArray tkeEigV(left.Size(), left.NumSpecies());
   if (tkeEigV.HasTurbulenceData()) {
-    tkeEigV[tkeEigV.TurbulenceIndex()] = 1.0;
+    tkeEigV[it] = 1.0;
   }
 
   // calculate eigenvector due to turbulent equation 2
   varArray omgEigV(left.Size(), left.NumSpecies());
   if (omgEigV.HasTurbulenceData() && omgEigV.NumTurbulence() > 1) {
-    omgEigV[omgEigV.TurbulenceIndex() + 1] = 1.0;
+    omgEigV[it + 1] = 1.0;
   }
 
   // calculate dissipation term ( eigenvector * wave speed * wave strength)
@@ -419,8 +411,8 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
   }
 
   // calculate left/right physical flux
-  inviscidFlux leftFlux(left, eqnState, thermo, areaNorm);
-  inviscidFlux rightFlux(right, eqnState, thermo, areaNorm);
+  inviscidFlux leftFlux(left, phys, n);
+  inviscidFlux rightFlux(right, phys, n);
 
   // calculate numerical Roe flux
   leftFlux.RoeFlux(rightFlux, dissipation);
@@ -440,14 +432,11 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right,
    F = M^+_l * c * F_cl + M^-_r * c * F_cr + P^+_l * P_l + P^-_r * P_r
 */
 template <typename T1, typename T2>
-inviscidFlux AUSMFlux(const T1 &left, const T2 &right,
-                     const unique_ptr<eos> &eqnState,
-                     const unique_ptr<thermodynamic> &thermo,
-                     const vector3d<double> &area) {
+inviscidFlux AUSMFlux(const T1 &left, const T2 &right, const physics &phys,
+                      const vector3d<double> &area) {
   // left -- primitive variables from left
   // right -- primitive variables from right
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
+  // phys -- physics models
   // area -- norm area vector of face
   static_assert(std::is_same<primitive, T1>::value ||
                     std::is_same<primitiveView, T1>::value,
@@ -457,16 +446,22 @@ inviscidFlux AUSMFlux(const T1 &left, const T2 &right,
                 "T2 requires primitive or primativeView type");
 
   // calculate average specific enthalpy on face
-  const auto tl = left.Temperature(eqnState);
-  const auto tr = right.Temperature(eqnState);
-  const auto hl = thermo->SpecEnthalpy(tl);
-  const auto hr = thermo->SpecEnthalpy(tr);
+  const auto tl = left.Temperature(phys.EoS());
+  const auto tr = right.Temperature(phys.EoS());
+  const auto mfl = left.MassFractions();
+  const auto mfr = right.MassFractions();
+  const auto hl = phys.Thermodynamic()->SpecEnthalpy(tl, mfl);
+  const auto hr = phys.Thermodynamic()->SpecEnthalpy(tr, mfr);
   const auto h = 0.5 * (hl + hr);
 
   // calculate c* from Kim, Kim, Rho 1998
+  vector<double> mf(mfl.size());
+  for (auto ii = 0U; ii < mf.size(); ++ii) {
+    mf[ii] = 0.5 * (mfl[ii] + mfr[ii]);
+  }
   const auto t = 0.5 * (tl + tr);
-  const auto sosStar =
-      sqrt(2.0 * h * (thermo->Gamma(t) - 1.0) / (thermo->Gamma(t) + 1.0));
+  const auto gamma = phys.Thermodynamic()->Gamma(t, mf);
+  const auto sosStar = sqrt(2.0 * h * (gamma - 1.0) / (gamma + 1.0));
 
   // calculate left/right mach numbers
   const auto vell = left.Velocity().DotProd(area);
@@ -510,15 +505,14 @@ inviscidFlux AUSMFlux(const T1 &left, const T2 &right,
                   : mMinusR + mPlusL * ((1.0 - w) * (1.0 + fl) - fr);
 
   inviscidFlux ausm(left.Size(), left.NumSpecies());
-  ausm.AUSMFlux(left, right, eqnState, thermo, area, sos, mPlusLBar, mMinusRBar,
-                pPlus, pMinus);
+  ausm.AUSMFlux(left, right, phys, area, sos, mPlusLBar, mMinusRBar, pPlus,
+                pMinus);
   return ausm;
 }
 
 template <typename T1, typename T2>
 inviscidFlux InviscidFlux(const T1 &left, const T2 &right,
-                          const unique_ptr<eos> &eqnState,
-                          const unique_ptr<thermodynamic> &thermo,
+                          const physics &phys,
                           const vector3d<double> &area, const string &flux) {
   static_assert(std::is_same<primitive, T1>::value ||
                     std::is_same<primitiveView, T1>::value,
@@ -529,9 +523,9 @@ inviscidFlux InviscidFlux(const T1 &left, const T2 &right,
   
   inviscidFlux invFlux;
   if (flux == "roe") {
-    invFlux = RoeFlux(left, right, eqnState, thermo, area);
+    invFlux = RoeFlux(left, right, phys, area);
   } else if (flux == "ausm") {
-    invFlux = AUSMFlux(left, right, eqnState, thermo, area);
+    invFlux = AUSMFlux(left, right, phys, area);
   } else {
     cerr << "ERROR: inviscid flux type " << flux << " is not recognized!"
          << endl;
@@ -543,14 +537,12 @@ inviscidFlux InviscidFlux(const T1 &left, const T2 &right,
 
 template <typename T1, typename T2>
 inviscidFlux RusanovFlux(const T1 &left, const T2 &right,
-                         const unique_ptr<eos> &eqnState,
-                         const unique_ptr<thermodynamic> &thermo,
+                         const physics &phys,
                          const vector3d<double> &areaNorm,
                          const bool &positive) {
   // left -- primitive variables from left
   // right -- primitive variables from right
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
+  // phys -- physics models
   // areaNorm -- norm area vector of face
   // positive -- flag that is positive to add spectral radius
   static_assert(std::is_same<primitive, T1>::value ||
@@ -562,15 +554,15 @@ inviscidFlux RusanovFlux(const T1 &left, const T2 &right,
 
   // calculate maximum spectral radius
   const auto leftSpecRad =
-      fabs(left.Velocity().DotProd(areaNorm)) + left.SoS(thermo, eqnState);
+      fabs(left.Velocity().DotProd(areaNorm)) + left.SoS(phys);
   const auto rightSpecRad =
-      fabs(right.Velocity().DotProd(areaNorm)) + right.SoS(thermo, eqnState);
+      fabs(right.Velocity().DotProd(areaNorm)) + right.SoS(phys);
   const auto fac = positive ? -1.0 : 1.0;
   const auto specRad = fac * std::max(leftSpecRad, rightSpecRad);
 
   // calculate left/right physical flux
-  inviscidFlux leftFlux(left, eqnState, thermo, areaNorm);
-  inviscidFlux rightFlux(right, eqnState, thermo, areaNorm);
+  inviscidFlux leftFlux(left, phys, areaNorm);
+  inviscidFlux rightFlux(right, phys, areaNorm);
 
   return 0.5 * (leftFlux + rightFlux - specRad);
 }
@@ -581,8 +573,7 @@ inviscidFlux RusanovFlux(const T1 &left, const T2 &right,
 template <typename T1, typename T2>
 inviscidFlux ConvectiveFluxUpdate(const T1 &state,
                                   const T2 &stateUpdate,
-                                  const unique_ptr<eos> &eqnState,
-                                  const unique_ptr<thermodynamic> &thermo,
+                                  const physics &phys,
                                   const vector3d<double> &normArea) {
   static_assert(std::is_same<primitive, T1>::value ||
                     std::is_same<primitiveView, T1>::value,
@@ -592,9 +583,9 @@ inviscidFlux ConvectiveFluxUpdate(const T1 &state,
                 "T2 requires primitive or primativeView type");
 
   // get inviscid flux of old state
-  const inviscidFlux oldFlux(state, eqnState, thermo, normArea);
+  const inviscidFlux oldFlux(state, phys, normArea);
   // get updated inviscid flux
-  const inviscidFlux newFlux(stateUpdate, eqnState, thermo, normArea);
+  const inviscidFlux newFlux(stateUpdate, phys, normArea);
 
   // calculate difference in flux
   return newFlux - oldFlux;

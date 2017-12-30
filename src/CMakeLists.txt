@@ -33,6 +33,7 @@ set(sources
   eos.cpp
   fluid.cpp
   fluxJacobian.cpp
+  ghostStates.cpp
   input.cpp
   inputStates.cpp
   inviscidFlux.cpp
@@ -82,16 +83,16 @@ endif()
 
 # set additional c++ flags for all build types
 if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} /O2 /DNDEBUG")
+   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS}")
 else()
-   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -march=native -O3 -DNDEBUG")
+   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -Wall -pedantic")
 endif()
 
 # release build type
 if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-   set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMPILER_SPEC_FLAGS}")
+   set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMPILER_SPEC_FLAGS} /O2 /DNDEBUG")
 else()
-  set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -march=native")
+  set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -march=native -DNDEBUG")
 endif()
 
 # debug build type
@@ -103,9 +104,9 @@ endif()
 
 # create profile build type
 if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-   set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} /PROFILE")
+   set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} /PROFILE /DNDEBUG")
 else()
-   set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -pg")
+   set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -pg -DNDEBUG")
 endif()
 
 # set compiler flags based on release type
@@ -144,3 +145,7 @@ install (TARGETS aither aitherStatic aitherShared
 FILE (GLOB files "${CMAKE_SOURCE_DIR}/include/*.hpp")
 install (FILES ${files} DESTINATION include)
 install (FILES "${PROJECT_BINARY_DIR}/macros.hpp" DESTINATION include)
+
+# install fluid database files
+FILE (GLOB files "${CMAKE_SOURCE_DIR}/fluidDatabase/*.dat")
+install (FILES ${files} DESTINATION fluidDatabase)

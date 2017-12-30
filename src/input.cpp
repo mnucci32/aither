@@ -28,9 +28,7 @@
 #include "input.hpp"
 #include "turbulence.hpp"
 #include "inputStates.hpp"
-#include "eos.hpp"
-#include "transport.hpp"
-#include "thermodynamic.hpp"
+#include "physicsModels.hpp"
 #include "fluid.hpp"
 #include "macros.hpp"
 
@@ -57,6 +55,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   tRef_ = -1.0;
   lRef_ = 1.0;
   aRef_ = 0.0;
+  mixtureRef_ = vector<double>(1, 1.0);
   fluids_ = vector<fluid>(1);
   bc_ = vector<boundaryConditions>(1);
   timeIntegration_ = "explicitEuler";
@@ -88,8 +87,10 @@ input::input(const string &name, const string &resName) : simName_(name),
   thermodynamicModel_ = "caloricallyPerfect";  // default to cpg
   equationOfState_ = "idealGas";  // default to ideal gas
   transportModel_ = "sutherland";  // default to sutherland
+  diffusionModel_ = "none";  // default to no diffusion
   restartFrequency_ = 0;  // default to not write restarts
   iterationStart_ = 0;  // default to start from iteration zero
+  schmidtNumber_ = 0.9;
 
   // default to primitive variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
@@ -124,11 +125,13 @@ input::input(const string &name, const string &resName) : simName_(name),
            "decompositionMethod",
            "turbulenceModel",
            "thermodynamicModel",
+           "diffusionModel",
            "equationOfState",
            "transportModel",
            "outputVariables",
            "wallOutputVariables",
            "initialConditions",
+           "schmidtNumber",
            "boundaryStates",
            "boundaryConditions"};
 }
@@ -228,7 +231,7 @@ void input::ReadInput(const int &rank) {
               if (ii == fluids_.size() - 1) {
                 cout << ">" << endl;
               } else {
-                cout << "," << endl << "                    ";
+                cout << "," << endl << "         ";
               }
             }
           }
@@ -388,6 +391,11 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->TransportModel() << endl;
           }
+        } else if (key == "schmidtNumber") {
+          schmidtNumber_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << ": " << this->SchmidtNumber() << endl;
+          }
         } else if (key == "outputVariables") {
           // clear default variables from set
           outputVariables_.clear();
@@ -526,6 +534,26 @@ void input::ReadInput(const int &rank) {
     }
   }
 
+  // get mixture reference mass fractions
+  if (this->NumSpecies() > 1) {
+    mixtureRef_.resize(this->NumSpecies());
+    for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
+      mixtureRef_[ii] = fluids_[ii].MassFractionRef();
+    }
+    // normalize mass fractions so that sum is 1
+    auto mfSum = std::accumulate(mixtureRef_.begin(), mixtureRef_.end(), 0.0);
+    std::for_each(mixtureRef_.begin(), mixtureRef_.end(),
+                  [&mfSum](auto &val) { val /= mfSum; });
+  } else {
+    mixtureRef_[0] = 1.0;
+  }
+
+  // assign reference speed of sound (assume cpg for gamma)
+  for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
+    auto gamma = (fluids_[ii].N() + 1) / fluids_[ii].N();
+    aRef_ += mixtureRef_[ii] * gamma * fluids_[ii].GasConstant() * tRef_;
+  }
+  aRef_ = sqrt(aRef_);
 
   // input file sanity checks
   this->CheckNonlinearIterations();
@@ -662,24 +690,17 @@ unique_ptr<turbModel> input::AssignTurbulenceModel() const {
 }
 
 // member function to get equation of state
-unique_ptr<eos> input::AssignEquationOfState(
-    const unique_ptr<thermodynamic> &thermo) {
-  // get fluid
-  auto fl = this->Fluid();
+unique_ptr<eos> input::AssignEquationOfState() const {
   // define equation of state
   unique_ptr<eos> eqnState(nullptr);
   if (equationOfState_ == "idealGas") {
-    // nondimensional temperature is 1.0 (tRef_ / tRef_)
-    eqnState = unique_ptr<eos>{
-        std::make_unique<idealGas>(thermo, fl.GasConstant(), 1.0)};
+    eqnState =
+        unique_ptr<eos>{std::make_unique<idealGas>(fluids_, tRef_, aRef_)};
   } else {
     cerr << "ERROR: Error in input::AssignEquationOfState(). Equation of state "
          << equationOfState_ << " is not recognized!" << endl;
     exit(EXIT_FAILURE);
   }
-  // use equation of state to assign additional reference values
-  const auto pRef = eqnState->PressureDim(rRef_, tRef_);
-  aRef_ = eqnState->SoS(pRef, rRef_);
   return eqnState;
 }
 
@@ -689,7 +710,7 @@ unique_ptr<transport> input::AssignTransportModel() const {
   unique_ptr<transport> trans(nullptr);
   if (transportModel_ == "sutherland") {
     trans = unique_ptr<transport>{std::make_unique<sutherland>(
-        tRef_, rRef_, lRef_, aRef_)};
+        fluids_, tRef_, rRef_, lRef_, aRef_, mixtureRef_)};
   } else {
     cerr << "ERROR: Error in input::AssignTransportModel(). Transport model "
          << transportModel_ << " is not recognized!" << endl;
@@ -700,16 +721,14 @@ unique_ptr<transport> input::AssignTransportModel() const {
 
 // member function to get thermodynamic model
 unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
-  // get fluid
-  auto fl = this->Fluid();
-  // define equation of state
+  // define thermodynamic model
   unique_ptr<thermodynamic> thermo(nullptr);
   if (thermodynamicModel_ == "caloricallyPerfect") {
-    thermo =
-        unique_ptr<thermodynamic>{std::make_unique<caloricallyPerfect>(fl.N())};
+    thermo = unique_ptr<thermodynamic>{
+        std::make_unique<caloricallyPerfect>(fluids_)};
   } else if (thermodynamicModel_ == "thermallyPerfect") {
-    thermo = unique_ptr<thermodynamic>{std::make_unique<thermallyPerfect>(
-        fl.N(), fl.VibrationalTemperature())};
+    thermo = unique_ptr<thermodynamic>{
+        std::make_unique<thermallyPerfect>(fluids_, tRef_, aRef_)};
   } else {
     cerr << "ERROR: Error in input::AssignThermodynamicModel(). Thermodynamic "
          << "model " << thermodynamicModel_ << " is not recognized!" << endl;
@@ -718,6 +737,31 @@ unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
   return thermo;
 }
 
+// member function to get diffusion model
+unique_ptr<diffusion> input::AssignDiffusionModel(const double &sct) const {
+  // define diffusion model
+  unique_ptr<diffusion> diff(nullptr);
+  if (diffusionModel_ == "none") {
+    diff = unique_ptr<diffusion>{std::make_unique<diffNone>()};
+  } else if (diffusionModel_ == "schmidt") {
+    diff = unique_ptr<diffusion>{
+        std::make_unique<schmidt>(schmidtNumber_, sct)};
+  } else {
+    cerr << "ERROR: Error in input::AssignDiffusionModel(). Diffusion "
+         << "model " << diffusionModel_ << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return diff;
+}
+
+physics input::AssignPhysicsModels() const {
+  auto eqnState = this->AssignEquationOfState();
+  auto trans = this->AssignTransportModel();
+  auto thermo = this->AssignThermodynamicModel();
+  auto turb = this->AssignTurbulenceModel();
+  auto diff = this->AssignDiffusionModel(turb->TurbSchmidtNumber());
+  return {eqnState, trans, thermo, diff, turb};
+}
 
 // member function to return the name of the simulation without the file
 // extension i.e. "myInput.inp" would return "myInput"
@@ -770,6 +814,14 @@ void input::CheckOutputVariables() {
             " is not available for inviscid simulations." << endl;
         outputVariables_.erase(var);
       }
+    }
+
+    // check species
+    if (var.substr(0, 3) == "mf_" &&
+        !this->HaveSpecies(var.substr(3, string::npos))) {
+      cerr << "WARNING: Species " << var.substr(3, string::npos)
+           << " is not present. Removing mass fraction output request" << endl;
+      outputVariables_.erase(var);
     }
   }
 }
@@ -903,6 +955,27 @@ void input::CheckSpecies(const vector<string> &species) const {
   }
 }
 
+// member function to check that species specified is defined
+bool input::HaveSpecies(const string &species) const {
+  return !(find_if(std::begin(fluids_), std::end(fluids_),
+                   [&species](const fluid &fl) {
+                     return fl.Name() == species;
+                   }) == std::end(fluids_));
+}
+
+// member function to get index of species
+bool input::SpeciesIndex(const string &species) const {
+  auto ind = -1;
+  find_if(std::begin(fluids_), std::end(fluids_),
+          [&species, &ind](const fluid &fl) {
+            ind++;
+            return fl.Name() == species;
+          });
+  MSG_ASSERT(ind < this->NumSpecies() && ind >= 0,
+             "species index out of range");
+  return ind;
+}
+
 // member function to calculate the coefficient used to scale the viscous
 // spectral radius in the time step calculation
 double input::ViscousCFLCoefficient() const {
@@ -995,6 +1068,3 @@ void input::NondimensionalizeFluid() {
     fl.Nondimensionalize(tRef_);
   }
 }
-
-// default value is 0; code currently only supports single fluid flows
-fluid input::Fluid(const int ind) const { return fluids_[ind]; }

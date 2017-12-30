@@ -28,8 +28,7 @@
 #include "macros.hpp"
 #include "varArray.hpp"
 #include "vector3d.hpp"
-#include "thermodynamic.hpp"
-#include "eos.hpp"
+#include "physicsModels.hpp"
 #include "conserved.hpp"
 
 using std::ostream;
@@ -44,7 +43,6 @@ using std::unique_ptr;
 // forward class declarations
 class primitive;
 class residual;
-class turbModel;
 
 template <typename T1, typename T2>
 class arrayView {
@@ -79,7 +77,7 @@ class arrayView {
 
   // member functions
   T2 Sum() const { return std::accumulate(begin_, end_, T2(0)); }
-  T1 CopyData() const { return T1{begin_, end_, this->NumSpecies()}; }
+  T1 CopyData() const { return {begin_, end_, this->NumSpecies()}; }
   T1 GetViewType() const { return T1(this->Size(), this->NumSpecies(), 0.0); }
   T1 Squared() const { return (*this) * (*this); }
   auto Size() const { return std::distance(begin_, end_); }
@@ -106,7 +104,7 @@ class arrayView {
   const T2 &MomentumZ() const { return (*this)[momentumIndex_ + 2]; }
   const T2 &Energy() const { return (*this)[energyIndex_]; }
   const T2 &TurbulenceN(const int &ii) const {
-    MSG_ASSERT(tubulenceIndex_ + ii >= this->Size(),
+    MSG_ASSERT(turbulenceIndex_ + ii < this->Size(),
                "requesting turbulence variable out of range");
     return (*this)[turbulenceIndex_ + ii];
   }
@@ -115,20 +113,40 @@ class arrayView {
 
   // --------------------------------------------------------------------------
   // getters for primitives ---------------------------------------------------
-  const T2 &RhoN(const int &ii) const { 
-    static_assert(std::is_same<primitive, T1>::value,
-                "getter only valid for primitive type!");
+  const T2 &RhoN(const int &ii) const {
+    static_assert(std::is_same<primitive, T1>::value ||
+                      std::is_same<conserved, T1>::value,
+                  "getter only valid for primitive/conserved type!");
     return this->SpeciesN(ii); 
   }
-  T2 Rho() const { 
-    static_assert(std::is_same<primitive, T1>::value,
-                "getter only valid for primitive type!");
-    return this->SpeciesSum(); 
+  T2 Rho() const {
+    static_assert(std::is_same<primitive, T1>::value ||
+                      std::is_same<conserved, T1>::value,
+                  "getter only valid for primitive/conserved type!");
+    return this->SpeciesSum();
   }
-  T2 MassFractionN(const int &ii) const { 
-    static_assert(std::is_same<primitive, T1>::value,
-                "getter only valid for primitive type!");
+  T2 MassFractionN(const int &ii) const {
+    static_assert(std::is_same<primitive, T1>::value ||
+                      std::is_same<conserved, T1>::value,
+                  "getter only valid for primitive/conserved type!");
     return this->RhoN(ii) / this->Rho(); 
+  }
+  vector<T2> RhoVec() const {
+    static_assert(std::is_same<primitive, T1>::value ||
+                      std::is_same<conserved, T1>::value,
+                  "getter only valid for primitive/conserved type!");
+    return {this->begin(), this->begin() + this->NumSpecies()};
+  }
+  vector<T2> MassFractions() const {
+    static_assert(std::is_same<primitive, T1>::value ||
+                      std::is_same<conserved, T1>::value,
+                  "getter only valid for primitive/conserved type!");
+    vector<T2> mf(this->NumSpecies());
+    const auto totalRho = this->Rho();
+    for (auto ii = 0U; ii < mf.size(); ++ii) {
+      mf[ii] = this->RhoN(ii) / totalRho;
+    }
+    return mf;
   }
   const T2 &U() const { 
     static_assert(std::is_same<primitive, T1>::value,
@@ -170,46 +188,24 @@ class arrayView {
                 "getter only valid for primitive type!");
     return {this->U(), this->V(), this->W()};
   }
-  T2 SoS(const unique_ptr<thermodynamic> &thermo,
-         const unique_ptr<eos> &eqnState) const {
-    static_assert(std::is_same<primitive, T1>::value,
-                  "getter only valid for primitive type!");
-    return sqrt(thermo->Gamma(this->Temperature(eqnState)) * this->P() /
-                this->Rho());
-  }
+  T2 SoS(const physics &phys) const;
+  T2 Energy(const physics &phys) const;
+  T2 Enthalpy(const physics &phys) const;
   T2 Temperature(const unique_ptr<eos> &eqnState) const {
     static_assert(std::is_same<primitive, T1>::value,
                   "getter only valid for primitive type!");
-    return eqnState->Temperature(this->P(), this->Rho());
+    return eqnState->Temperature(this->P(), this->RhoVec());
   }
-  T2 Energy(const unique_ptr<eos> &eqnState,
-            const unique_ptr<thermodynamic> &thermo) const {
-    static_assert(std::is_same<primitive, T1>::value,
-                  "getter only valid for primitive type!");
-    const auto t = this->Temperature(eqnState);
-    return eqnState->Energy(eqnState->SpecEnergy(thermo, t),
-                            this->Velocity().Mag());
-  }
-  T2 Enthalpy(const unique_ptr<eos> &eqnState,
-              const unique_ptr<thermodynamic> &thermo) const {
-    static_assert(std::is_same<primitive, T1>::value,
-                  "getter only valid for primitive type!");
-    const auto t = this->Temperature(eqnState);
-    return eqnState->Enthalpy(thermo, t, this->Velocity().Mag());
-  }
-  conserved ConsVars(const unique_ptr<eos> &eqnState,
-                     const unique_ptr<thermodynamic> &thermo) const {
+  conserved ConsVars(const physics &phys) const {
     static_assert(std::is_same<primitive, T1>::value,
                   "function only valid for primitive type!");
-    return PrimToCons((*this), eqnState, thermo);
+    return PrimToCons((*this), phys);
   }
-  T1 UpdateWithConsVars(const unique_ptr<eos> &eqnState,
-                        const unique_ptr<thermodynamic> &thermo,
-                        const arrayView<varArray, double> &du,
-                        const unique_ptr<turbModel> &turb) const {
+  T1 UpdateWithConsVars(const physics &phys,
+                        const arrayView<varArray, double> &du) const {
     static_assert(std::is_same<primitive, T1>::value,
                   "function only valid for primitive type!");
-    return UpdatePrimWithCons((*this), eqnState, thermo, du, turb);
+    return UpdatePrimWithCons((*this), phys, du);
   }
 
   // --------------------------------------------------------------------------
@@ -373,5 +369,58 @@ using varArrayView = arrayView<varArray, double>;
 using primitiveView = arrayView<primitive, double>;
 using conservedView = arrayView<conserved, double>;
 using residualView = arrayView<residual, double>;
+
+
+template <typename T>
+double SpeedOfSound(const T &state, const physics &phys) {
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+  return sqrt(phys.Thermodynamic()->Gamma(state.Temperature(phys.EoS()),
+                                          state.MassFractions()) *
+              state.P() / state.Rho());
+}
+
+template <typename T1, typename T2>
+T2 arrayView<T1, T2>::SoS(const physics &phys) const {
+  static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+  return SpeedOfSound(*this, phys);
+}
+
+template <typename T>
+double EnthalpyFunc(const T &state, const physics &phys) {
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+  const auto t = state.Temperature(phys.EoS());
+  return phys.EoS()->Enthalpy(phys.Thermodynamic(), t, state.Velocity().Mag(),
+                              state.MassFractions());
+}
+
+template <typename T1, typename T2>
+T2 arrayView<T1, T2>::Enthalpy(const physics &phys) const {
+  static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+  return EnthalpyFunc(*this, phys);
+}
+
+template <typename T>
+double InternalEnergy(const T &state, const physics &phys) {
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+  const auto t = state.Temperature(phys.EoS());
+  return phys.EoS()->Energy(
+      phys.EoS()->SpecEnergy(phys.Thermodynamic(), t, state.MassFractions()),
+      state.Velocity().Mag());
+}
+
+template <typename T1, typename T2>
+T2 arrayView<T1, T2>::Energy(const physics &phys) const {
+  static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+  return InternalEnergy(*this, phys);
+}
 
 #endif

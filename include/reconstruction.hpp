@@ -141,8 +141,8 @@ primitive FaceReconMUSCL(const T &upwind2, const T &upwind1, const T &downwind1,
     limiter = LimiterVanAlbada(r);
     invLimiter = LimiterVanAlbada(1.0 / r);
   } else if (lim == "minmod") {
-    limiter = LimiterMinmod(upwind1 - upwind2, downwind1 - upwind1, kappa);
-    invLimiter = limiter / r;
+    limiter = LimiterMinmod(r);
+    invLimiter = LimiterMinmod(1.0 / r);
   } else {
     cerr << "ERROR: Limiter " << lim << " is not recognized!" << endl;
     exit(EXIT_FAILURE);

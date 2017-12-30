@@ -356,6 +356,7 @@ auto SliceArray(const T &parent, const range &ir, const range &jr,
   // kr -- k-index range to take slice [inclusive, exclusive)
   // T should be multiArray3d or blkMultiArray3d type
 
+#ifndef NDEBUG
   // check that slice bounds are within parent array and that end bounds are
   // greater than or equal to start bounds
   if (!ir.IsInside(parent.RangeI()) || !jr.IsInside(parent.RangeJ()) ||
@@ -367,6 +368,7 @@ auto SliceArray(const T &parent, const range &ir, const range &jr,
          << parent.RangeJ() << ", " << parent.RangeK() << endl;
     exit(EXIT_FAILURE);
   }
+#endif
 
   // slices always have 0 ghost cells
   T arr(ir.Size(), jr.Size(), kr.Size(), 0, parent.BlockInfo());

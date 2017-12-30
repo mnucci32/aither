@@ -19,7 +19,6 @@
 #define FLUXJACOBIANHEADERDEF  // define the macro
 
 #include <vector>          // vector
-#include <memory>          // unique_ptr
 #include <type_traits>
 #include <algorithm>
 #include <functional>
@@ -32,18 +31,14 @@
 #include "utility.hpp"        // TauNormal
 #include "inviscidFlux.hpp"   // ConvectiveFluxUpdate
 #include "input.hpp"          // input
+#include "physicsModels.hpp"
 
 using std::vector;
 using std::ostream;
-using std::unique_ptr;
 
 // forward class declarations
 class primitive;
 class conserved;
-class eos;
-class transport;
-class thermodynamic;
-class turbModel;
 
 template <typename T1, typename T2,
           typename = std::enable_if_t<std::is_base_of<varArray, T1>::value ||
@@ -245,32 +240,24 @@ class fluxJacobian {
   }
 
   template <typename T>
-  void RusanovFluxJacobian(const T &, const unique_ptr<eos> &,
-                           const unique_ptr<thermodynamic> &,
+  void RusanovFluxJacobian(const T &, const physics &,
                            const unitVec3dMag<double> &, const bool &,
-                           const input &, const unique_ptr<turbModel> &);
+                           const input &);
   template <typename T>
-  void InvFluxJacobian(const T &, const unique_ptr<eos> &,
-                       const unique_ptr<thermodynamic> &,
-                       const unitVec3dMag<double> &, const input &,
-                       const unique_ptr<turbModel> &);
+  void InvFluxJacobian(const T &, const physics &, const unitVec3dMag<double> &,
+                       const input &);
   template <typename T1, typename T2>
-  void ApproxRoeFluxJacobian(const T1 &, const T2 &, const unique_ptr<eos> &,
-                             const unique_ptr<thermodynamic> &,
+  void ApproxRoeFluxJacobian(const T1 &, const T2 &, const physics &,
                              const unitVec3dMag<double> &, const bool &,
-                             const input &, const unique_ptr<turbModel> &);
+                             const input &);
   template <typename T>
-  void DelprimitiveDelConservative(const T &, const unique_ptr<thermodynamic> &,
-                                   const unique_ptr<eos> &, const input &);
+  void DelprimitiveDelConservative(const T &, const physics &, const input &);
 
   template <typename T>
   void ApproxTSLJacobian(const T &, const double &, const double &,
-                         const double &, const unique_ptr<eos> &,
-                         const unique_ptr<transport> &,
-                         const unique_ptr<thermodynamic> &,
+                         const double &, const physics &,
                          const unitVec3dMag<double> &, const double &,
-                         const unique_ptr<turbModel> &, const input &,
-                         const bool &, const tensor<double> &);
+                         const input &, const bool &, const tensor<double> &);
 
   void Zero() {
     std::fill(this->begin(), this->end(), 0.0);
@@ -451,25 +438,20 @@ In the above equations the dissipation term L is held constant during
 differentiation. A represents the convective flux jacobian matrix.
  */
 template <typename T>
-void fluxJacobian::RusanovFluxJacobian(const T &state,
-                                       const unique_ptr<eos> &eqnState,
-                                       const unique_ptr<thermodynamic> &thermo,
+void fluxJacobian::RusanovFluxJacobian(const T &state, const physics &phys,
                                        const unitVec3dMag<double> &area,
-                                       const bool &positive, const input &inp,
-                                       const unique_ptr<turbModel> &turb) {
+                                       const bool &positive, const input &inp) {
   // state -- primitive variables at face
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
+  // phys -- physics models
   // area -- face area vector
   // positive -- flag to determine whether to add or subtract dissipation
   // inp -- input variables
-  // turb -- turbulence model
   static_assert(std::is_same<primitive, T>::value ||
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
 
   // face inviscid spectral radius
-  const auto specRad = InvFaceSpectralRadius(state, area, thermo, eqnState);
+  const auto specRad = InvFaceSpectralRadius(state, area, phys);
 
   // form dissipation matrix based on spectral radius
   fluxJacobian dissipation(inp.NumFlowEquations(), inp.NumTurbEquations());
@@ -477,12 +459,13 @@ void fluxJacobian::RusanovFluxJacobian(const T &state,
   dissipation.FlowMultiplyOnDiagonal(specRad);
 
   // begin jacobian calculation
-  this->InvFluxJacobian(state, eqnState, thermo, area, inp, turb);
+  this->InvFluxJacobian(state, phys, area, inp);
 
   // compute turbulent dissipation if necessary
   if (inp.IsRANS()) {
     // multiply by 0.5 b/c averaging with convection matrix
-    const auto tJac = 0.5 * turb->InviscidDissJacobian(state, area);
+    const auto tJac =
+        0.5 * phys.Turbulence()->InviscidDissJacobian(state, area);
     std::copy(tJac.begin(), tJac.end(), dissipation.beginTurb());
   }
 
@@ -491,76 +474,72 @@ void fluxJacobian::RusanovFluxJacobian(const T &state,
 
 // function to calculate inviscid flux jacobian
 template <typename T>
-void fluxJacobian::InvFluxJacobian(const T &state,
-                                   const unique_ptr<eos> &eqnState,
-                                   const unique_ptr<thermodynamic> &thermo,
+void fluxJacobian::InvFluxJacobian(const T &state, const physics &phys,
                                    const unitVec3dMag<double> &area,
-                                   const input &inp,
-                                   const unique_ptr<turbModel> &turb) {
+                                   const input &inp) {
   // state -- primitive variables at face
-  // eqnState -- ideal gas equation of state
-  // thermo -- thermodynamic model
+  // phys -- physics models
   // area -- face area vector
   // inp -- input variables
-  // turb -- turbulence model
   static_assert(std::is_same<primitive, T>::value ||
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
 
-  const auto t = state.Temperature(eqnState);
-  const auto velNorm = state.Velocity().DotProd(area.UnitVector());
-  const auto gammaMinusOne = thermo->Gamma(t) - 1.0;
-  const auto phi = 0.5 * gammaMinusOne * state.Velocity().MagSq();
-  const auto a1 = thermo->Gamma(t) * state.Energy(eqnState, thermo) - phi;
-  const auto a3 = thermo->Gamma(t) - 2.0;
-
+  const auto t = state.Temperature(phys.EoS());
+  const auto n = area.UnitVector();
+  const auto velNorm = state.Velocity().DotProd(n);
+  const auto mf = state.MassFractions();
+  const auto gamma = phys.Thermodynamic()->Gamma(t, mf);
+  const auto gm1 = gamma - 1.0;
+  const auto phi = 0.5 * gm1 * state.Velocity().MagSq();
+  const auto a1 = gamma * state.Energy(phys) - phi;
+  const auto a3 = gamma - 2.0;
+  
   // begin jacobian calculation
   *this = fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
 
-  // calculate flux derivatives wrt left state
-  // column zero
-  this->FlowJacobian(0, 0) = 0.0;
-  this->FlowJacobian(1, 0) = phi * area.UnitVector().X() - state.U() * velNorm;
-  this->FlowJacobian(2, 0) = phi * area.UnitVector().Y() - state.V() * velNorm;
-  this->FlowJacobian(3, 0) = phi * area.UnitVector().Z() - state.W() * velNorm;
-  this->FlowJacobian(4, 0) = velNorm * (phi - a1);
+  const auto ns = state.NumSpecies();
+  for (auto ii = 0; ii < ns; ++ii) {
+    for (auto jj = 0; jj < ns; ++jj) {
+      this->FlowJacobian(ii, jj) = velNorm * (Kronecker(ii, jj) - mf[ii]);
+    }
 
+    // rows for species equations
+    this->FlowJacobian(ii, ns + 0) = mf[ii] * n.X();
+    this->FlowJacobian(ii, ns + 1) = mf[ii] * n.Y();
+    this->FlowJacobian(ii, ns + 2) = mf[ii] * n.Z();
+
+    // columns for species equations
+    this->FlowJacobian(ns + 0, ii) = phi * n.X() - state.U() * velNorm;
+    this->FlowJacobian(ns + 1, ii) = phi * n.Y() - state.V() * velNorm;
+    this->FlowJacobian(ns + 2, ii) = phi * n.Z() - state.W() * velNorm;
+    this->FlowJacobian(ns + 3, ii) = velNorm * (phi - a1);
+  }
+
+  // calculate flux derivatives wrt state
   // column one
-  this->FlowJacobian(0, 1) = area.UnitVector().X();
-  this->FlowJacobian(1, 1) = velNorm - a3 * area.UnitVector().X() * state.U();
-  this->FlowJacobian(2, 1) = state.V() * area.UnitVector().X() -
-      gammaMinusOne * state.U() * area.UnitVector().Y();
-  this->FlowJacobian(3, 1) = state.W() * area.UnitVector().X() -
-      gammaMinusOne * state.U() * area.UnitVector().Z();
-  this->FlowJacobian(4, 1) =
-      a1 * area.UnitVector().X() - gammaMinusOne * state.U() * velNorm;
+  this->FlowJacobian(ns + 0, ns) = velNorm - a3 * n.X() * state.U();
+  this->FlowJacobian(ns + 1, ns) = state.V() * n.X() - gm1 * state.U() * n.Y();
+  this->FlowJacobian(ns + 2, ns) = state.W() * n.X() - gm1 * state.U() * n.Z();
+  this->FlowJacobian(ns + 3, ns) = a1 * n.X() - gm1 * state.U() * velNorm;
 
   // column two
-  this->FlowJacobian(0, 2) = area.UnitVector().Y();
-  this->FlowJacobian(1, 2) = state.U() * area.UnitVector().Y() -
-      gammaMinusOne * state.V() * area.UnitVector().X();
-  this->FlowJacobian(2, 2) = velNorm - a3 * area.UnitVector().Y() * state.V();
-  this->FlowJacobian(3, 2) = state.W() * area.UnitVector().Y() -
-      gammaMinusOne * state.V() * area.UnitVector().Z();
-  this->FlowJacobian(4, 2) =
-      a1 * area.UnitVector().Y() - gammaMinusOne * state.V() * velNorm;
+  this->FlowJacobian(ns + 0, ns + 1) = state.U() * n.Y() - gm1 * state.V() * n.X();
+  this->FlowJacobian(ns + 1, ns + 1) = velNorm - a3 * n.Y() * state.V();
+  this->FlowJacobian(ns + 2, ns + 1) = state.W() * n.Y() - gm1 * state.V() * n.Z();
+  this->FlowJacobian(ns + 3, ns + 1) = a1 * n.Y() - gm1 * state.V() * velNorm;
 
   // column three
-  this->FlowJacobian(0, 3) = area.UnitVector().Z();
-  this->FlowJacobian(1, 3) = state.U() * area.UnitVector().Z() -
-      gammaMinusOne * state.W() * area.UnitVector().X();
-  this->FlowJacobian(2, 3) = state.V() * area.UnitVector().Z() -
-      gammaMinusOne * state.W() * area.UnitVector().Y();
-  this->FlowJacobian(3, 3) = velNorm - a3 * area.UnitVector().Z() * state.W();
-  this->FlowJacobian(4, 3) =
-      a1 * area.UnitVector().Z() - gammaMinusOne * state.W() * velNorm;
+  this->FlowJacobian(ns + 0, ns + 2) = state.U() * n.Z() - gm1 * state.W() * n.X();
+  this->FlowJacobian(ns + 1, ns + 2) = state.V() * n.Z() - gm1 * state.W() * n.Y();
+  this->FlowJacobian(ns + 2, ns + 2) = velNorm - a3 * n.Z() * state.W();
+  this->FlowJacobian(ns + 3, ns + 2) = a1 * n.Z() - gm1 * state.W() * velNorm;
 
   // column four
-  this->FlowJacobian(0, 4) = 0.0;
-  this->FlowJacobian(1, 4) = gammaMinusOne * area.UnitVector().X();
-  this->FlowJacobian(2, 4) = gammaMinusOne * area.UnitVector().Y();
-  this->FlowJacobian(3, 4) = gammaMinusOne * area.UnitVector().Z();
-  this->FlowJacobian(4, 4) = thermo->Gamma(t) * velNorm;
+  this->FlowJacobian(ns + 0, ns + 3) = gm1 * n.X();
+  this->FlowJacobian(ns + 1, ns + 3) = gm1 * n.Y();
+  this->FlowJacobian(ns + 2, ns + 3) = gm1 * n.Z();
+  this->FlowJacobian(ns + 3, ns + 3) = gamma * velNorm;
 
   // multiply by 0.5 b/c averaging with dissipation matrix
   this->MultFlowJacobian(0.5 * area.Mag());
@@ -568,7 +547,8 @@ void fluxJacobian::InvFluxJacobian(const T &state,
   // turbulent jacobian here
   if (inp.IsRANS()) {
     // multiply by 0.5 b/c averaging with dissipation matrix
-    const auto tJac = 0.5 * turb->InviscidConvJacobian(state, area);
+    const auto tJac =
+        0.5 * phys.Turbulence()->InviscidConvJacobian(state, area);
     std::copy(tJac.begin(), tJac.end(), this->beginTurb());
   }
 }
@@ -588,19 +568,17 @@ In the above equations the Roe matrix Aroe is held constant during
 differentiation. A represents the convective flux jacobian matrix.
  */
 template <typename T1, typename T2>
-void fluxJacobian::ApproxRoeFluxJacobian(
-    const T1 &left, const T2 &right,
-    const unique_ptr<eos> &eqnState, const unique_ptr<thermodynamic> &thermo,
-    const unitVec3dMag<double> &area, const bool &positive, const input &inp,
-    const unique_ptr<turbModel> &turb) {
+void fluxJacobian::ApproxRoeFluxJacobian(const T1 &left, const T2 &right,
+                                         const physics &phys,
+                                         const unitVec3dMag<double> &area,
+                                         const bool &positive,
+                                         const input &inp) {
   // left -- primitive variables from left side
   // right -- primitive variables from right side
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
+  // phys -- physics model
   // area -- face area vector
   // positive -- flag to determine whether to add or subtract dissipation
   // inp -- input variables
-  // turb -- turbulence model
   static_assert(std::is_same<primitive, T1>::value ||
                     std::is_same<primitiveView, T1>::value,
                 "T1 requires primitive or primativeView type");
@@ -613,11 +591,11 @@ void fluxJacobian::ApproxRoeFluxJacobian(
 
   // compute Roe matrix
   fluxJacobian roeMatrix;
-  roeMatrix.InvFluxJacobian(roeAvg, eqnState, thermo, area, inp, turb);
+  roeMatrix.InvFluxJacobian(roeAvg, phys, area, inp);
 
   // compute convective flux jacobian
-  positive ? this->InvFluxJacobian(left, eqnState, thermo, area, inp, turb) :
-      this->InvFluxJacobian(right, eqnState, thermo, area, inp, turb);
+  positive ? this->InvFluxJacobian(left, phys, area, inp)
+           : this->InvFluxJacobian(right, phys, area, inp);
 
   positive ? (*this) += roeMatrix : (*this) -= roeMatrix;
 }
@@ -625,44 +603,49 @@ void fluxJacobian::ApproxRoeFluxJacobian(
 // change of variable matrix going from primitive to conservative variables
 // from Dwight
 template <typename T>
-void fluxJacobian::DelprimitiveDelConservative(
-    const T &state, const unique_ptr<thermodynamic> &thermo,
-    const unique_ptr<eos> &eqnState, const input &inp) {
+void fluxJacobian::DelprimitiveDelConservative(const T &state,
+                                               const physics &phys,
+                                               const input &inp) {
   // state -- primitive variables
-  // thermo -- thermodynamic model
+  // phys -- physics models
   // inp -- input variables
   static_assert(std::is_same<primitive, T>::value ||
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
 
-  const auto t = state.Temperature(eqnState);
-  const auto gammaMinusOne = thermo->Gamma(t) - 1.0;
+  const auto t = state.Temperature(phys.EoS());
+  const auto gammaMinusOne =
+      phys.Thermodynamic()->Gamma(t, state.MassFractions()) - 1.0;
   const auto invRho = 1.0 / state.Rho();
 
   *this = fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
 
-  // assign column 0
-  this->FlowJacobian(0, 0) = 1.0;
-  this->FlowJacobian(1, 0) = -invRho * state.U();
-  this->FlowJacobian(2, 0) = -invRho * state.V();
-  this->FlowJacobian(3, 0) = -invRho * state.W();
-  this->FlowJacobian(4, 0) = 0.5 * gammaMinusOne *
-      state.Velocity().DotProd(state.Velocity());
+  const auto ns = state.NumSpecies();
+  for (auto ii = 0; ii < ns; ++ii) {
+    this->FlowJacobian(ii, ii) = 1.0;
+
+    // assign species column
+    this->FlowJacobian(ns + 0, ii) = -invRho * state.U();
+    this->FlowJacobian(ns + 1, ii) = -invRho * state.V();
+    this->FlowJacobian(ns + 2, ii) = -invRho * state.W();
+    this->FlowJacobian(ns + 3, ii) =
+        0.5 * gammaMinusOne * state.Velocity().DotProd(state.Velocity());
+  }
 
   // assign column 1
-  this->FlowJacobian(1, 1) = invRho;
-  this->FlowJacobian(4, 1) = -gammaMinusOne * state.U();
+  this->FlowJacobian(ns, ns) = invRho;
+  this->FlowJacobian(ns + 3, ns) = -gammaMinusOne * state.U();
 
   // assign column 2
-  this->FlowJacobian(2, 2) = invRho;
-  this->FlowJacobian(4, 2) = -gammaMinusOne * state.V();
+  this->FlowJacobian(ns + 1, ns + 1) = invRho;
+  this->FlowJacobian(ns + 3, ns + 1) = -gammaMinusOne * state.V();
 
   // assign column 3
-  this->FlowJacobian(3, 3) = invRho;
-  this->FlowJacobian(4, 3) = -gammaMinusOne * state.W();
+  this->FlowJacobian(ns + 2, ns + 2) = invRho;
+  this->FlowJacobian(ns + 3, ns + 2) = -gammaMinusOne * state.W();
 
   // assign column 4
-  this->FlowJacobian(4, 4) = gammaMinusOne;
+  this->FlowJacobian(ns + 3, ns + 3) = gammaMinusOne;
 
   // turbulent jacobian here
   if (inp.IsRANS()) {
@@ -674,19 +657,17 @@ void fluxJacobian::DelprimitiveDelConservative(
 // approximate thin shear layer jacobian following implementation in Dwight.
 // does not use any gradients
 template <typename T>
-void fluxJacobian::ApproxTSLJacobian(
-    const T &state, const double &lamVisc, const double &turbVisc,
-    const double &f1, const unique_ptr<eos> &eqnState,
-    const unique_ptr<transport> &trans, const unique_ptr<thermodynamic> &thermo,
-    const unitVec3dMag<double> &area, const double &dist,
-    const unique_ptr<turbModel> &turb, const input &inp, const bool &left,
-    const tensor<double> &vGrad) {
+void fluxJacobian::ApproxTSLJacobian(const T &state, const double &lamVisc,
+                                     const double &turbVisc, const double &f1,
+                                     const physics &phys,
+                                     const unitVec3dMag<double> &area,
+                                     const double &dist, const input &inp,
+                                     const bool &left,
+                                     const tensor<double> &vGrad) {
   // state -- primitive variables
-  // eos -- equation of state
-  // trans -- viscous transport model
+  // phys -- physics models
   // area -- face area vector
   // dist -- distance from cell center to cell center
-  // turb --  turbulence model
   // inp -- input variables
   // left -- flag that is negative if using left state
   // vGrad -- velocity gradient
@@ -695,73 +676,73 @@ void fluxJacobian::ApproxTSLJacobian(
                 "T requires primitive or primativeView type");
   *this = fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
 
-  const auto t = state.Temperature(eqnState);
-  const auto mu = trans->NondimScaling() * lamVisc;
-  const auto mut = trans->NondimScaling() * turbVisc;
-  const auto velNorm = state.Velocity().DotProd(area.UnitVector());
+  const auto t = state.Temperature(phys.EoS());
+  const auto mu = phys.Transport()->NondimScaling() * lamVisc;
+  const auto mut = phys.Transport()->NondimScaling() * turbVisc;
+  const auto norm = area.UnitVector();
+  const auto velNorm = state.Velocity().DotProd(norm);
+  const auto mf = state.MassFractions();
+  const auto rho = state.Rho();
 
-  const auto tauNorm = TauNormal(vGrad, area.UnitVector(), mu, mut, trans);
+  const auto tauNorm = TauNormal(vGrad, norm, mu, mut, phys.Transport());
 
   auto fac = left ? -1.0 : 1.0;
 
   constexpr auto third = 1.0 / 3.0;
-
-  // assign column 0
-  this->FlowJacobian(4, 0) =
-      -(trans->Conductivity(mu, t, thermo) +
-        trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) *
-      state.Temperature(eqnState) / ((mu + mut) * state.Rho());
+  const auto ns = state.NumSpecies();
+  for (auto ii = 0; ii < ns; ++ii) {
+    // assign species column
+    this->FlowJacobian(ns + 3, ii) =
+        -(phys.Transport()->EffectiveConductivity(t, mf) +
+          phys.Transport()->TurbConductivity(
+              mut, phys.Turbulence()->TurbPrandtlNumber(), t,
+              phys.Thermodynamic(), mf)) *
+        t / ((mu + mut) * rho);
+  }
 
   // assign column 1
-  this->FlowJacobian(1, 1) =
-      third * area.UnitVector().X() * area.UnitVector().X() + 1.0;
-  this->FlowJacobian(2, 1) =
-      third * area.UnitVector().X() * area.UnitVector().Y();
-  this->FlowJacobian(3, 1) =
-      third * area.UnitVector().X() * area.UnitVector().Z();
-  this->FlowJacobian(4, 1) = fac * 0.5 * dist / (mu + mut) * tauNorm.X() +
-      third * area.UnitVector().X() * velNorm + state.U();
+  this->FlowJacobian(ns + 0, ns) = third * norm.X() * norm.X() + 1.0;
+  this->FlowJacobian(ns + 1, ns) = third * norm.X() * norm.Y();
+  this->FlowJacobian(ns + 2, ns) = third * norm.X() * norm.Z();
+  this->FlowJacobian(ns + 3, ns) = fac * 0.5 * dist / (mu + mut) * tauNorm.X() +
+                                   third * norm.X() * velNorm + state.U();
 
   // assign column 2
-  this->FlowJacobian(1, 2) =
-      third * area.UnitVector().Y() * area.UnitVector().X();
-  this->FlowJacobian(2, 2) =
-      third * area.UnitVector().Y() * area.UnitVector().Y() + 1.0;
-  this->FlowJacobian(3, 2) =
-      third * area.UnitVector().Y() * area.UnitVector().Z();
-  this->FlowJacobian(4, 2) = fac * 0.5 * dist / (mu + mut) * tauNorm.Y() +
-                             third * area.UnitVector().Y() * velNorm +
-                             state.V();
+  this->FlowJacobian(ns + 0, ns + 1) = third * norm.Y() * norm.X();
+  this->FlowJacobian(ns + 1, ns + 1) = third * norm.Y() * norm.Y() + 1.0;
+  this->FlowJacobian(ns + 2, ns + 1) = third * norm.Y() * norm.Z();
+  this->FlowJacobian(ns + 3, ns + 1) =
+      fac * 0.5 * dist / (mu + mut) * tauNorm.Y() + third * norm.Y() * velNorm +
+      state.V();
 
   // assign column 3
-  this->FlowJacobian(1, 3) =
-      third * area.UnitVector().Z() * area.UnitVector().X();
-  this->FlowJacobian(2, 3) =
-      third * area.UnitVector().Z() * area.UnitVector().Y();
-  this->FlowJacobian(3, 3) =
-      third * area.UnitVector().Z() * area.UnitVector().Z() + 1.0;
-  this->FlowJacobian(4, 3) = fac * 0.5 * dist / (mu + mut) * tauNorm.Z() +
-                             third * area.UnitVector().Z() * velNorm +
-                             state.W();
+  this->FlowJacobian(ns + 0, ns + 2) = third * norm.Z() * norm.X();
+  this->FlowJacobian(ns + 1, ns + 2) = third * norm.Z() * norm.Y();
+  this->FlowJacobian(ns + 2, ns + 2) = third * norm.Z() * norm.Z() + 1.0;
+  this->FlowJacobian(ns + 3, ns + 2) =
+      fac * 0.5 * dist / (mu + mut) * tauNorm.Z() + third * norm.Z() * velNorm +
+      state.W();
 
   // assign column 4
-  this->FlowJacobian(4, 4) =
-      (trans->Conductivity(mu, t, thermo) +
-       trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) /
-      ((mu + mut) * state.Rho());
+  this->FlowJacobian(ns + 3, ns + 3) =
+      (phys.Transport()->EffectiveConductivity(t, mf) +
+       phys.Transport()->TurbConductivity(
+           mut, phys.Turbulence()->TurbPrandtlNumber(), t, phys.Thermodynamic(),
+           mf)) /
+      ((mu + mut) * rho);
 
   this->MultFlowJacobian(area.Mag() * (mu + mut) / dist);
 
   fluxJacobian prim2Cons;
-  prim2Cons.DelprimitiveDelConservative(state, thermo, eqnState, inp);
+  prim2Cons.DelprimitiveDelConservative(state, phys, inp);
   const auto product = this->FlowMatMult(prim2Cons);
   std::copy(product.begin(), product.beginTurb(), this->begin());
 
   // calculate turbulent jacobian if necessary
   if (inp.IsRANS()) {
     const auto turbProd =
-        fac *
-        turb->ViscousJacobian(state, area, lamVisc, trans, dist, turbVisc, f1);
+        fac * phys.Turbulence()->ViscousJacobian(
+                  state, area, lamVisc, phys.Transport(), dist, turbVisc, f1);
     std::copy(turbProd.begin(), turbProd.end(), this->beginTurb());
     // Don't need to multiply by prim2Cons b/c jacobian is already wrt
     // conservative variables
@@ -773,36 +754,24 @@ void fluxJacobian::ApproxTSLJacobian(
 varArray RusanovScalarOffDiagonal(const primitiveView &, const varArrayView &,
                                   const unitVec3dMag<double> &, const double &,
                                   const double &, const double &,
-                                  const double &, const unique_ptr<eos> &,
-                                  const unique_ptr<thermodynamic> &,
-                                  const unique_ptr<transport> &,
-                                  const unique_ptr<turbModel> &, const bool &,
+                                  const double &, const physics &, const bool &,
                                   const bool &);
 varArray RusanovBlockOffDiagonal(const primitiveView &, const varArrayView &,
                                  const unitVec3dMag<double> &, const double &,
                                  const double &, const double &, const double &,
-                                 const unique_ptr<eos> &,
-                                 const unique_ptr<thermodynamic> &,
-                                 const unique_ptr<transport> &,
-                                 const unique_ptr<turbModel> &, const input &,
-                                 const bool &, const tensor<double> &);
+                                 const physics &, const input &, const bool &,
+                                 const tensor<double> &);
 
 varArray RoeOffDiagonal(const primitiveView &, const primitiveView &,
                         const varArrayView &, const unitVec3dMag<double> &,
                         const double &, const double &, const double &,
-                        const double &, const unique_ptr<eos> &,
-                        const unique_ptr<thermodynamic> &,
-                        const unique_ptr<transport> &,
-                        const unique_ptr<turbModel> &, const bool &,
+                        const double &, const physics &, const bool &,
                         const bool &, const bool &);
 
 varArray OffDiagonal(const primitiveView &, const primitiveView &,
                      const varArrayView &, const unitVec3dMag<double> &,
                      const double &, const double &, const double &,
                      const double &, const tensor<double> &,
-                     const unique_ptr<eos> &, const unique_ptr<thermodynamic> &,
-                     const unique_ptr<transport> &,
-                     const unique_ptr<turbModel> &, const input &,
-                     const bool &);
+                     const physics &, const input &, const bool &);
 
 #endif

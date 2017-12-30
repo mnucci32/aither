@@ -21,20 +21,35 @@
 
 #include <math.h>  // sqrt
 #include <memory>
+#include <vector>
 #include "vector3d.hpp"
 #include "thermodynamic.hpp"
 
+using std::vector;
 using std::unique_ptr;
+
+// forward class declarations
+class fluid;
 
 // abstract base class for transport models
 class transport {
-  const double scaling_;
-  const double invScaling_;
+  double scaling_;
+  double invScaling_;
+
+ protected:
+  void SetScaling(const double &rho, const double &l, const double &mu,
+                  const double &a) {
+    scaling_ = mu / (rho * a * l);
+    invScaling_ = 1.0 / scaling_;
+  }
 
  public:
   // Constructor
-  transport(const double &rho, const double &l, const double &mu, const double &a)
-      : scaling_(mu / (rho * a * l)), invScaling_(rho * a * l / mu) {}
+  transport() : scaling_(0), invScaling_(0) {}
+  transport(const double &rho, const double &l, const double &mu,
+            const double &a) {
+    this->SetScaling(rho, l, mu, a);
+  }
 
   // move constructor and assignment operator
   transport(transport&&) noexcept = default;
@@ -45,19 +60,23 @@ class transport {
   transport& operator=(const transport&) = default;
 
   // Member functions for abstract base class
-  virtual double Viscosity(const double&) const = 0;
-  virtual double EffectiveViscosity(const double&) const = 0;
-  virtual double Lambda(const double&) const = 0;
-  virtual double ConstC1() const = 0;
-  virtual double ConstS() const = 0;
+  virtual int NumSpecies() const = 0;
+  virtual double SpeciesViscosity(const double &, const int &) const = 0;
+  virtual double SpeciesConductivity(const double &, const int &) const = 0;
+  virtual double Viscosity(const double &, const vector<double> &) const = 0;
+  virtual double EffectiveViscosity(const double &,
+                                    const vector<double> &) const = 0;
+  virtual double Lambda(const double &) const = 0;
   virtual double TRef() const = 0;
   virtual double MuRef() const = 0;
-  virtual double Conductivity(const double &, const double &,
-                              const unique_ptr<thermodynamic> &) const = 0;
-  virtual double TurbConductivity(const double &, const double &, const double &,
-                                  const unique_ptr<thermodynamic> &) const = 0;
-
-  double NondimScaling() const {return scaling_;}
+  virtual double Conductivity(const double &, const vector<double> &) const = 0;
+  virtual double EffectiveConductivity(const double &,
+                                       const vector<double> &) const = 0;
+  virtual double TurbConductivity(const double &, const double &,
+                                  const double &,
+                                  const unique_ptr<thermodynamic> &,
+                                  const vector<double> &mf) const = 0;
+  double NondimScaling() const { return scaling_; }
   double InvNondimScaling() const {return invScaling_;}
 
   // Destructor
@@ -67,26 +86,27 @@ class transport {
 
 // this class models viscous transport using Sutherland's law
 class sutherland : public transport {
-  const double cOne_;
-  const double S_;
-  const double tRef_;
-  const double muRef_;
-  const double bulkVisc_;
+  vector<double> viscC1_;
+  vector<double> viscS_;
+  vector<double> condC1_;
+  vector<double> condS_;
+  vector<double> muRef_;
+  vector<double> kRef_;
+  vector<double> molarMass_;
+  double tRef_;
+  double muMixRef_;
+  double bulkVisc_ = 0.0;
+
+  // private member functions
+  vector<double> MoleFractions(const vector<double> &) const;
+  double WilkesVisc(const vector<double> &, const vector<double> &) const;
 
  public:
   // Constructors
   // Stoke's hypothesis -- bulk viscosity = 0
   // Sutherland's Law -- mu = muref * (C1 * Tref^1.5) / (T + S_)
-  sutherland(const double &c, const double &s, const double &t, const double &r,
-             const double &l, const double &a)
-      : transport(r, l, c * pow(t, 1.5) / (t + s), a),
-        cOne_(c),
-        S_(s),
-        tRef_(t),
-        muRef_(cOne_ * pow(tRef_, 1.5) / (tRef_ + S_)),
-        bulkVisc_(0.0) {}
-  sutherland(const double &t, const double &r, const double &l, const double &a)
-      : sutherland(1.458e-6, 110.4, t, r, l, a) {}
+  sutherland(const vector<fluid> &, const double &, const double &,
+             const double &, const double &, const vector<double> &);
 
   // move constructor and assignment operator
   sutherland(sutherland&&) noexcept = default;
@@ -97,25 +117,33 @@ class sutherland : public transport {
   sutherland& operator=(const sutherland&) = default;
 
   // Member functions
-  double Viscosity(const double&) const override;
-  double EffectiveViscosity(const double&) const override;
-  double Lambda(const double&) const override;
-  double ConstC1() const override {return cOne_;}
-  double ConstS() const override {return S_;}
+  int NumSpecies() const override { return muRef_.size(); }
+  double SpeciesViscosity(const double &, const int &) const override;
+  double SpeciesConductivity(const double &, const int &) const override;
+  double Viscosity(const double &, const vector<double> &) const override;
+  double EffectiveViscosity(const double &,
+                            const vector<double> &) const override;
+  double Lambda(const double &) const override;
   double TRef() const override {return tRef_;}
-  double MuRef() const override {return muRef_;}
-  double Conductivity(const double &mu, const double &t,
-                      const unique_ptr<thermodynamic> &thermo) const override {
-    return mu * thermo->Cp(t) / thermo->Prandtl(t);
-  }
-  double TurbConductivity(
-      const double &eddyVisc, const double &prt, const double &t,
-      const unique_ptr<thermodynamic> &thermo) const override {
-    return eddyVisc * thermo->Cp(t) / prt;
+  double MuRef() const override {return muMixRef_;}
+  double Conductivity(const double &, const vector<double> &) const override;
+  double EffectiveConductivity(const double &,
+                               const vector<double> &) const override;
+  double TurbConductivity(const double &eddyVisc, const double &prt,
+                          const double &t,
+                          const unique_ptr<thermodynamic> &thermo,
+                          const vector<double> &mf) const override {
+    return eddyVisc * thermo->Cp(t, mf) / prt;
   }
 
   // Destructor
   ~sutherland() noexcept {}
 };
+
+
+// --------------------------------------------------------------------------
+// function declarations
+
+
 
 #endif

@@ -17,8 +17,10 @@
 #include <iostream>     // cout
 #include <vector>
 #include <string>
+#include <fstream>
 #include "fluid.hpp"
 #include "inputStates.hpp"
+#include "utility.hpp"
 
 using std::cout;
 using std::endl;
@@ -44,10 +46,8 @@ fluid::fluid(string &str, const string name) {
   str.erase(0, end);
 
   // parameter counters
-  auto nCount = 0;
-  auto massCount = 0;
-  auto vibCount = 0;
   auto nameCount = 0;
+  auto mfCount = 0;
 
   for (auto &token : tokens) {
     auto param = Tokenize(token, "=");
@@ -56,15 +56,9 @@ fluid::fluid(string &str, const string name) {
       exit(EXIT_FAILURE);
     }
 
-    if (param[0] == "n") {
-      n_ = stod(RemoveTrailing(param[1], ","));
-      nCount++;
-    } else if (param[0] == "molarMass") {
-      molarMass_ = stod(RemoveTrailing(param[1], ","));
-      massCount++;
-    } else if (param[0] == "vibrationalTemperature") {
-      vibTemp_ = stod(RemoveTrailing(param[1], ","));
-      vibCount++;
+    if (param[0] == "referenceMassFraction") {
+      massFracRef_ = stod(RemoveTrailing(param[1], ","));
+      mfCount++;
     } else if (param[0] == "name") {
       name_ = RemoveTrailing(param[1], ",");
       nameCount++;
@@ -76,24 +70,76 @@ fluid::fluid(string &str, const string name) {
   }
 
   // sanity checks
-  // optional variables
-  if (nCount > 1 || nameCount > 1 || vibCount > 1 || massCount > 1) {
-    cerr << "ERROR. For " << name << ", name, n, vibrationalTemperature, and "
-         << "molarMass can only be specified once." << endl;
+  // required variables
+  if (nameCount != 1 || mfCount != 1) {
+    cerr << "ERROR. For fluid 'name' and 'referenceMassFraction' must be "
+            "specified"
+         << endl;
     exit(EXIT_FAILURE);
   }
-
   if (name != "fluid") {
     cerr << "ERROR. To specify fluid, properties must be enclosed in fluid()."
          << endl;
   }
+
+  // get data from fluid database
+  this->GetDatabaseProperties(name_);
 }
 
 void fluid::Nondimensionalize(const double &tRef) {
   if (!this->IsNondimensional()) {
-    vibTemp_ /= tRef;
+    std::for_each(vibTemp_.begin(), vibTemp_.end(),
+                  [&tRef](auto &val) { val /= tRef; });
     this->SetNondimensional(true);
   }
+}
+
+void fluid::GetDatabaseProperties(const string &name) {
+  auto fname = name + ".dat";
+  // open database file -- first try run directory, then fluid database
+  ifstream datFile(fname, std::ios::in);
+  if (datFile.fail()) {
+    auto databaseFile =
+        GetEnvironmentVariable("AITHER_FLUID_DATABASE") + "/" + fname;
+    datFile.open(databaseFile, std::ios::in);
+    if (datFile.fail()) {
+      cerr << "ERROR: Error in fluid::GetDatabaseProperties(). File " << fname
+           << " did not open correctly!!!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  string line = "";
+  while (getline(datFile, line)) {
+    // remove leading and trailing whitespace and ignore comments
+    line = Trim(line);
+
+    if (line.length() > 0) {  // only proceed if line has data
+      // split line at variable separator
+      auto tokens = Tokenize(line, ":", 2);
+      // search to see if first token corresponds to any keywords
+      auto key = tokens[0];
+
+      if (key == "n") {
+        n_ = std::stod(tokens[1]);
+      } else if (key == "molarMass") {
+        molarMass_ = std::stod(tokens[1]) / 1000.;  // convert to kg/mol
+      } else if (key == "vibrationalTemperature") {
+        vibTemp_ = ReadVectorXd(tokens[1]);
+      } else if (key == "sutherlandViscosityC1") {
+        transportViscosity_[0] = std::stod(tokens[1]);
+      } else if (key == "sutherlandViscosityS") {
+        transportViscosity_[1] = std::stod(tokens[1]);
+      } else if (key == "sutherlandConductivityC1") {
+        transportConductivity_[0] = std::stod(tokens[1]);
+      } else if (key == "sutherlandConductivityS") {
+        transportConductivity_[1] = std::stod(tokens[1]);
+      }
+    }
+  }
+
+  // close database file
+  datFile.close();
 }
 
 // function to read initial condition state from string
@@ -145,8 +191,8 @@ vector<fluid> ReadFluidList(ifstream &inFile, string &str) {
 }
 
 ostream &operator<<(ostream &os, const fluid &fl) {
-  os << "fluid(name=" << fl.Name() << "; n=" << fl.N()
-     << "; molarMass=" << fl.MolarMass()
-     << "; vibrationalTemperature=" << fl.VibrationalTemperature() << ")";
+  auto vt = fl.VibrationalTemperature();
+  os << "fluid(name=" << fl.Name()
+     << "; referenceMassFraction=" << fl.MassFractionRef() << ")";
   return os;
 }

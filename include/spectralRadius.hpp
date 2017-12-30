@@ -22,19 +22,14 @@
  */
 
 #include <string>                  // string
-#include <memory>                  // unique_ptr
 #include <algorithm>               // max
 #include "vector3d.hpp"            // vector3d
 #include "primitive.hpp"
 #include "arrayView.hpp"
-#include "eos.hpp"
-#include "transport.hpp"
-#include "thermodynamic.hpp"
-#include "turbulence.hpp"
+#include "physicsModels.hpp"
 
 using std::max;
 using std::min;
-using std::unique_ptr;
 
 /*Function to return the inviscid spectral radius for one direction (i, j, or k)
 given a cell state, equation of state, and 2 face area vectors
@@ -49,13 +44,11 @@ template <typename T>
 double InvCellSpectralRadius(const T &state,
                              const unitVec3dMag<double> &fAreaL,
                              const unitVec3dMag<double> &fAreaR,
-                             const unique_ptr<thermodynamic> &thermo,
-                             const unique_ptr<eos> &eqnState) {
+                             const physics &phys) {
   // state -- primitive state variables
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
-  // thermo -- thermodynamic model
-  // eqnState -- equation of state
+  // phys -- physics models
   static_assert(std::is_same<primitive, T>::value ||
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
@@ -67,28 +60,23 @@ double InvCellSpectralRadius(const T &state,
   const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
 
   // return spectral radius
-  return (fabs(state.Velocity().DotProd(normAvg)) +
-          state.SoS(thermo, eqnState)) *
-         fMag;
+  return (fabs(state.Velocity().DotProd(normAvg)) + state.SoS(phys)) * fMag;
 }
 
 template <typename T>
 double InvFaceSpectralRadius(const T &state,
                              const unitVec3dMag<double> &fArea,
-                             const unique_ptr<thermodynamic> &thermo,
-                             const unique_ptr<eos> &eqnState) {
+                             const physics &phys) {
   // state -- primitive state variables
   // fArea -- face area
-  // thermo -- thermodynamic model
-  // eqnState -- equation of state
+  // phys -- physics models
   static_assert(std::is_same<primitive, T>::value ||
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
 
   // return spectral radius
   return 0.5 * fArea.Mag() *
-         (fabs(state.Velocity().DotProd(fArea.UnitVector())) +
-          state.SoS(thermo, eqnState));
+         (fabs(state.Velocity().DotProd(fArea.UnitVector())) + state.SoS(phys));
 }
 
 /*Function to calculate the viscous spectral radius for one direction (i, j, or
@@ -105,128 +93,111 @@ comes from Blazek.
 template <typename T>
 double ViscCellSpectralRadius(
     const T &state, const unitVec3dMag<double> &fAreaL,
-    const unitVec3dMag<double> &fAreaR, const unique_ptr<thermodynamic> &thermo,
-    const unique_ptr<eos> &eqnState, const unique_ptr<transport> &trans,
-    const double &vol, const double &mu, const double &mut,
-    const unique_ptr<turbModel> &turb) {
+    const unitVec3dMag<double> &fAreaR, const physics &phys,
+    const double &vol, const double &mu, const double &mut) {
   // state -- primitive state variables
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
-  // thermo -- thermodynamic model
-  // eqnState -- equation of state
-  // trans -- viscous transport model
+  // phys -- physics models
   // vol -- cell volume
   // mu -- laminar viscosity
   // mut -- turbulent viscosity
-  // turb -- turbulence model
   static_assert(std::is_same<primitive, T>::value ||
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
 
   // average area magnitude
   const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
-  const auto t = state.Temperature(eqnState);
+  const auto t = state.Temperature(phys.EoS());
   const auto maxTerm =
-      max(4.0 / (3.0 * state.Rho()), thermo->Gamma(t) / state.Rho());
+      max(4.0 / (3.0 * state.Rho()),
+          phys.Thermodynamic()->Gamma(t, state.MassFractions()) / state.Rho());
   // viscous term
-  const auto viscTerm = trans->NondimScaling() *
-      (mu / thermo->Prandtl(t) +  mut / turb->TurbPrandtlNumber());
+  const auto viscTerm =
+      phys.Transport()->NondimScaling() *
+      (mu / phys.Thermodynamic()->Prandtl(t, state.MassFractions()) +
+       mut / phys.Turbulence()->TurbPrandtlNumber());
 
   // return viscous spectral radius
   return maxTerm * viscTerm * fMag * fMag / vol;
 }
 
 template <typename T>
-double ViscFaceSpectralRadius(
-    const T &state, const unitVec3dMag<double> &fArea,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
-    const unique_ptr<transport> &trans, const double &dist, const double &mu,
-    const double &mut, const unique_ptr<turbModel> &turb) {
+double ViscFaceSpectralRadius(const T &state, const unitVec3dMag<double> &fArea,
+                              const physics &phys, const double &dist,
+                              const double &mu, const double &mut) {
   // state -- primitive state variables
   // fArea -- face area
-  // thermo -- thermodynamic model
-  // eqnState -- equation of state
-  // trans -- viscous transport model
+  // phys -- physics models
   // dist -- distacne from cell center to cell center
   // mu -- laminar viscosity
   // mut -- turbulent viscosity
-  // turb -- turbulence model
   static_assert(std::is_same<primitive, T>::value ||
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
 
-  const auto t = state.Temperature(eqnState);
+  const auto t = state.Temperature(phys.EoS());
   const auto maxTerm =
-      max(4.0 / (3.0 * state.Rho()), thermo->Gamma(t) / state.Rho());
+      max(4.0 / (3.0 * state.Rho()),
+          phys.Thermodynamic()->Gamma(t, state.MassFractions()) / state.Rho());
   // viscous term
-  const auto viscTerm = trans->NondimScaling() *
-      (mu / thermo->Prandtl(t) +  mut / turb->TurbPrandtlNumber());
+  const auto viscTerm =
+      phys.Transport()->NondimScaling() *
+      (mu / phys.Thermodynamic()->Prandtl(t, state.MassFractions()) +
+       mut / phys.Turbulence()->TurbPrandtlNumber());
 
   // return viscous spectral radius
   return fArea.Mag() / dist * maxTerm * viscTerm;
 }
 
 template <typename T>
-double CellSpectralRadius(
-    const T &state, const unitVec3dMag<double> &fAreaL,
-    const unitVec3dMag<double> &fAreaR, const unique_ptr<thermodynamic> &thermo,
-    const unique_ptr<eos> &eqnState, const unique_ptr<transport> &trans,
-    const double &vol, const double &mu, const double &mut,
-    const unique_ptr<turbModel> &turb, const bool &isViscous) {
+double CellSpectralRadius(const T &state, const unitVec3dMag<double> &fAreaL,
+                          const unitVec3dMag<double> &fAreaR,
+                          const physics &phys, const double &vol,
+                          const double &mu, const double &mut,
+                          const bool &isViscous) {
   // state -- primitive state variables
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
-  // thermo -- thermodynamic model
-  // eqnState -- equation of state
-  // trans -- viscous transport model
+  // phys -- physics models
   // vol -- cell volume
   // mu -- laminar viscosity
   // mut -- turbulent viscosity
-  // turb -- turbulence model
   // isViscous -- flag that is true if simulation is viscous
   static_assert(std::is_same<primitive, T>::value ||
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
 
-  auto specRad = InvCellSpectralRadius(state, fAreaL, fAreaR, thermo, eqnState);
+  auto specRad = InvCellSpectralRadius(state, fAreaL, fAreaR, phys);
 
   if (isViscous) {
     // factor 2 because viscous spectral radius is not halved (Blazek 6.53)
     specRad +=
-        2.0 * ViscCellSpectralRadius(state, fAreaL, fAreaR, thermo, eqnState,
-                                     trans, vol, mu, mut, turb);
+        2.0 * ViscCellSpectralRadius(state, fAreaL, fAreaR, phys, vol, mu, mut);
   }
   return specRad;
 }
 
 template <typename T>
-double FaceSpectralRadius(const T &state,
-                          const unitVec3dMag<double> &fArea,
-                          const unique_ptr<thermodynamic> &thermo,
-                          const unique_ptr<eos> &eqnState,
-                          const unique_ptr<transport> &trans,
-                          const double &dist, const double &mu,
-                          const double &mut, const unique_ptr<turbModel> &turb,
+double FaceSpectralRadius(const T &state, const unitVec3dMag<double> &fArea,
+                          const physics &phys, const double &dist,
+                          const double &mu, const double &mut,
                           const bool &isViscous) {
   // state -- primitive state variables
   // fAreaL -- face area
-  // thermo -- thermodynamic model
-  // eqnState -- equation of state
-  // trans -- viscous transport model
+  // phys -- physics models
   // dist -- distance from cell center to cell center
   // mu -- laminar viscosity
   // mut -- turbulent viscosity
-  // turb -- turbulence model
   // isViscous -- flag that is true if simulation is viscous
   static_assert(std::is_same<primitive, T>::value ||
                     std::is_same<primitiveView, T>::value,
                 "T requires primitive or primativeView type");
 
-  auto specRad = InvFaceSpectralRadius(state, fArea, thermo, eqnState);
+  auto specRad = InvFaceSpectralRadius(state, fArea, phys);
 
   if (isViscous) {
-    specRad += ViscFaceSpectralRadius(state, fArea, thermo, eqnState, trans,
-                                      dist, mu, mut, turb);
+    specRad += ViscFaceSpectralRadius(state, fArea, phys, dist, mu, mut);
   }
   return specRad;
 }

@@ -19,11 +19,8 @@
 #include <memory>
 #include "wallLaw.hpp"
 #include "primitive.hpp"       // primitive
-#include "eos.hpp"            // equation of state
-#include "transport.hpp"      // transport model
-#include "thermodynamic.hpp"  // thermodynamic model
+#include "physicsModels.hpp"
 #include "utility.hpp"        // find root
-#include "turbulence.hpp"
 #include "wallData.hpp"
 
 using std::cout;
@@ -33,14 +30,12 @@ using std::cerr;
 // -------------------------------------------------------------------------
 wallVars wallLaw::AdiabaticBCs(const vector3d<double> &area,
                                const vector3d<double> &velWall,
-                               const unique_ptr<eos> &eqnState,
-                               const unique_ptr<thermodynamic> &thermo,
-                               const unique_ptr<transport> &trans,
-                               const unique_ptr<turbModel> &turb,
-                               const bool &isLower) {
+                               const vector<double> &wallMf,
+                               const physics &phys, const bool &isLower) {
   // initialize wallVars
   wallVars wVars;
   wVars.heatFlux_ = 0.0;
+  wVars.mf_ = wallMf;
 
   // get tangential velocity
   const auto vel = state_.Velocity() - velWall;
@@ -48,18 +43,19 @@ wallVars wallLaw::AdiabaticBCs(const vector3d<double> &area,
   const auto velTanMag = velTan.Mag();
 
   // get wall temperature from crocco-busemann equation
-  auto t = state_.Temperature(eqnState);
-  this->CalcRecoveryFactor(thermo, t);
+  auto t = state_.Temperature(phys.EoS());
+  this->CalcRecoveryFactor(phys.Thermodynamic(), t);
   // this is correct form of crocco-busemann, typo in Nichols & Nelson (2004)
-  auto tW = t + 0.5 * recoveryFactor_ * velTanMag * velTanMag / thermo->Cp(t);
+  auto tW = t + 0.5 * recoveryFactor_ * velTanMag * velTanMag /
+                    phys.Thermodynamic()->Cp(t, state_.MassFractions());
   // set wall properties
-  this->SetWallVars(tW, eqnState, thermo, trans);
+  this->SetWallVars(tW, phys);
 
   auto func = [&](const double &yplus) {
     // calculate u* and u+ from y+
     this->CalcVelocities(yplus, velTanMag);
     // calculate constants
-    this->UpdateGamma(thermo, tW);
+    this->UpdateGamma(phys.Thermodynamic(), tW);
     this->UpdateConstants(wVars.heatFlux_);
     // calculate y+ from White & Christoph
     this->CalcYplusWhite();
@@ -75,7 +71,7 @@ wallVars wallLaw::AdiabaticBCs(const vector3d<double> &area,
   // use compressible form of equation (Nichols & Nelson 2004)
   // calculate turbulence variables from eddy viscosity
   if (isRANS_) {
-    this->CalcTurbVars(turb, eqnState, trans, wVars.tke_, wVars.sdr_);
+    this->CalcTurbVars(phys, wVars.tke_, wVars.sdr_);
   }
 
   wVars.density_ = rhoW_;
@@ -92,14 +88,12 @@ wallVars wallLaw::AdiabaticBCs(const vector3d<double> &area,
 
 wallVars wallLaw::HeatFluxBCs(const vector3d<double> &area,
                               const vector3d<double> &velWall,
-                              const unique_ptr<eos> &eqnState,
-                              const unique_ptr<thermodynamic> &thermo,
-                              const unique_ptr<transport> &trans,
-                              const unique_ptr<turbModel> &turb,
+                              const vector<double> &wallMf, const physics &phys,
                               const double &heatFluxW, const bool &isLower) {
   // initialize wallVars
   wallVars wVars;
   wVars.heatFlux_ = heatFluxW;
+  wVars.mf_ = wallMf;
 
   // get tangential velocity
   const auto vel = state_.Velocity() - velWall;
@@ -107,20 +101,20 @@ wallVars wallLaw::HeatFluxBCs(const vector3d<double> &area,
   const auto velTanMag = velTan.Mag();
 
   // get wall temperature from crocco-busemann equation
-  wVars.temperature_ = state_.Temperature(eqnState);
-  this->CalcRecoveryFactor(thermo, wVars.temperature_);
+  wVars.temperature_ = state_.Temperature(phys.EoS());
+  this->CalcRecoveryFactor(phys.Thermodynamic(), wVars.temperature_);
   
   // set wall properties - guess wall temperature equals interior temperature
-  this->SetWallVars(wVars.temperature_, eqnState, thermo, trans);
+  this->SetWallVars(wVars.temperature_, phys);
 
   auto func = [&](const double &yplus) {
     // calculate u* and u+ from y+
     this->CalcVelocities(yplus, velTanMag);
     // calculate wall temperature from croco-busemann
     wVars.temperature_ =
-        this->CalcWallTemperature(eqnState, thermo, wVars.heatFlux_);
-    this->SetWallVars(wVars.temperature_, eqnState, thermo, trans);
-    this->UpdateGamma(thermo, wVars.temperature_);
+        this->CalcWallTemperature(phys, wVars.heatFlux_);
+    this->SetWallVars(wVars.temperature_, phys);
+    this->UpdateGamma(phys.Thermodynamic(), wVars.temperature_);
     this->UpdateConstants(wVars.heatFlux_);
     // calculate y+ from White & Christoph
     this->CalcYplusWhite();
@@ -136,7 +130,7 @@ wallVars wallLaw::HeatFluxBCs(const vector3d<double> &area,
   // use compressible form of equation (Nichols & Nelson 2004)
   // calculate turbulence variables from eddy viscosity
   if (isRANS_) {
-    this->CalcTurbVars(turb, eqnState, trans, wVars.tke_, wVars.sdr_);
+    this->CalcTurbVars(phys, wVars.tke_, wVars.sdr_);
   }
 
   wVars.density_ = rhoW_;
@@ -152,14 +146,13 @@ wallVars wallLaw::HeatFluxBCs(const vector3d<double> &area,
 
 wallVars wallLaw::IsothermalBCs(const vector3d<double> &area,
                                 const vector3d<double> &velWall,
-                                const unique_ptr<eos> &eqnState,
-                                const unique_ptr<thermodynamic> &thermo,
-                                const unique_ptr<transport> &trans,
-                                const unique_ptr<turbModel> &turb,
-                                const double &tW, const bool &isLower) {
+                                const vector<double> &wallMf,
+                                const physics &phys, const double &tW,
+                                const bool &isLower) {
   // initialize wallVars
   wallVars wVars;
   wVars.temperature_ = tW;
+  wVars.mf_ = wallMf;
 
   // get tangential velocity
   const auto vel = state_.Velocity() - velWall;
@@ -167,15 +160,15 @@ wallVars wallLaw::IsothermalBCs(const vector3d<double> &area,
   const auto velTanMag = velTan.Mag();
 
   // get wall properties
-  this->CalcRecoveryFactor(thermo, tW);
-  this->SetWallVars(wVars.temperature_, eqnState, thermo, trans);
+  this->CalcRecoveryFactor(phys.Thermodynamic(), tW);
+  this->SetWallVars(wVars.temperature_, phys);
 
   auto func = [&](const double &yplus) {
     // calculate u* and u+ from y+
     this->CalcVelocities(yplus, velTanMag);
     // calculate wall heat flux from croco-busemann equation
-    this->UpdateGamma(thermo, tW);
-    wVars.heatFlux_ = this->CalcHeatFlux(eqnState);
+    this->UpdateGamma(phys.Thermodynamic(), tW);
+    wVars.heatFlux_ = this->CalcHeatFlux(phys.EoS());
     // calculate constants
     this->UpdateConstants(wVars.heatFlux_);
     // calculate y+ from White & Christoph
@@ -192,7 +185,7 @@ wallVars wallLaw::IsothermalBCs(const vector3d<double> &area,
   // use compressible form of equation (Nichols & Nelson 2004)
   // calculate turbulence variables from eddy viscosity
   if (isRANS_) {
-    this->CalcTurbVars(turb, eqnState, trans, wVars.tke_, wVars.sdr_);
+    this->CalcTurbVars(phys, wVars.tke_, wVars.sdr_);
   }
 
   wVars.density_ = rhoW_;
@@ -209,7 +202,8 @@ wallVars wallLaw::IsothermalBCs(const vector3d<double> &area,
 void wallLaw::UpdateGamma(const unique_ptr<thermodynamic> &thermo,
                           const double &t) {
   // calculate constants
-  gamma_ = recoveryFactor_ * uStar_ * uStar_ / (2.0 * thermo->Cp(t) * tW_);
+  gamma_ = recoveryFactor_ * uStar_ * uStar_ /
+           (2.0 * thermo->Cp(t, state_.MassFractions()) * tW_);
 }
 
 void wallLaw::UpdateConstants(const double &heatFluxW) {
@@ -234,24 +228,21 @@ double wallLaw::CalcHeatFlux(const unique_ptr<eos> &eqnState) const {
   return tmp * (rhoW_ * tW_ * kW_ * uStar_) / muW_;
 }
 
-double wallLaw::CalcWallTemperature(const unique_ptr<eos> &eqnState,
-                                    const unique_ptr<thermodynamic> &thermo,
+double wallLaw::CalcWallTemperature(const physics &phys,
                                     const double &heatFluxW) const {
-  const auto t = state_.Temperature(eqnState);
-  return t +
-         recoveryFactor_ * uStar_ * uStar_ * uplus_ * uplus_ /
-             (2.0 * thermo->Cp(t) + heatFluxW * muW_ / (rhoW_ * kW_ * uStar_));
+  const auto t = state_.Temperature(phys.EoS());
+  return t + recoveryFactor_ * uStar_ * uStar_ * uplus_ * uplus_ /
+                 (2.0 * phys.Thermodynamic()->Cp(t, state_.MassFractions()) +
+                  heatFluxW * muW_ / (rhoW_ * kW_ * uStar_));
 }
 
-void wallLaw::SetWallVars(const double &tW, const unique_ptr<eos> &eqnState,
-                          const unique_ptr<thermodynamic> &thermo,
-                          const unique_ptr<transport> &trans) {
+void wallLaw::SetWallVars(const double &tW, const physics &phys) {
   tW_ = tW;
-  rhoW_ = eqnState->DensityTP(tW_, state_.P());
+  rhoW_ = phys.EoS()->DensityTP(tW_, state_.P());
 
   // get wall viscosity, conductivity from wall temperature
-  muW_ = trans->EffectiveViscosity(tW_);
-  kW_ = trans->Conductivity(muW_, tW_, thermo);
+  muW_ = phys.Transport()->EffectiveViscosity(tW_, state_.MassFractions());
+  kW_ = phys.Transport()->EffectiveConductivity(tW_, state_.MassFractions());
 }
 
 double wallLaw::CalcYplusRoot(const double &yplus) const {
@@ -261,8 +252,7 @@ double wallLaw::CalcYplusRoot(const double &yplus) const {
                   yplus0_ * (1.0 + ku + 0.5 * ku * ku + sixth * pow(ku, 3.0)));
 }
 
-void wallLaw::EddyVisc(const unique_ptr<eos> &eqnState,
-                       const unique_ptr<transport> &trans) {
+void wallLaw::EddyVisc(const physics &phys) {
   const auto dYplusWhite =
       2.0 * yplusWhite_ * vonKarmen_ * sqrt(gamma_) / q_ *
       sqrt(std::max(1.0 - pow(2.0 * gamma_ * uplus_ - beta_, 2.0) / (q_ * q_),
@@ -270,7 +260,8 @@ void wallLaw::EddyVisc(const unique_ptr<eos> &eqnState,
   const auto ku = vonKarmen_ * uplus_;
   mutW_ = muW_ * (1.0 + dYplusWhite -
                   vonKarmen_ * yplus0_ * (1.0 + ku + 0.5 * ku * ku)) -
-          trans->EffectiveViscosity(state_.Temperature(eqnState));
+          phys.Transport()->EffectiveViscosity(state_.Temperature(phys.EoS()),
+                                               state_.MassFractions());
   mutW_ = std::max(mutW_, 0.0);
 }
 
@@ -280,21 +271,20 @@ void wallLaw::CalcVelocities(const double &yplus, const double &u) {
   uStar_ = u / uplus_;
 }
 
-void wallLaw::CalcTurbVars(const unique_ptr<turbModel> &turb,
-                           const unique_ptr<eos> &eqnState,
-                           const unique_ptr<transport> &trans, double &kWall,
-                           double &wWall) {
-  this->EddyVisc(eqnState, trans);
+void wallLaw::CalcTurbVars(const physics &phys, double &kWall, double &wWall) {
+  this->EddyVisc(phys);
   // calculate turbulence variables from eddy viscosity
-  auto wi = 6.0 * muW_ / (turb->WallBeta() * rhoW_ * wallDist_ * wallDist_);
-  wi *= trans->NondimScaling();
-  auto wo = uStar_ / (sqrt(turb->BetaStar()) * vonKarmen_ * wallDist_);
-  wo *= trans->NondimScaling();
+  auto wi = 6.0 * muW_ /
+            (phys.Turbulence()->WallBeta() * rhoW_ * wallDist_ * wallDist_);
+  wi *= phys.Transport()->NondimScaling();
+  auto wo =
+      uStar_ / (sqrt(phys.Turbulence()->BetaStar()) * vonKarmen_ * wallDist_);
+  wo *= phys.Transport()->NondimScaling();
   wWall = sqrt(wi * wi + wo * wo);
-  kWall = wWall * mutW_ / state_.Rho() * trans->InvNondimScaling();
+  kWall = wWall * mutW_ / state_.Rho() * phys.Transport()->InvNondimScaling();
 }
 
 void wallLaw::CalcRecoveryFactor(const unique_ptr<thermodynamic> &thermo,
                                  const double &t) {
-  recoveryFactor_ = pow(thermo->Prandtl(t), 1.0 / 3.0);
+  recoveryFactor_ = pow(thermo->Prandtl(t, state_.MassFractions()), 1.0 / 3.0);
 }

@@ -27,7 +27,7 @@ referenceDensity: 1.2256
 referenceTemperature: 288
 referenceLength: 1
 
-fluids: <fluid(name=air; n=2.5; molarMass=0.02897)>
+fluids: <fluid(name=air; referenceMassFraction=1.0)>
 thermodynamicModel: caloricallyPerfect
 
 initialConditions: <icState(tag=-1; pressure=101325; density=1.2256; velocity=[100, 0, 0]; turbulenceIntensity=0.1; eddyViscosityRatio=10)>

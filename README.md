@@ -28,11 +28,12 @@ are the implicit euler (1st order), Crank-Nicholson (2nd order), and BDF2
 parallel using MPI. For RANS simulations the Wilcox K-Omega 2006 and SST 2003 
 turbulence models are available. Wall functions are supported for both models. 
 For detatched eddy simulations, the SST-DES turbulence model is available. For 
-large eddy simulations, the WALE subgrid scale model is available.
+large eddy simulations, the WALE subgrid scale model is available. A 
+Multi-species flow capability is in progress. Supported diffusion models will be
+Schmidt number based diffusion.
 
 ### To Do List
 * Add multigrid scheme for improved convergence
-* Add multi-species flow capability
 * Add reacting flow capability
 * Performance improvements
 
@@ -48,12 +49,18 @@ Aither is compiled and installed with the standard cmake process.
 cmake -DCMAKE_INSTALL_PREFIX=/path/to/installation -DCMAKE_BUILD_TYPE=release /path/to/source
 make
 make install
+
+export AITHER_FLUID_DATABASE=/path/to/installation/fluidDatabase
 ```
 
 Cmake will automatically look for an MPI package. To specify a specific 
 installation, set *-DMPI_DIR* to the MPI installation directory. In addition 
 to *release*, other supported build types are *debug*, *profile*,
 *relwithdebinfo*, and *minsizerel*.
+
+The **AITHER_FLUID_DATABASE** environment variable should be set to the 
+**fluidDatabase** folder inside of the installation directory. This tells aither
+where to look for fluid properties.
 
 ### How To Run
 ```bash
