@@ -132,10 +132,10 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   temperature_ = {numI, numJ, numK, numGhosts_, 1, 0.0};
 
   // gradients
-  velocityGrad_ = {numI, numJ, numK, numGhosts_};
-  temperatureGrad_ = {numI, numJ, numK, numGhosts_};
-  densityGrad_ = {numI, numJ, numK, numGhosts_};
-  pressureGrad_ = {numI, numJ, numK, numGhosts_};
+  velocityGrad_ = {numI, numJ, numK, 0};
+  temperatureGrad_ = {numI, numJ, numK, 0};
+  densityGrad_ = {numI, numJ, numK, 0};
+  pressureGrad_ = {numI, numJ, numK, 0};
 
   if (isViscous_) {
     viscosity_ = {numI, numJ, numK, numGhosts_, 1, 0.0};
@@ -150,8 +150,8 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   }
 
   if (isRANS_) {
-    tkeGrad_ = {numI, numJ, numK, numGhosts_};
-    omegaGrad_ = {numI, numJ, numK, numGhosts_};
+    tkeGrad_ = {numI, numJ, numK, 0};
+    omegaGrad_ = {numI, numJ, numK, 0};
     f1_ = {numI, numJ, numK, numGhosts_, 1, 1.0};
     f2_ = {numI, numJ, numK, numGhosts_, 1, 0.0};
   } else {
@@ -162,7 +162,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   }
 
   if (isMultiSpecies_) {
-    mixtureGrad_ = {numI, numJ, numK, numGhosts_, inp.NumSpecies()};
+    mixtureGrad_ = {numI, numJ, numK, 0, inp.NumSpecies()};
   } else {
     mixtureGrad_ = {};
   }
@@ -232,10 +232,10 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   temperature_ = {ni, nj, nk, numGhosts_};
 
   // gradients
-  velocityGrad_ = {ni, nj, nk, numGhosts_};
-  temperatureGrad_ = {ni, nj, nk, numGhosts_};
-  densityGrad_ = {ni, nj, nk, numGhosts_};
-  pressureGrad_ = {ni, nj, nk, numGhosts_};
+  velocityGrad_ = {ni, nj, nk, 0};
+  temperatureGrad_ = {ni, nj, nk, 0};
+  densityGrad_ = {ni, nj, nk, 0};
+  pressureGrad_ = {ni, nj, nk, 0};
 
   if (isViscous_) {
     viscosity_ = {ni, nj, nk, numGhosts_};
@@ -250,8 +250,8 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   }
 
   if (isRANS_) {
-    tkeGrad_ = {ni, nj, nk, numGhosts_};
-    omegaGrad_ = {ni, nj, nk, numGhosts_};
+    tkeGrad_ = {ni, nj, nk, 0};
+    omegaGrad_ = {ni, nj, nk, 0};
     f1_ = {ni, nj, nk, numGhosts_};
     f2_ = {ni, nj, nk, numGhosts_};
   } else {
@@ -262,7 +262,7 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   }
 
   if (isMultiSpecies) {
-    mixtureGrad_ = {ni, nj, nk, numGhosts_, numSpecies};
+    mixtureGrad_ = {ni, nj, nk, 0, numSpecies};
   } else {
     mixtureGrad_ = {};
   }
@@ -4880,10 +4880,10 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
 
   temperature_.ClearResize(numI, numJ, numK, numGhosts);
 
-  velocityGrad_.ClearResize(numI, numJ, numK, numGhosts);
-  temperatureGrad_.ClearResize(numI, numJ, numK, numGhosts);
-  densityGrad_.ClearResize(numI, numJ, numK, numGhosts);
-  pressureGrad_.ClearResize(numI, numJ, numK, numGhosts);
+  velocityGrad_.ClearResize(numI, numJ, numK, 0);
+  temperatureGrad_.ClearResize(numI, numJ, numK, 0);
+  densityGrad_.ClearResize(numI, numJ, numK, 0);
+  pressureGrad_.ClearResize(numI, numJ, numK, 0);
 
   if (isViscous_) {
     viscosity_.ClearResize(numI, numJ, numK, numGhosts);
@@ -4894,14 +4894,14 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   }
 
   if (isRANS_) {
-    tkeGrad_.ClearResize(numI, numJ, numK, numGhosts);
-    omegaGrad_.ClearResize(numI, numJ, numK, numGhosts);
+    tkeGrad_.ClearResize(numI, numJ, numK, 0);
+    omegaGrad_.ClearResize(numI, numJ, numK, 0);
     f1_.ClearResize(numI, numJ, numK, numGhosts);
     f2_.ClearResize(numI, numJ, numK, numGhosts);
   }
 
   if (isMultiSpecies_) {
-    mixtureGrad_.ClearResize(numI, numJ, numK, numGhosts, numSpecies);
+    mixtureGrad_.ClearResize(numI, numJ, numK, 0, numSpecies);
   }
 }
 
