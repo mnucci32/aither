@@ -52,12 +52,16 @@ class thermodynamic {
   virtual double Prandtl(const double& t, const vector<double>& mf) const = 0;
   virtual double Cp(const double& t, const vector<double>& mf) const = 0;
   virtual double Cv(const double& t, const vector<double>& mf) const = 0;
+  virtual double SpeciesSpecEnergy(const double& t, const int& ss) const = 0;
   virtual double SpecEnergy(const double& t,
                             const vector<double>& mf) const = 0;
+  virtual double SpeciesSpecEnthalpy(const double& t, const int& ss) const = 0;
   virtual double SpecEnthalpy(const double& t,
                               const vector<double>& mf) const = 0;
   virtual double TemperatureFromSpecEnergy(const double& e,
                                            const vector<double>& mf) const = 0;
+  virtual double SpeciesCp(const double& t, const int& ss) const = 0;
+  virtual double SpeciesCv(const double& t, const int& ss) const = 0;
 
   // Destructor
   virtual ~thermodynamic() noexcept {}
@@ -82,16 +86,17 @@ class caloricallyPerfect : public thermodynamic {
     const auto gamma = this->Gamma(t, mf);
     return (4.0 * gamma) / (9.0 * gamma - 5.0);
   }
-  double Cp(const double& t, const vector<double>& mf) const override {
-    return 1.0 / (this->Gamma(t, mf) - 1.0);
-  }
-  double Cv(const double& t, const vector<double>& mf) const override {
-    const auto gamma = this->Gamma(t, mf);
-    return 1.0 / (gamma * (gamma - 1.0));
-  }
+  double Cp(const double& t, const vector<double>& mf) const override;
+  double Cv(const double& t, const vector<double>& mf) const override;
 
+  double SpeciesSpecEnergy(const double& t, const int& ss) const override {
+    return this->SpeciesCv(t, ss) * t;
+  }
   double SpecEnergy(const double& t, const vector<double>& mf) const override {
     return this->Cv(t, mf) * t;
+  }
+  double SpeciesSpecEnthalpy(const double& t, const int& ss) const override {
+    return this->SpeciesCp(t, ss) * t;
   }
   double SpecEnthalpy(const double& t,
                       const vector<double>& mf) const override {
@@ -99,6 +104,13 @@ class caloricallyPerfect : public thermodynamic {
   }
   double TemperatureFromSpecEnergy(const double& e,
                                    const vector<double>& mf) const override;
+  double SpeciesCp(const double& t, const int& ss) const override {
+    return 1.0 / (this->SpeciesGamma(t, ss) - 1.0);
+  }
+  double SpeciesCv(const double& t, const int& ss) const override {
+    const auto gamma = this->SpeciesGamma(t, ss);
+    return 1.0 / (gamma * (gamma - 1.0));
+  }
 
   // Destructor
   ~caloricallyPerfect() noexcept {}
@@ -133,13 +145,6 @@ class thermallyPerfect : public thermodynamic {
     return vibEq;
   }
 
-  double SpeciesCp(const double& t, const int& ss) const {
-    return gasConst_[ss] * ((n_[ss] + 1.0) + this->VibEqCpCvTerm(t, ss));
-  }
-  double SpeciesCv(const double& t, const int& ss) const {
-    return gasConst_[ss] * (n_[ss] + this->VibEqCpCvTerm(t, ss));
-  }
-
  public:
   // Constructor
   thermallyPerfect(const vector<fluid>& fl, const double& tRef,
@@ -159,10 +164,18 @@ class thermallyPerfect : public thermodynamic {
   }
   double Cp(const double& t, const vector<double>& mf) const override;
   double Cv(const double& t, const vector<double>& mf) const override;
+  double SpeciesSpecEnergy(const double& t, const int& ss) const override;
   double SpecEnergy(const double& t, const vector<double>& mf) const override;
+  double SpeciesSpecEnthalpy(const double& t, const int& ss) const override;
   double SpecEnthalpy(const double& t, const vector<double>& mf) const override;
   double TemperatureFromSpecEnergy(const double& e,
                                    const vector<double>& mf) const override;
+  double SpeciesCp(const double& t, const int& ss) const override {
+    return gasConst_[ss] * ((n_[ss] + 1.0) + this->VibEqCpCvTerm(t, ss));
+  }
+  double SpeciesCv(const double& t, const int& ss) const override {
+    return gasConst_[ss] * (n_[ss] + this->VibEqCpCvTerm(t, ss));
+  }
 
   // Destructor
   ~thermallyPerfect() noexcept {}

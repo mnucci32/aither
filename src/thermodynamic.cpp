@@ -61,6 +61,26 @@ double caloricallyPerfect::Gamma(const double& t,
   return gamma;
 }
 
+double caloricallyPerfect::Cp(const double& t, const vector<double>& mf) const {
+  MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
+             "species size mismatch");
+  auto cp = 0.0;
+  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+    cp += mf[ss] * this->SpeciesCp(t, ss);
+  }
+  return cp;
+}
+
+double caloricallyPerfect::Cv(const double& t, const vector<double>& mf) const {
+  MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
+             "species size mismatch");
+  auto cv = 0.0;
+  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+    cv += mf[ss] * this->SpeciesCv(t, ss);
+  }
+  return cv;
+}
+
 double caloricallyPerfect::TemperatureFromSpecEnergy(
     const double& e, const vector<double>& mf) const {
   const auto t = 1.0;  // cpg has constant Cv, so value of t is meaningless
@@ -89,15 +109,27 @@ double thermallyPerfect::Cv(const double& t, const vector<double>& mf) const {
   return cv;
 }
 
+double thermallyPerfect::SpeciesSpecEnergy(const double& t,
+                                           const int& ss) const {
+  MSG_ASSERT(ss <= this->NumSpecies(), "species out of range");
+  return gasConst_[ss] * (n_[ss] * t + this->VibEqTerm(t, ss));
+}
+
 double thermallyPerfect::SpecEnergy(const double& t,
                                     const vector<double>& mf) const {
   MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
              "species size mismatch");
   auto e = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    e += mf[ss] * (gasConst_[ss] * (n_[ss] * t + this->VibEqTerm(t, ss)));
+    e += mf[ss] * this->SpeciesSpecEnergy(t, ss);
   }
   return e;
+}
+
+double thermallyPerfect::SpeciesSpecEnthalpy(const double& t,
+                                             const int& ss) const {
+  MSG_ASSERT(ss <= this->NumSpecies(), "species out of range");
+  return gasConst_[ss] * ((n_[ss] + 1) * t + this->VibEqTerm(t, ss));
 }
 
 double thermallyPerfect::SpecEnthalpy(const double& t,
@@ -106,7 +138,7 @@ double thermallyPerfect::SpecEnthalpy(const double& t,
              "species size mismatch");
   auto h = 0.0;
   for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    h += mf[ss] * (gasConst_[ss] * ((n_[ss] + 1) * t + this->VibEqTerm(t, ss)));
+    h += mf[ss] * this->SpeciesSpecEnthalpy(t, ss);
   }
   return h;
 }

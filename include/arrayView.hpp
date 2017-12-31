@@ -190,6 +190,7 @@ class arrayView {
   }
   T2 SoS(const physics &phys) const;
   T2 Energy(const physics &phys) const;
+  T2 SpeciesEnthalpy(const physics &phys, const int &ss) const;
   T2 Enthalpy(const physics &phys) const;
   T2 Temperature(const unique_ptr<eos> &eqnState) const {
     static_assert(std::is_same<primitive, T1>::value,
@@ -398,11 +399,29 @@ double EnthalpyFunc(const T &state, const physics &phys) {
                               state.MassFractions());
 }
 
+template <typename T>
+double SpeciesEnthalpyFunc(const T &state, const physics &phys, const int &ss) {
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+  const auto t = state.Temperature(phys.EoS());
+  return phys.EoS()->SpeciesEnthalpy(phys.Thermodynamic(), t,
+                                     state.Velocity().Mag(), ss);
+}
+
 template <typename T1, typename T2>
 T2 arrayView<T1, T2>::Enthalpy(const physics &phys) const {
   static_assert(std::is_same<primitive, T1>::value,
                 "getter only valid for primitive type!");
   return EnthalpyFunc(*this, phys);
+}
+
+template <typename T1, typename T2>
+T2 arrayView<T1, T2>::SpeciesEnthalpy(const physics &phys,
+                                      const int &ss) const {
+  static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+  return EnthalpyFunc(*this, phys, ss);
 }
 
 template <typename T>

@@ -78,11 +78,14 @@ void viscousFlux::CalcFlux(const tensor<double> &velGrad, const physics &phys,
   const auto mu = phys.Transport()->NondimScaling() * lamVisc;
   const auto mut = phys.Transport()->NondimScaling() * turbVisc;
 
-  const bool isMultiSpecies = state.NumSpecies() > 1;
+  auto speciesEnthalpyTerm = 0.0;
+  const auto isMultiSpecies = state.NumSpecies() > 1;
   if (isMultiSpecies) {
     for (auto ss = 0; ss < state.NumSpecies(); ++ss) {
       (*this)[ss] =
           phys.Diffusion()->DiffCoeff(mu, mut) * mixGrad[ss].DotProd(normArea);
+      const auto hs = state.SpeciesEnthalpy(phys, ss);
+      speciesEnthalpyTerm += (*this)[ss] * hs;
     }
   }
 
@@ -97,8 +100,9 @@ void viscousFlux::CalcFlux(const tensor<double> &velGrad, const physics &phys,
   const auto k = phys.Transport()->EffectiveConductivity(t, mf);
   const auto kt = phys.Transport()->TurbConductivity(
       mut, phys.Turbulence()->TurbPrandtlNumber(), t, phys.Thermodynamic(), mf);
-  (*this)[this->EnergyIndex()] =
-      tau.DotProd(state.Velocity()) + (k + kt) * tGrad.DotProd(normArea);
+  (*this)[this->EnergyIndex()] = tau.DotProd(state.Velocity()) +
+                                 (k + kt) * tGrad.DotProd(normArea) +
+                                 speciesEnthalpyTerm;
 
   // turbulence viscous flux
   if (this->HasTurbulenceData()) {
@@ -136,7 +140,7 @@ wallVars viscousFlux::CalcWallFlux(
   // turbVisc -- turbulent viscosity
   // f1 -- first blending coefficient
 
-  // no diffusion on wall boundary
+  // no diffusion on wall boundary, therfore no contribution to energy flux
 
   wallVars wVars(state.NumSpecies());
 
@@ -208,7 +212,7 @@ void viscousFlux::CalcWallLawFlux(
   // omegaGrad -- omega gradient
   // turb -- turbulence model
 
-  // no diffusion on wall boundary
+  // no diffusion on wall boundary, therefore no contribution to energy flux
 
   (*this)[this->MomentumXIndex()] = tauWall.X();
   (*this)[this->MomentumYIndex()] = tauWall.Y();

@@ -72,6 +72,12 @@ double idealGas::Energy(const double &specEn, const double &vel) const {
   return specEn + 0.5 * vel * vel;
 }
 
+double idealGas::SpeciesEnthalpy(const unique_ptr<thermodynamic> &thermo,
+                                 const double &t, const double &vel,
+                                 const int &ss) const {
+  return thermo->SpeciesSpecEnthalpy(t, ss) + 0.5 * vel * vel;
+}
+
 double idealGas::Enthalpy(const unique_ptr<thermodynamic> &thermo,
                           const double &t, const double &vel,
                           const vector<double> &mf) const {

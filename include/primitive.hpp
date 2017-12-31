@@ -121,6 +121,9 @@ class primitive : public varArray {
   double Energy(const physics &phys) const {
     return InternalEnergy(*this, phys);
   }
+  double SpeciesEnthalpy(const physics &phys, const int &ss) const {
+    return SpeciesEnthalpyFunc(*this, phys, ss);
+  }
   double Enthalpy(const physics &phys) const {
     return EnthalpyFunc(*this, phys);
   }

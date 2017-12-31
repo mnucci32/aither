@@ -58,6 +58,9 @@ class eos {
                             const double &t,
                             const vector<double> &mf) const = 0;
   virtual double Energy(const double &specEn, const double &vel) const = 0;
+  virtual double SpeciesEnthalpy(const unique_ptr<thermodynamic> &thermo,
+                                 const double &t, const double &vel,
+                                 const int &ss) const = 0;
   virtual double Enthalpy(const unique_ptr<thermodynamic> &thermo,
                           const double &t, const double &vel,
                           const vector<double> &mf) const = 0;
@@ -96,6 +99,9 @@ class idealGas : public eos {
   double SpecEnergy(const unique_ptr<thermodynamic> &thermo, const double &t,
                     const vector<double> &mf) const override;
   double Energy(const double &specEn, const double &vel) const override;
+  double SpeciesEnthalpy(const unique_ptr<thermodynamic> &thermo,
+                         const double &t, const double &vel,
+                         const int &ss) const override;
   double Enthalpy(const unique_ptr<thermodynamic> &thermo, const double &t,
                   const double &vel, const vector<double> &mf) const override;
   double SoS(const unique_ptr<thermodynamic> &thermo, const double &pressure,
