@@ -1716,8 +1716,9 @@ void procBlock::CalcViscFluxI(const physics &phys, const input &inp,
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        vector<vector3d<double>> mixGrad;
         this->CalcGradsI(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
-                         tkeGrad, omegaGrad);
+                         tkeGrad, omegaGrad, mixGrad);
 
         // declare variables needed throughout function
         primitive state(inp.NumEquations(), inp.NumSpecies());
@@ -1864,6 +1865,11 @@ void procBlock::CalcViscFluxI(const physics &phys, const input &inp,
               f2_(ii - 1, jj, kk) += sixth * f2;
             }
           }
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              mixtureGrad_(ii - 1, jj, kk, ss) += sixth * mixGrad[ii];
+            }
+          }
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -1892,6 +1898,11 @@ void procBlock::CalcViscFluxI(const physics &phys, const input &inp,
               omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
               f1_(ii, jj, kk) += sixth * f1;
               f2_(ii, jj, kk) += sixth * f2;
+            }
+          }
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ii];
             }
           }
 
@@ -2017,8 +2028,9 @@ void procBlock::CalcViscFluxJ(const physics &phys, const input &inp,
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        vector<vector3d<double>> mixGrad;
         this->CalcGradsJ(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
-                         tkeGrad, omegaGrad);
+                         tkeGrad, omegaGrad, mixGrad);
 
         // declare variables needed throughout function
         primitive state(inp.NumEquations(), inp.NumSpecies());
@@ -2166,6 +2178,11 @@ void procBlock::CalcViscFluxJ(const physics &phys, const input &inp,
               f2_(ii, jj - 1, kk) += sixth * f2;
             }
           }
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              mixtureGrad_(ii, jj - 1, kk, ss) += sixth * mixGrad[ii];
+            }
+          }
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -2194,6 +2211,11 @@ void procBlock::CalcViscFluxJ(const physics &phys, const input &inp,
               omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
               f1_(ii, jj, kk) += sixth * f1;
               f2_(ii, jj, kk) += sixth * f2;
+            }
+          }
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ii];
             }
           }
 
@@ -2324,8 +2346,9 @@ void procBlock::CalcViscFluxK(const physics &phys, const input &inp,
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        vector<vector3d<double>> mixGrad;
         this->CalcGradsK(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
-                         tkeGrad, omegaGrad);
+                         tkeGrad, omegaGrad, mixGrad);
 
         // declare variables needed throughout function
         primitive state(inp.NumEquations(), inp.NumSpecies());
@@ -2473,6 +2496,11 @@ void procBlock::CalcViscFluxK(const physics &phys, const input &inp,
               f2_(ii, jj, kk - 1) += sixth * f2;
             }
           }
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              mixtureGrad_(ii, jj, kk - 1, ss) += sixth * mixGrad[ii];
+            }
+          }
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -2501,6 +2529,11 @@ void procBlock::CalcViscFluxK(const physics &phys, const input &inp,
               omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
               f1_(ii, jj, kk) += sixth * f1;
               f2_(ii, jj, kk) += sixth * f2;
+            }
+          }
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ii];
             }
           }
 
@@ -5707,7 +5740,8 @@ void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
                            tensor<double> &velGrad, vector3d<double> &tGrad,
                            vector3d<double> &dGrad, vector3d<double> &pGrad,
                            vector3d<double> &tkeGrad,
-                           vector3d<double> &omegaGrad) const {
+                           vector3d<double> &omegaGrad,
+                           vector<vector3d<double>> &mixGrad) const {
   // ii -- i-index for face (including ghosts)
   // jj -- j-index for face (including ghosts)
   // kk -- k-index for face (including ghosts)
@@ -5717,6 +5751,7 @@ void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
   // pGrad -- vector3d to store pressure gradient
   // tkeGrad -- vector3d to store tke gradient
   // omegaGrad -- vector3d to store omega gradient
+  // mixGrad -- mixture gradients
 
   // calculate areas of faces in alternate control volume
   const auto aiu = 0.5 * (fAreaI_(ii, jj, kk).Vector() +
@@ -5874,13 +5909,44 @@ void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
         state_(ii - 1, jj, kk).Omega(), state_(ii, jj, kk).Omega(), omgjl,
         omgju, omgkl, omgku, ail, aiu, ajl, aju, akl, aku, vol);
   }
+
+  if (isMultiSpecies_) {
+    mixGrad.resize(this->NumSpecies());
+    for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+      // calculate average mf on j and k faces of alternate control volume
+      const auto mfju = 0.25 * (state_(ii - 1, jj, kk).MassFractionN(ss) +
+                                state_(ii, jj, kk).MassFractionN(ss) +
+                                state_(ii, jj + 1, kk).MassFractionN(ss) +
+                                state_(ii - 1, jj + 1, kk).MassFractionN(ss));
+      const auto mfjl = 0.25 * (state_(ii - 1, jj, kk).MassFractionN(ss) +
+                                state_(ii, jj, kk).MassFractionN(ss) +
+                                state_(ii, jj - 1, kk).MassFractionN(ss) +
+                                state_(ii - 1, jj - 1, kk).MassFractionN(ss));
+
+      const auto mfku = 0.25 * (state_(ii - 1, jj, kk).MassFractionN(ss) +
+                                state_(ii, jj, kk).MassFractionN(ss) +
+                                state_(ii, jj, kk + 1).MassFractionN(ss) +
+                                state_(ii - 1, jj, kk + 1).MassFractionN(ss));
+      const auto mfkl = 0.25 * (state_(ii - 1, jj, kk).MassFractionN(ss) +
+                                state_(ii, jj, kk).MassFractionN(ss) +
+                                state_(ii, jj, kk - 1).MassFractionN(ss) +
+                                state_(ii - 1, jj, kk - 1).MassFractionN(ss));
+
+      // Get tke gradient at face
+      mixGrad[ss] =
+          ScalarGradGG(state_(ii - 1, jj, kk).MassFractionN(ss),
+                       state_(ii, jj, kk).MassFractionN(ss), mfjl, mfju, mfkl,
+                       mfku, ail, aiu, ajl, aju, akl, aku, vol);
+    }
+  }
 }
 
 void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk,
                            tensor<double> &velGrad, vector3d<double> &tGrad,
                            vector3d<double> &dGrad, vector3d<double> &pGrad,
                            vector3d<double> &tkeGrad,
-                           vector3d<double> &omegaGrad) const {
+                           vector3d<double> &omegaGrad,
+                           vector<vector3d<double>> &mixGrad) const {
   // ii -- i-index for face (including ghosts)
   // jj -- j-index for face (including ghosts)
   // kk -- k-index for face (including ghosts)
@@ -5890,6 +5956,7 @@ void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk,
   // pGrad -- vector3d to store pressure gradient
   // tkeGrad -- vector3d to store tke gradient
   // omegaGrad -- vector3d to store omega gradient
+  // mixGrad -- mixture gradients
 
   // calculate areas of faces in alternate control volume
   const auto aju = 0.5 * (fAreaJ_(ii, jj, kk).Vector() +
@@ -6048,13 +6115,44 @@ void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk,
                              state_(ii, jj, kk).Omega(), omgkl, omgku, ail,
                              aiu, ajl, aju, akl, aku, vol);
   }
+
+  if (isMultiSpecies_) {
+    mixGrad.resize(this->NumSpecies());
+    for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+      // calculate average mf on i and k faces of alternate control volume
+      const auto mfiu = 0.25 * (state_(ii, jj - 1, kk).MassFractionN(ss) +
+                                state_(ii, jj, kk).MassFractionN(ss) +
+                                state_(ii + 1, jj, kk).MassFractionN(ss) +
+                                state_(ii + 1, jj - 1, kk).MassFractionN(ss));
+      const auto mfil = 0.25 * (state_(ii, jj - 1, kk).MassFractionN(ss) +
+                                state_(ii, jj, kk).MassFractionN(ss) +
+                                state_(ii - 1, jj, kk).MassFractionN(ss) +
+                                state_(ii - 1, jj - 1, kk).MassFractionN(ss));
+
+      const auto mfku = 0.25 * (state_(ii, jj - 1, kk).MassFractionN(ss) +
+                                state_(ii, jj, kk).MassFractionN(ss) +
+                                state_(ii, jj, kk + 1).MassFractionN(ss) +
+                                state_(ii, jj - 1, kk + 1).MassFractionN(ss));
+      const auto mfkl = 0.25 * (state_(ii, jj - 1, kk).MassFractionN(ss) +
+                                state_(ii, jj, kk).MassFractionN(ss) +
+                                state_(ii, jj, kk - 1).MassFractionN(ss) +
+                                state_(ii, jj - 1, kk - 1).MassFractionN(ss));
+
+      // Get temperature gradient at face
+      mixGrad[ss] =
+          ScalarGradGG(mfil, mfiu, state_(ii, jj - 1, kk).MassFractionN(ss),
+                       state_(ii, jj, kk).MassFractionN(ss), mfkl, mfku, ail,
+                       aiu, ajl, aju, akl, aku, vol);
+    }
+  }
 }
 
 void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
                            tensor<double> &velGrad, vector3d<double> &tGrad,
                            vector3d<double> &dGrad, vector3d<double> &pGrad,
                            vector3d<double> &tkeGrad,
-                           vector3d<double> &omegaGrad) const {
+                           vector3d<double> &omegaGrad,
+                           vector<vector3d<double>> &mixGrad) const {
   // ii -- i-index for face (including ghosts)
   // jj -- j-index for face (including ghosts)
   // kk -- k-index for face (including ghosts)
@@ -6064,6 +6162,7 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
   // pGrad -- vector3d to store pressure gradient
   // tkeGrad -- vector3d to store tke gradient
   // omegaGrad -- vector3d to store omega gradient
+  // mixGrad -- mixture gradients
 
   // calculate areas of faces in alternate control volume
   const auto aku = 0.5 * (fAreaK_(ii, jj, kk).Vector() +
@@ -6222,6 +6321,36 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
         omgil, omgiu, omgjl, omgju, state_(ii, jj, kk - 1).Omega(),
         state_(ii, jj, kk).Omega(), ail, aiu, ajl, aju, akl, aku, vol);
   }
+
+  if (isMultiSpecies_) {
+    mixGrad.resize(this->NumSpecies());
+    for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+      // calculate average mf on i and j faces of alternate control volume
+      const auto mfiu = 0.25 * (state_(ii, jj, kk - 1).MassFractionN(ss) +
+                                state_(ii, jj, kk).MassFractionN(ss) +
+                                state_(ii + 1, jj, kk).MassFractionN(ss) +
+                                state_(ii + 1, jj, kk - 1).MassFractionN(ss));
+      const auto mfil = 0.25 * (state_(ii, jj, kk - 1).MassFractionN(ss) +
+                                state_(ii, jj, kk).MassFractionN(ss) +
+                                state_(ii - 1, jj, kk).MassFractionN(ss) +
+                                state_(ii - 1, jj, kk - 1).MassFractionN(ss));
+
+      const auto mfju = 0.25 * (state_(ii, jj, kk - 1).MassFractionN(ss) +
+                                state_(ii, jj, kk).MassFractionN(ss) +
+                                state_(ii, jj + 1, kk).MassFractionN(ss) +
+                                state_(ii, jj + 1, kk - 1).MassFractionN(ss));
+      const auto mfjl = 0.25 * (state_(ii, jj, kk - 1).MassFractionN(ss) +
+                                state_(ii, jj, kk).MassFractionN(ss) +
+                                state_(ii, jj - 1, kk).MassFractionN(ss) +
+                                state_(ii, jj - 1, kk - 1).MassFractionN(ss));
+
+      // Get temperature gradient at face
+      mixGrad[ss] = ScalarGradGG(mfil, mfiu, mfjl, mfju,
+                                 state_(ii, jj, kk - 1).MassFractionN(ss),
+                                 state_(ii, jj, kk).MassFractionN(ss), ail, aiu,
+                                 ajl, aju, akl, aku, vol);
+    }
+  }
 }
 
 void procBlock::CalcGradsI() {
@@ -6235,8 +6364,9 @@ void procBlock::CalcGradsI() {
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        vector<vector3d<double>> mixGrad;
         this->CalcGradsI(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
-                         tkeGrad, omegaGrad);
+                         tkeGrad, omegaGrad, mixGrad);
 
         // at left boundary there is no left cell to add to
         if (ii > fAreaI_.PhysStartI()) {
@@ -6248,6 +6378,11 @@ void procBlock::CalcGradsI() {
           if (isRANS_) {
             tkeGrad_(ii - 1, jj, kk) += sixth * tkeGrad;
             omegaGrad_(ii - 1, jj, kk) += sixth * omegaGrad;
+          }
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              mixtureGrad_(ii - 1, jj, kk, ss) += sixth * mixGrad[ss];
+            }
           }
         }
 
@@ -6261,6 +6396,11 @@ void procBlock::CalcGradsI() {
           if (isRANS_) {
             tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
             omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+          }
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ss];
+            }
           }
         }
       }
@@ -6279,8 +6419,9 @@ void procBlock::CalcGradsJ() {
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        vector<vector3d<double>> mixGrad;
         this->CalcGradsJ(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
-                         tkeGrad, omegaGrad);
+                         tkeGrad, omegaGrad, mixGrad);
 
         // at left boundary there is no left cell to add to
         if (jj > fAreaJ_.PhysStartJ()) {
@@ -6292,6 +6433,11 @@ void procBlock::CalcGradsJ() {
           if (isRANS_) {
             tkeGrad_(ii, jj - 1, kk) += sixth * tkeGrad;
             omegaGrad_(ii, jj - 1, kk) += sixth * omegaGrad;
+          }
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              mixtureGrad_(ii, jj - 1, kk, ss) += sixth * mixGrad[ss];
+            }
           }
         }
 
@@ -6305,6 +6451,11 @@ void procBlock::CalcGradsJ() {
           if (isRANS_) {
             tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
             omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+          }
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ss];
+            }
           }
         }
       }
@@ -6323,8 +6474,9 @@ void procBlock::CalcGradsK() {
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        vector<vector3d<double>> mixGrad;
         this->CalcGradsK(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
-                         tkeGrad, omegaGrad);
+                         tkeGrad, omegaGrad, mixGrad);
 
         // at left boundary there is no left cell to add to
         if (kk > fAreaK_.PhysStartK()) {
@@ -6336,6 +6488,11 @@ void procBlock::CalcGradsK() {
           if (isRANS_) {
             tkeGrad_(ii, jj, kk - 1) += sixth * tkeGrad;
             omegaGrad_(ii, jj, kk - 1) += sixth * omegaGrad;
+          }
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              mixtureGrad_(ii, jj, kk - 1, ss) += sixth * mixGrad[ss];
+            }
           }
         }
 
@@ -6349,6 +6506,11 @@ void procBlock::CalcGradsK() {
           if (isRANS_) {
             tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
             omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+          }
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ss];
+            }
           }
         }
       }

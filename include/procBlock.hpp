@@ -409,13 +409,16 @@ class procBlock {
 
   void CalcGradsI(const int &, const int &, const int &, tensor<double> &,
                   vector3d<double> &, vector3d<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
+                  vector3d<double> &, vector3d<double> &,
+                  vector<vector3d<double>> &) const;
   void CalcGradsJ(const int &, const int &, const int &, tensor<double> &,
                   vector3d<double> &, vector3d<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
+                  vector3d<double> &, vector3d<double> &,
+                  vector<vector3d<double>> &) const;
   void CalcGradsK(const int &, const int &, const int &, tensor<double> &,
                   vector3d<double> &, vector3d<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
+                  vector3d<double> &, vector3d<double> &,
+                  vector<vector3d<double>> &) const;
 
   void CalcWallDistance(const kdtree &);
 
