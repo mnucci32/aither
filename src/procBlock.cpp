@@ -1836,7 +1836,7 @@ void procBlock::CalcViscFluxI(const physics &phys, const input &inp,
             // calculate viscous flux
             tempViscFlux.CalcFlux(velGrad, phys, tempGrad,
                                   this->FAreaUnitI(ii, jj, kk), tkeGrad,
-                                  omegaGrad, state, mu, mut, f1);
+                                  omegaGrad, mixGrad, state, mu, mut, f1);
           }
         }
 
@@ -2148,7 +2148,7 @@ void procBlock::CalcViscFluxJ(const physics &phys, const input &inp,
             // calculate viscous flux
             tempViscFlux.CalcFlux(velGrad, phys, tempGrad,
                                   this->FAreaUnitJ(ii, jj, kk), tkeGrad,
-                                  omegaGrad, state, mu, mut, f1);
+                                  omegaGrad, mixGrad, state, mu, mut, f1);
           }
         }
 
@@ -2466,7 +2466,7 @@ void procBlock::CalcViscFluxK(const physics &phys, const input &inp,
             // calculate viscous flux
             tempViscFlux.CalcFlux(velGrad, phys, tempGrad,
                                   this->FAreaUnitK(ii, jj, kk), tkeGrad,
-                                  omegaGrad, state, mu, mut, f1);
+                                  omegaGrad, mixGrad, state, mu, mut, f1);
           }
         }
 

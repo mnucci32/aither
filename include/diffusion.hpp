@@ -44,6 +44,9 @@ class diffusion {
   // Member functions for abstract base class
   virtual double LaminarDiffCoeff(const double &mu) const = 0;
   virtual double TurbDiffCoeff(const double &mut) const = 0;
+  double DiffCoeff(const double &mu, const double &mut) {
+    return this->LaminarDiffCoeff(mu) + this->TurbDiffCoeff(mut);
+  }
 
   // Destructor
   virtual ~diffusion() noexcept {}
@@ -67,9 +70,6 @@ class diffNone : public diffusion {
   // Member functions
   double LaminarDiffCoeff(const double &mu) const override { return 0.0; }
   double TurbDiffCoeff(const double &mut) const override { return 0.0; }
-  double DiffCoeff(const double &mu, const double &mut) {
-    return this->LaminarDiffCoeff(mu) + this->TurbDiffCoeff(mut);
-  }
 
   // Destructor
   ~diffNone() noexcept {}

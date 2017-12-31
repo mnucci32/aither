@@ -33,7 +33,9 @@ using std::unique_ptr;
 // constructor -- initialize flux from velocity gradient
 /*
 Viscous flux normal to face:
-F = [ 0,
+F = [ D_0 mixGrad_0 (dot) area,
+      ...
+      D_n mixGrad_n (dot) area,
       taux,
       tauy,
       tauz,
@@ -58,6 +60,7 @@ void viscousFlux::CalcFlux(const tensor<double> &velGrad, const physics &phys,
                            const vector3d<double> &normArea,
                            const vector3d<double> &tkeGrad,
                            const vector3d<double> &omegaGrad,
+                           const vector<vector3d<double>> &mixGrad,
                            const primitive &state, const double &lamVisc,
                            const double &turbVisc, const double &f1) {
   // velGrad -- velocity gradient tensor
@@ -75,21 +78,27 @@ void viscousFlux::CalcFlux(const tensor<double> &velGrad, const physics &phys,
   const auto mu = phys.Transport()->NondimScaling() * lamVisc;
   const auto mut = phys.Transport()->NondimScaling() * turbVisc;
 
+  const bool isMultiSpecies = state.NumSpecies() > 1;
+  if (isMultiSpecies) {
+    for (auto ss = 0; ss < state.NumSpecies(); ++ss) {
+      (*this)[ss] =
+          phys.Diffusion()->DiffCoeff(mu, mut) * mixGrad[ss].DotProd(normArea);
+    }
+  }
+
   // wall shear stress
   const auto tau = TauNormal(velGrad, normArea, mu, mut, phys.Transport());
-
-  const auto t = state.Temperature(phys.EoS());
-
   (*this)[this->MomentumXIndex()] = tau.X();
   (*this)[this->MomentumYIndex()] = tau.Y();
   (*this)[this->MomentumZIndex()] = tau.Z();
+
+  const auto t = state.Temperature(phys.EoS());
+  const auto mf = state.MassFractions();
+  const auto k = phys.Transport()->EffectiveConductivity(t, mf);
+  const auto kt = phys.Transport()->TurbConductivity(
+      mut, phys.Turbulence()->TurbPrandtlNumber(), t, phys.Thermodynamic(), mf);
   (*this)[this->EnergyIndex()] =
-      tau.DotProd(state.Velocity()) +
-      (phys.Transport()->EffectiveConductivity(t, state.MassFractions()) +
-       phys.Transport()->TurbConductivity(
-           mut, phys.Turbulence()->TurbPrandtlNumber(), t, phys.Thermodynamic(),
-           state.MassFractions())) *
-          tGrad.DotProd(normArea);
+      tau.DotProd(state.Velocity()) + (k + kt) * tGrad.DotProd(normArea);
 
   // turbulence viscous flux
   if (this->HasTurbulenceData()) {
@@ -127,6 +136,8 @@ wallVars viscousFlux::CalcWallFlux(
   // turbVisc -- turbulent viscosity
   // f1 -- first blending coefficient
 
+  // no diffusion on wall boundary
+
   wallVars wVars(state.NumSpecies());
 
   // get viscosity with nondimensional normalization
@@ -137,19 +148,20 @@ wallVars viscousFlux::CalcWallFlux(
   wVars.shearStress_ = TauNormal(velGrad, normArea, wVars.viscosity_,
                                  wVars.turbEddyVisc_, phys.Transport());
 
-  const auto t = state.Temperature(phys.EoS());
-
-  // wall heat flux
-  wVars.heatFlux_ =
-      (phys.Transport()->EffectiveConductivity(t, state.MassFractions()) +
-       phys.Transport()->TurbConductivity(
-           wVars.turbEddyVisc_, phys.Turbulence()->TurbPrandtlNumber(), t,
-           phys.Thermodynamic(), state.MassFractions())) *
-      tGrad.DotProd(normArea);
-
   (*this)[this->MomentumXIndex()] = wVars.shearStress_.X();
   (*this)[this->MomentumYIndex()] = wVars.shearStress_.Y();
   (*this)[this->MomentumZIndex()] = wVars.shearStress_.Z();
+
+  const auto t = state.Temperature(phys.EoS());
+  const auto mf = state.MassFractions();
+  const auto k = phys.Transport()->EffectiveConductivity(t, mf);
+  const auto kt = phys.Transport()->TurbConductivity(
+      wVars.turbEddyVisc_, phys.Turbulence()->TurbPrandtlNumber(), t,
+      phys.Thermodynamic(), mf);
+
+  // wall heat flux
+  wVars.heatFlux_ = (k + kt) * tGrad.DotProd(normArea);
+
   (*this)[this->EnergyIndex()] =
       wVars.shearStress_.DotProd(state.Velocity()) + wVars.heatFlux_;
 
@@ -195,6 +207,8 @@ void viscousFlux::CalcWallLawFlux(
   // tkeGrad -- tke gradient
   // omegaGrad -- omega gradient
   // turb -- turbulence model
+
+  // no diffusion on wall boundary
 
   (*this)[this->MomentumXIndex()] = tauWall.X();
   (*this)[this->MomentumYIndex()] = tauWall.Y();
