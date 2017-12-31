@@ -85,6 +85,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   isRANS_ = inp.IsRANS();
   storeTimeN_ = inp.NeedToStoreTimeN();
   isMultiLevelTime_ = inp.IsMultilevelInTime();
+  isMultiSpecies_ = inp.IsMultiSpecies();
 
   // dimensions for multiArray3d located at cell centers
   const auto numI = blk.NumI() - 1;
@@ -159,6 +160,12 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
     f1_ = {};
     f2_ = {};
   }
+
+  if (isMultiSpecies_) {
+    mixtureGrad_ = {numI, numJ, numK, numGhosts_, inp.NumSpecies()};
+  } else {
+    mixtureGrad_ = {};
+  }
 }
 
 // constructor -- allocate space for procBlock
@@ -166,7 +173,8 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
                      const int &numG, const int &numEqns, const int &numSpecies,
                      const bool &isViscous, const bool &isTurbulent,
                      const bool &isRANS, const bool &storeTimeN,
-                     const bool &isMultiLevelInTime) {
+                     const bool &isMultiLevelInTime,
+                     const bool &isMultiSpecies) {
   // ni -- i-dimension (cell)
   // nj -- j-dimension (cell)
   // nk -- k-dimension (cell)
@@ -189,6 +197,7 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   isRANS_ = isRANS;
   storeTimeN_ = storeTimeN;
   isMultiLevelTime_ = isMultiLevelInTime;
+  isMultiSpecies_ = isMultiSpecies;
 
   // pad stored variable vectors with ghost cells
   state_ = {ni, nj, nk, numGhosts_, numEqns, numSpecies};
@@ -250,6 +259,12 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
     omegaGrad_ = {};
     f1_ = {};
     f2_ = {};
+  }
+
+  if (isMultiSpecies) {
+    mixtureGrad_ = {ni, nj, nk, numGhosts_, numSpecies};
+  } else {
+    mixtureGrad_ = {};
   }
 }
 
@@ -4587,7 +4602,7 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
   MPI_Pack_size(8, MPI_INT, MPI_COMM_WORLD,
                 &tempSize);  // add size for ints in class procBlock
   sendBufSize += tempSize;
-  MPI_Pack_size(5, MPI_CXX_BOOL, MPI_COMM_WORLD,
+  MPI_Pack_size(6, MPI_CXX_BOOL, MPI_COMM_WORLD,
                 &tempSize);  // add size for bools in class procBlock
   sendBufSize += tempSize;
   MPI_Pack_size(state_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
@@ -4678,6 +4693,8 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
   MPI_Pack(&storeTimeN_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
            &position, MPI_COMM_WORLD);
   MPI_Pack(&isMultiLevelTime_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
+           &position, MPI_COMM_WORLD);
+  MPI_Pack(&isMultiSpecies_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
            &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_DOUBLE, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
@@ -4770,6 +4787,8 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_vec3d,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
   MPI_Unpack(recvBuffer, recvBufSize, &position, &isMultiLevelTime_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &isMultiSpecies_, 1,
+             MPI_CXX_BOOL, MPI_COMM_WORLD);
 
   // clean and resize the vectors in the class to
   this->CleanResizeVecs(numI, numJ, numK, numGhosts_, inp.NumEquations(),
@@ -4849,11 +4868,11 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   fCenterK_.ClearResize(numI, numJ, numK + 1, numGhosts);
   fAreaK_.ClearResize(numI, numJ, numK + 1, numGhosts);
 
-  cellWidthI_.ClearResize(numI, numJ, numK, numGhosts, 0.0);
-  cellWidthJ_.ClearResize(numI, numJ, numK, numGhosts, 0.0);
-  cellWidthK_.ClearResize(numI, numJ, numK, numGhosts, 0.0);
+  cellWidthI_.ClearResize(numI, numJ, numK, numGhosts, 1, 0.0);
+  cellWidthJ_.ClearResize(numI, numJ, numK, numGhosts, 1, 0.0);
+  cellWidthK_.ClearResize(numI, numJ, numK, numGhosts, 1, 0.0);
 
-  wallDist_.ClearResize(numI, numJ, numK, numGhosts, DEFAULTWALLDIST);
+  wallDist_.ClearResize(numI, numJ, numK, numGhosts, 1, DEFAULTWALLDIST);
 
   residual_.ClearResize(numI, numJ, numK, 0, numEqns, numSpecies);
   specRadius_.ClearResize(numI, numJ, numK, 0);
@@ -4879,6 +4898,10 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
     omegaGrad_.ClearResize(numI, numJ, numK, numGhosts);
     f1_.ClearResize(numI, numJ, numK, numGhosts);
     f2_.ClearResize(numI, numJ, numK, numGhosts);
+  }
+
+  if (isMultiSpecies_) {
+    mixtureGrad_.ClearResize(numI, numJ, numK, numGhosts, numSpecies);
   }
 }
 
@@ -4987,6 +5010,12 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
                MPI_COMM_WORLD);  // unpack omega gradient
   }
 
+  if (isMultiSpecies_) {
+    // unpack mixture gradients
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(mixtureGrad_)),
+               mixtureGrad_.Size(), MPI_vec3d, MPI_COMM_WORLD);
+  }
+
   // unpack wall data
   wallData_.resize(bc_.NumViscousSurfaces());
   for (auto &wd : wallData_) {
@@ -5080,6 +5109,12 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
     sendBufSize += tempSize;
   }
 
+  if (isMultiSpecies_) {
+    MPI_Pack_size(mixtureGrad_.Size(), MPI_vec3d, MPI_COMM_WORLD,
+                  &tempSize);  // add size for mixture gradients
+    sendBufSize += tempSize;
+  }
+
   for (auto &wd : wallData_) {
     wd.PackSize(sendBufSize, MPI_vec3d);
   }
@@ -5145,6 +5180,11 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
+  if (isMultiSpecies_) {
+    MPI_Pack(&(*std::begin(mixtureGrad_)), mixtureGrad_.Size(), MPI_vec3d,
+             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  }
+
   // pack wall data
   for (auto &wd : wallData_) {
     wd.PackWallData(sendBuffer, sendBufSize, position, MPI_vec3d);
@@ -5203,10 +5243,10 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
 
   procBlock blk1(numI1, numJ1, numK1, numGhosts_, this->NumEquations(),
                  this->NumSpecies(), isViscous_, isTurbulent_, isRANS_,
-                 storeTimeN_, isMultiLevelTime_);
+                 storeTimeN_, isMultiLevelTime_, isMultiSpecies_);
   procBlock blk2(numI2, numJ2, numK2, numGhosts_, this->NumEquations(),
                  this->NumSpecies(), isViscous_, isTurbulent_, isRANS_,
-                 storeTimeN_, isMultiLevelTime_);
+                 storeTimeN_, isMultiLevelTime_, isMultiSpecies_);
 
   blk1.parBlock_ = parBlock_;
   blk2.parBlock_ = parBlock_;
@@ -5257,12 +5297,15 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
       dir, {densityGrad_.Start(dir), blk1.densityGrad_.End(dir)}));
   blk1.pressureGrad_.Fill(pressureGrad_.Slice(
       dir, {pressureGrad_.Start(dir), blk1.pressureGrad_.End(dir)}));
-
   if (isRANS_) {
     blk1.tkeGrad_.Fill(tkeGrad_.Slice(dir, {tkeGrad_.Start(dir),
               blk1.tkeGrad_.End(dir)}));
     blk1.omegaGrad_.Fill(omegaGrad_.Slice(dir, {omegaGrad_.Start(dir),
               blk1.omegaGrad_.End(dir)}));
+  }
+  if (isMultiSpecies_) {
+    blk1.mixtureGrad_.Fill(mixtureGrad_.Slice(
+        dir, {mixtureGrad_.Start(dir), blk1.mixtureGrad_.End(dir)}));
   }
 
   // assign face variables
@@ -5321,6 +5364,11 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     blk2.omegaGrad_.Fill(omegaGrad_.Slice(dir, {ind, omegaGrad_.End(dir)}));
   }
 
+  if (isMultiSpecies_) {
+    blk2.mixtureGrad_.Fill(
+        mixtureGrad_.Slice(dir, {ind, mixtureGrad_.End(dir)}));
+  }
+
   // assign face variables
   blk2.fAreaI_.Fill(fAreaI_.Slice(dir, {ind, fAreaI_.End(dir)}));
   blk2.fAreaJ_.Fill(fAreaJ_.Slice(dir, {ind, fAreaJ_.End(dir)}));
@@ -5375,7 +5423,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
   procBlock newBlk(iTot, jTot, kTot, numGhosts_, this->NumEquations(),
                    this->NumSpecies(), isViscous_, isTurbulent_, isRANS_,
-                   storeTimeN_, isMultiLevelTime_);
+                   storeTimeN_, isMultiLevelTime_, isMultiSpecies_);
 
   newBlk.bc_ = bc_;
   newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
@@ -5474,6 +5522,13 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     newBlk.omegaGrad_.Insert(dir, {omegaGrad_.Start(dir),
             omegaGrad_.PhysEnd(dir)},
       omegaGrad_.Slice(dir, {omegaGrad_.Start(dir), omegaGrad_.PhysEnd(dir)}));
+  }
+
+  if (isMultiSpecies_) {
+    newBlk.mixtureGrad_.Insert(
+        dir, {mixtureGrad_.Start(dir), mixtureGrad_.PhysEnd(dir)},
+        mixtureGrad_.Slice(
+            dir, {mixtureGrad_.Start(dir), mixtureGrad_.PhysEnd(dir)}));
   }
 
   // assign face variables
@@ -5605,6 +5660,13 @@ void procBlock::Join(const procBlock &blk, const string &dir,
             newBlk.omegaGrad_.End(dir)},
       blk.omegaGrad_.Slice(dir, {blk.omegaGrad_.PhysStart(dir),
               blk.omegaGrad_.End(dir)}));
+  }
+
+  if (isMultiSpecies_) {
+    newBlk.mixtureGrad_.Insert(
+        dir, {mixtureGrad_.PhysEnd(dir), newBlk.mixtureGrad_.End(dir)},
+        blk.mixtureGrad_.Slice(
+            dir, {blk.mixtureGrad_.PhysStart(dir), blk.mixtureGrad_.End(dir)}));
   }
 
   // assign face variables

@@ -44,19 +44,19 @@ class matMultiArray3d : public multiArray3d<double> {
 
   // private member functions
   auto BeginFlow(const int &ii, const int &jj, const int &kk) noexcept {
-    return this->begin() + this->GetBlkLoc1D(ii, jj, kk);
+    return this->begin() + this->GetLoc1D(ii, jj, kk);
   }
   const auto BeginFlow(const int &ii, const int &jj, const int &kk) const
       noexcept {
-    return this->begin() + this->GetBlkLoc1D(ii, jj, kk);
+    return this->begin() + this->GetLoc1D(ii, jj, kk);
   }
   auto BeginTurb(const int &ii, const int &jj, const int &kk) noexcept {
-    return this->begin() + this->GetBlkLoc1D(ii, jj, kk) +
+    return this->begin() + this->GetLoc1D(ii, jj, kk) +
            flowSize_ * flowSize_;
   }
   const auto BeginTurb(const int &ii, const int &jj, const int &kk) const
       noexcept {
-    return this->begin() + this->GetBlkLoc1D(ii, jj, kk) +
+    return this->begin() + this->GetLoc1D(ii, jj, kk) +
            flowSize_ * flowSize_;
   }
 
@@ -92,9 +92,6 @@ class matMultiArray3d : public multiArray3d<double> {
   // member functions
   int FlowSize() const { return flowSize_; }
   int TurbSize() const { return turbSize_; }
-  int GetBlkLoc1D(const int &ii, const int &jj, const int &kk) const {
-    return this->BlockSize() * this->GetLoc1D(ii, jj, kk);
-  }
   bool IsScalar() const { return flowSize_ == 1; }
   void Zero() { std::fill(this->begin(), this->end(), 0.0); }
 

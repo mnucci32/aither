@@ -5,7 +5,7 @@
 | Master  | [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=master)](https://travis-ci.org/mnucci32/aither) | [![Build status](https://ci.appveyor.com/api/projects/status/o7fc231lp9jxlsib/branch/master?svg=true)](https://ci.appveyor.com/project/mnucci32/aither/branch/master) | [![Coverage Status](https://codecov.io/github/mnucci32/aither/coverage.svg?branch=master)](https://codecov.io/github/mnucci32/aither?branch=master) |
 | Develop | [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=develop)](https://travis-ci.org/mnucci32/aither) | [![Build status](https://ci.appveyor.com/api/projects/status/o7fc231lp9jxlsib/branch/develop?svg=true)](https://ci.appveyor.com/project/mnucci32/aither/branch/develop) | [![Coverage Status](https://codecov.io/github/mnucci32/aither/coverage.svg?branch=develop)](https://codecov.io/github/mnucci32/aither?branch=develop) |
 
-### About The code
+### About The Code
 This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is 
 a cell centered, structured solver, using multi-block structured grids in Plot3D 
 format. It uses explicit and implicit time integration methods. It uses MUSCL 
@@ -42,7 +42,7 @@ Schmidt number based diffusion.
 * C++ compiler with C++14 support
 * Cmake - Cmake only depends on a C++ compiler
 
-### How To compile
+### How To Compile And Install
 Aither is compiled and installed with the standard cmake process.
 
 ```bash
@@ -54,9 +54,9 @@ export AITHER_FLUID_DATABASE=/path/to/installation/fluidDatabase
 ```
 
 Cmake will automatically look for an MPI package. To specify a specific 
-installation, set *-DMPI_DIR* to the MPI installation directory. In addition 
-to *release*, other supported build types are *debug*, *profile*,
-*relwithdebinfo*, and *minsizerel*.
+installation, set **-DMPI_DIR** to the MPI installation directory. In addition 
+to **release**, other supported build types are **debug**, **profile**,
+**relwithdebinfo**, and **minsizerel**.
 
 The **AITHER_FLUID_DATABASE** environment variable should be set to the 
 **fluidDatabase** folder inside of the installation directory. This tells aither

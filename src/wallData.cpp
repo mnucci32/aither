@@ -245,7 +245,7 @@ void wallData::UnpackWallData(char *(&recvBuffer), const int &recvBufSize,
   bcData_ = inp.BCData(surf_.Tag());
 
   // unpack wall variables
-  data_.ClearResize(surf_.NumI(), surf_.NumJ(), surf_.NumK(), 0,
+  data_.ClearResize(surf_.NumI(), surf_.NumJ(), surf_.NumK(), 0, 1,
                     wallVars(numSpecies_));
   for (auto &wv : data_) {
     wv.Unpack(recvBuffer, recvBufSize, position, MPI_vec3d, numSpecies_);

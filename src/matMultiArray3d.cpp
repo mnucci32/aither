@@ -42,7 +42,7 @@ ostream &operator<<(ostream &os, const matMultiArray3d &arr) {
         // print flow jacobian
         for (auto rf = 0; rf < arr.FlowSize(); ++rf) {
           for (auto cf = 0; cf < arr.FlowSize(); ++cf) {
-            os << GetVal(arr.begin() + arr.GetBlkLoc1D(ii, jj, kk), rf, cf,
+            os << GetVal(arr.begin() + arr.GetLoc1D(ii, jj, kk), rf, cf,
                          arr.FlowSize())
                << " ";
             if (cf == arr.FlowSize() - 1) {
@@ -54,7 +54,7 @@ ostream &operator<<(ostream &os, const matMultiArray3d &arr) {
         // print turbulence jacobian
         for (auto rt = 0; rt < arr.TurbSize(); ++rt) {
           for (auto ct = 0; ct < arr.TurbSize(); ++ct) {
-            os << GetVal(arr.begin() + arr.GetBlkLoc1D(ii, jj, kk) +
+            os << GetVal(arr.begin() + arr.GetLoc1D(ii, jj, kk) +
                              arr.FlowSize() * arr.FlowSize(),
                          rt, ct, arr.FlowSize())
                << " ";

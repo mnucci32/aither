@@ -49,11 +49,6 @@ class blkMultiArray3d : public multiArray3d<double> {
 
   int numSpecies_;
 
-  // private member functions
-  int GetBlkLoc1D(const int &ii, const int &jj, const int &kk) const {
-    return this->BlockSize() * this->GetLoc1D(ii, jj, kk);
-  }
-
  public:
   // constructor
   blkMultiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
@@ -101,7 +96,7 @@ class blkMultiArray3d : public multiArray3d<double> {
                       std::is_same<arrayView<T, double>, T2>::value,
                   "blkMultiArray3d<T> requires a varArray based type!");
     MSG_ASSERT(arr.Size() == this->BlockSize(), "block size must match");
-    auto start = this->GetBlkLoc1D(ii, jj, kk);
+    auto start = this->GetLoc1D(ii, jj, kk);
     std::copy(arr.begin(), arr.end(), this->begin() + start);
   }
 
@@ -115,11 +110,11 @@ class blkMultiArray3d : public multiArray3d<double> {
 
     auto start = 0;
     if (dir == "i") {  // direction 1 is i
-      start = this->GetBlkLoc1D(d1, d2, d3);
+      start = this->GetLoc1D(d1, d2, d3);
     } else if (dir == "j") {  // direction 1 is j
-      start = this->GetBlkLoc1D(d3, d1, d2);
+      start = this->GetLoc1D(d3, d1, d2);
     } else if (dir == "k") {  // direction 1 is k
-      start = this->GetBlkLoc1D(d2, d3, d1);
+      start = this->GetLoc1D(d2, d3, d1);
     } else {
       cerr << "ERROR: Direction " << dir << " is not recognized!" << endl;
       exit(EXIT_FAILURE);
@@ -155,7 +150,7 @@ class blkMultiArray3d : public multiArray3d<double> {
   void PutSlice(const TT &, const connection &, const int &);
 
   T GetCopy(const int &ii, const int &jj, const int &kk) const {
-    auto start = this->GetBlkLoc1D(ii, jj, kk);
+    auto start = this->GetLoc1D(ii, jj, kk);
     return {this->begin() + start, this->begin() + start + this->BlockSize(),
             numSpecies_};
   }
@@ -163,7 +158,7 @@ class blkMultiArray3d : public multiArray3d<double> {
   // operator overloads
   arrayView<T, double> operator()(const int &ii, const int &jj,
                                   const int &kk) const {
-    auto start = this->GetBlkLoc1D(ii, jj, kk);
+    auto start = this->GetLoc1D(ii, jj, kk);
     return {this->begin() + start, this->begin() + start + this->BlockSize(),
             numSpecies_};
   }
@@ -176,11 +171,11 @@ class blkMultiArray3d : public multiArray3d<double> {
                                   const int &d2, const int &d3) const {
     auto start = 0;
     if (dir == "i") {  // direction 1 is i
-      start = this->GetBlkLoc1D(d1, d2, d3);
+      start = this->GetLoc1D(d1, d2, d3);
     } else if (dir == "j") {  // direction 1 is j
-      start = this->GetBlkLoc1D(d3, d1, d2);
+      start = this->GetLoc1D(d3, d1, d2);
     } else if (dir == "k") {  // direction 1 is k
-      start = this->GetBlkLoc1D(d2, d3, d1);
+      start = this->GetLoc1D(d2, d3, d1);
     } else {
       cerr << "ERROR: Direction " << dir << " is not recognized!" << endl;
       exit(EXIT_FAILURE);
@@ -191,12 +186,12 @@ class blkMultiArray3d : public multiArray3d<double> {
   double &operator()(const int &ii, const int &jj, const int &kk,
                      const int &bb) {
     MSG_ASSERT(bb <= this->BlockSize(), "accessing data out of block index");
-    return (*this)[this->GetBlkLoc1D(ii, jj, kk) + bb];
+    return (*this)[this->GetLoc1D(ii, jj, kk) + bb];
   }
   const double &operator()(const int &ii, const int &jj, const int &kk,
                            const int &bb) const {
     MSG_ASSERT(bb <= this->BlockSize(), "accessing data out of block index");
-    return (*this)[this->GetBlkLoc1D(ii, jj, kk) + bb];
+    return (*this)[this->GetLoc1D(ii, jj, kk) + bb];
   }
 
   void ClearResize(const int &ii, const int &jj, const int &kk,
