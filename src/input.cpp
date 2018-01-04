@@ -391,6 +391,11 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->TransportModel() << endl;
           }
+        } else if (key == "diffusionModel") {
+          diffusionModel_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->DiffusionModel() << endl;
+          }
         } else if (key == "schmidtNumber") {
           schmidtNumber_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {

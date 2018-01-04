@@ -959,17 +959,17 @@ void PrintResiduals(const input &inp, residual &residL2First,
   // if at first iteration and not restart, normalize by itself
   if (nn == 0 && mm == 0 && !inp.IsRestart()) {
     residL2First = residL2;
-  // if within first 5 iterations reset normalization
+  // if within first 5 iterations reset normalization if resid at new max
   } else if ((nn < 5) && mm == 0 && !inp.IsRestart()) {
-    for (auto cc = 0; cc < residL2.Size(); cc++) {
-      if (residL2[cc] > residL2First[cc]) {
+    if (residL2.SpeciesSum() > residL2First.SpeciesSum()) {
+      for (auto cc = 0; cc < residL2.NumSpecies(); ++cc) {
         residL2First[cc] = residL2[cc];
       }
     }
+    for (auto cc = residL2.NumSpecies(); cc < residL2.Size(); ++cc) {
+      residL2First[cc] = std::max(residL2First[cc], residL2[cc]);
+    }
   }
-
-  // normalize residuals
-  const auto resNormL2 = (residL2 + EPS) / (residL2First + EPS);
 
   os << std::left << setw(7) << nn << setw(8) << mm;
   if (inp.Dt() > 0.0) {
@@ -979,11 +979,26 @@ void PrintResiduals(const input &inp, residual &residL2First,
     os << std::left << setw(12) << setprecision(4) << std::scientific
        << inp.CFL();
   }
-  os << std::left << setw(12) << resNormL2[0] << setw(12) << resNormL2[1]
-     << setw(12) << resNormL2[2] << setw(12) << resNormL2[3] << setw(12)
-     << resNormL2[4];
+
+  // normalize residuals
+  // mass residual is sum of species residuals
+  const auto resMass =
+      (residL2.SpeciesSum() + EPS) / (residL2First.SpeciesSum() + EPS);
+  const auto resNormL2 = (residL2 + EPS) / (residL2First + EPS);
+
+  // get indices
+  const auto imx = resNormL2.MomentumXIndex();
+  const auto imy = resNormL2.MomentumYIndex();
+  const auto imz = resNormL2.MomentumZIndex();
+  const auto ie = resNormL2.EnergyIndex();
+
+  os << std::left << setw(12) << resMass << setw(12)
+     << resNormL2[imx] << setw(12) << resNormL2[imy] << setw(12)
+     << resNormL2[imz] << setw(12) << resNormL2[ie];
   if (inp.IsRANS()) {
-    os << std::left << setw(12) << resNormL2[5] << setw(12) << resNormL2[6];
+    const auto it = resNormL2.TurbulenceIndex();
+    os << std::left << setw(12) << resNormL2[it] << setw(12)
+       << resNormL2[it + 1];
   }
   os.unsetf(std::ios::fixed | std::ios::scientific);
   os << std::left << setw(8) << residLinf.Eqn() << setw(8)

@@ -836,7 +836,7 @@ void procBlock::UpdateBlock(const input &inputVars, const physics &phys,
         }
 
         // accumulate l2 norm of residual
-        l2 = l2 + residual_(ii, jj, kk) * residual_(ii, jj, kk);
+        l2 += residual_(ii, jj, kk) * residual_(ii, jj, kk);
 
         // if any residual is larger than previous residual, a new linf
         // residual is found
