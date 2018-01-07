@@ -132,7 +132,8 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   temperature_ = {numI, numJ, numK, numGhosts_, 1, 0.0};
 
   // gradients
-  velocityGrad_ = {numI, numJ, numK, 0};
+  // vel grad ghosts for off diag term along interblock bc in implicit solver 
+  velocityGrad_ = {numI, numJ, numK, numGhosts_};
   temperatureGrad_ = {numI, numJ, numK, 0};
   densityGrad_ = {numI, numJ, numK, 0};
   pressureGrad_ = {numI, numJ, numK, 0};
@@ -232,7 +233,8 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   temperature_ = {ni, nj, nk, numGhosts_};
 
   // gradients
-  velocityGrad_ = {ni, nj, nk, 0};
+  // vel grad ghosts for off diag term along interblock bc in implicit solver 
+  velocityGrad_ = {ni, nj, nk, numGhosts_};
   temperatureGrad_ = {ni, nj, nk, 0};
   densityGrad_ = {ni, nj, nk, 0};
   pressureGrad_ = {ni, nj, nk, 0};
@@ -3640,23 +3642,27 @@ void procBlock::SwapWallDistSlice(const connection &inter, procBlock &blk) {
   wallDist_.SwapSlice(inter, blk.wallDist_);
 }
 
+// This is done for the implicit solver so the off diagonal data adjacent to
+// an interblock boundary condition can be accessed
 void procBlock::SwapEddyViscAndGradientSlice(const connection &inter,
                                              procBlock &blk) {
   // inter -- connection boundary information
   // blk -- second block involved in connection boundary
-
+                                            
   velocityGrad_.SwapSlice(inter, blk.velocityGrad_);
-  temperatureGrad_.SwapSlice(inter, blk.temperatureGrad_);
-  densityGrad_.SwapSlice(inter, blk.densityGrad_);
-  pressureGrad_.SwapSlice(inter, blk.pressureGrad_);
+  // temperatureGrad_.SwapSlice(inter, blk.temperatureGrad_);
+  // densityGrad_.SwapSlice(inter, blk.densityGrad_);
+  // pressureGrad_.SwapSlice(inter, blk.pressureGrad_);
 
   if (isTurbulent_) {
     eddyViscosity_.SwapSlice(inter, blk.eddyViscosity_);
   }
+  /*
   if (isRANS_) {
     tkeGrad_.SwapSlice(inter, blk.tkeGrad_);
     omegaGrad_.SwapSlice(inter, blk.omegaGrad_);
   }
+  */
 }
 
 
@@ -4913,7 +4919,8 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
 
   temperature_.ClearResize(numI, numJ, numK, numGhosts);
 
-  velocityGrad_.ClearResize(numI, numJ, numK, 0);
+  // vel grad ghosts for off diag term along interblock bc in implicit solver 
+  velocityGrad_.ClearResize(numI, numJ, numK, numGhosts);
   temperatureGrad_.ClearResize(numI, numJ, numK, 0);
   densityGrad_.ClearResize(numI, numJ, numK, 0);
   pressureGrad_.ClearResize(numI, numJ, numK, 0);

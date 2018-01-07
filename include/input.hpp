@@ -248,7 +248,7 @@ class input {
   const fluid &Fluid(const int &ii) const { return fluids_[ii]; }
   void CheckSpecies(const vector<string> &) const;
   bool HaveSpecies(const string &) const;
-  bool SpeciesIndex(const string &) const;
+  int SpeciesIndex(const string &) const;
 
   bool IsWenoZ() const {return this->FaceReconstruction() == "wenoZ";}
 

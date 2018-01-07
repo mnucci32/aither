@@ -57,7 +57,7 @@ ____________________|___________
 
 Currently the following boundary conditions are supported: slipWall,
 viscousWall, characteristic, stagnationInlet, pressureOutlet, subsonicInflow,
-subsonicOutflow, supersonicInflow, supersonicOutflow, inflow
+subsonicOutflow, supersonicInflow, supersonicOutflow, inlet
 */
 primitive GetGhostState(const primitiveView &interior, const string &bcType,
                         const vector3d<double> &areaVec, const double &wallDist,
@@ -483,13 +483,14 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
         ghost.ApplyFarfieldTurbBC(freeVel, bcData->TurbulenceIntensity(),
                                   bcData->EddyViscosityRatio(), phys);
       }
-    }
 
-    // extrapolate from boundary to ghost cell
-    ghost = ExtrapolateHoldMixture(ghost, 2.0, interior);
+      // only extrapolating for subsonic condition
+      // extrapolate from boundary to ghost cell
+      ghost = ExtrapolateHoldMixture(ghost, 2.0, interior);
 
-    if (layer > 1) {  // extrapolate to get ghost state at deeper layers
-      ghost = ExtrapolateHoldMixture(ghost, layer, interior);
+      if (layer > 1) {  // extrapolate to get ghost state at deeper layers
+        ghost = ExtrapolateHoldMixture(ghost, layer, interior);
+      }
     }
 
     // supersonic inflow boundary condition
@@ -671,7 +672,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
     // --------------------------------------------------------------------------
     // this boundary condition is appropriate for point matched interfaces
     // between physical blocks or processor blocks
-  } else if (bcType == "interblock" || "periodic") {
+  } else if (bcType == "interblock" || bcType == "periodic") {
     // do nothing -- assign interior state to ghost state (already done)
     // for second layer of ghost cells interior state should be 2nd interior
     // cell
@@ -694,12 +695,15 @@ primitive ExtrapolateHoldMixture(const primitive &boundary,
                                  const primitiveView &interior) {
   auto bndRho = boundary.Rho();
   auto bndMf = boundary.MassFractions();
-
   auto intRho = interior.Rho();
+
+  auto ghostRho = factor * bndRho - intRho;
+  if (ghostRho <= 0.0) {  // big density change at boundary, don't extrapolate
+    return boundary;
+  }
 
   // keep boundary mass fractions, but use extrapolated density
   auto ghost = factor * boundary - interior;
-  auto ghostRho = factor * bndRho - intRho;
   for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
     ghost[ii] = std::max(ghostRho * bndMf[ii], 0.0);
   }

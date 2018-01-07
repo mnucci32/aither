@@ -969,7 +969,7 @@ bool input::HaveSpecies(const string &species) const {
 }
 
 // member function to get index of species
-bool input::SpeciesIndex(const string &species) const {
+int input::SpeciesIndex(const string &species) const {
   auto ind = -1;
   find_if(std::begin(fluids_), std::end(fluids_),
           [&species, &ind](const fluid &fl) {
@@ -1032,6 +1032,7 @@ icState input::ICStateForBlock(const int &block) const {
     } else if (ic.Tag() == block) {
       blockIC = ic;
       foundExactMatch = true;
+      break;
     }
   }
 
