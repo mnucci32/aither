@@ -238,7 +238,7 @@ double wallLaw::CalcWallTemperature(const physics &phys,
 
 void wallLaw::SetWallVars(const double &tW, const physics &phys) {
   tW_ = tW;
-  rhoW_ = phys.EoS()->DensityTP(tW_, state_.P());
+  rhoW_ = phys.EoS()->DensityTP(tW_, state_.P(), state_.MassFractions());
 
   // get wall viscosity, conductivity from wall temperature
   muW_ = phys.Transport()->EffectiveViscosity(tW_, state_.MassFractions());

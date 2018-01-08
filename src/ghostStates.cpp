@@ -152,7 +152,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
 
         if (wVars.SwitchToLowRe()) {
           const auto tGhost = 2.0 * tWall - interior.Temperature(phys.EoS());
-          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P());
+          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P(), mf);
           for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
             ghost[ii] = rho * interior.MassFractionN(ii);
           }
@@ -161,15 +161,13 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
           // need turbulent contribution because eddy viscosity is not 0 at wall
           // assume mass fractions at wall are same as interior
           const auto kappa =
-              phys.Transport()->EffectiveConductivity(
-                  wVars.temperature_, interior.MassFractions()) +
+              phys.Transport()->EffectiveConductivity(wVars.temperature_, mf) +
               phys.Transport()->TurbConductivity(
                   wVars.turbEddyVisc_, phys.Turbulence()->TurbPrandtlNumber(),
-                  wVars.temperature_, phys.Thermodynamic(),
-                  interior.MassFractions());
+                  wVars.temperature_, phys.Thermodynamic(), mf);
           // 2x wall distance as gradient length
           const auto tGhost = tWall - wVars.heatFlux_ / kappa * 2.0 * wallDist;
-          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P());
+          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P(), mf);
           for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
             ghost[ii] = rho * interior.MassFractionN(ii);
           }
@@ -185,7 +183,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
         }
       } else {  // low-Re wall treatment
         const auto tGhost = 2.0 * tWall - interior.Temperature(phys.EoS());
-        const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P());
+        const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P(), mf);
         for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
           ghost[ii] = rho * interior.MassFractionN(ii);
         }
@@ -206,7 +204,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
           // 2x wall distance as gradient length
           const auto tGhost =
               interior.Temperature(phys.EoS()) - qWall / kappa * 2.0 * wallDist;
-          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P());
+          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P(), mf);
           for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
             ghost[ii] = rho * interior.MassFractionN(ii);
           }
@@ -214,7 +212,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
           // use wall law wall temperature to get ghost cell density
           const auto tGhost =
               2.0 * wVars.temperature_ - interior.Temperature(phys.EoS());
-          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P());
+          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P(), mf);
           for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
             ghost[ii] = rho * interior.MassFractionN(ii);
           }
@@ -236,7 +234,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
         // 2x wall distance as gradient length
         const auto tGhost =
             interior.Temperature(phys.EoS()) - qWall / kappa * 2.0 * wallDist;
-        const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P());
+        const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P(), mf);
         for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
           ghost[ii] = rho * interior.MassFractionN(ii);
         }
@@ -569,11 +567,15 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
       ghost[ii] = 0.0;
     }
     // assign densities from BC
-    const auto rhoGhost = phys.EoS()->DensityTP(tb, pb);
-    const auto mfGhost = bcData->MassFractions();
-    for (auto &mf : mfGhost) {
-      auto ind = inputVars.SpeciesIndex(mf.first);
-      ghost[ind] = rhoGhost * mf.second;
+    const auto mfGhostMap = bcData->MassFractions();
+    vector<double> mfGhost(interior.NumSpecies(), 0);
+    for (auto &mfg : mfGhostMap) {
+      auto ind = inputVars.SpeciesIndex(mfg.first);
+      mfGhost[ind] = mfg.second;
+    }
+    const auto rhoGhost = phys.EoS()->DensityTP(tb, pb, mfGhost);
+    for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
+      ghost[ii] = rhoGhost * mfGhost[ii];
     }
     ghost[imx] = vbMag * bcData->Direction().X();
     ghost[imy] = vbMag * bcData->Direction().Y();

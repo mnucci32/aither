@@ -109,10 +109,8 @@ double idealGas::Temperature(const double &pressure,
   return pressure / rhoR;
 }
 
-double idealGas::DensityTP(const double &temp, const double &press) const {
-  auto rho = 0.0;
-  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    rho += press / (gasConst_[ss] * temp);
-  }
-  return rho;
+double idealGas::DensityTP(const double &temp, const double &press,
+                           const vector<double> &mf) const {
+  auto R = this->MixtureGasConstant(mf);
+  return press / (R * temp);
 }
