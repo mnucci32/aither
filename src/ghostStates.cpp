@@ -397,8 +397,8 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
   } else if (bcType == "inlet") {
     const auto &bcData = inputVars.BCData(tag);
     // freestream variables
-    const auto freeVel = bcData->Velocity();
     primitive freeState(inputVars.NumEquations(), inputVars.NumSpecies());
+    const auto freeVel = bcData->Velocity();
     const auto freeRho = bcData->Density();
     const auto freeMf = bcData->MassFractions();
     for (auto &mf : freeMf) {

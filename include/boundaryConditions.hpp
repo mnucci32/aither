@@ -79,6 +79,7 @@ class boundarySurface {
   int Tag() const {return data_[6];}
 
   int SurfaceType() const;
+  bool IsUpper() const { return this->SurfaceType() % 2 == 0; }
   string Direction1() const;
   string Direction2() const;
   string Direction3() const;

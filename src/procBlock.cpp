@@ -3650,19 +3650,10 @@ void procBlock::SwapEddyViscAndGradientSlice(const connection &inter,
   // blk -- second block involved in connection boundary
                                             
   velocityGrad_.SwapSlice(inter, blk.velocityGrad_);
-  // temperatureGrad_.SwapSlice(inter, blk.temperatureGrad_);
-  // densityGrad_.SwapSlice(inter, blk.densityGrad_);
-  // pressureGrad_.SwapSlice(inter, blk.pressureGrad_);
 
   if (isTurbulent_) {
     eddyViscosity_.SwapSlice(inter, blk.eddyViscosity_);
   }
-  /*
-  if (isRANS_) {
-    tkeGrad_.SwapSlice(inter, blk.tkeGrad_);
-    omegaGrad_.SwapSlice(inter, blk.omegaGrad_);
-  }
-  */
 }
 
 
@@ -3698,16 +3689,9 @@ void procBlock::SwapEddyViscAndGradientSliceMPI(
   // rank -- processor rank
 
   velocityGrad_.SwapSliceMPI(inter, rank, MPI_tensorDouble, 1);
-  temperatureGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 2);
-  densityGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 3);
-  pressureGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 4);
 
   if (isTurbulent_) {
     eddyViscosity_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 5);
-  }
-  if (isRANS_) {
-    tkeGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 6);
-    omegaGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 7);
   }
 }
 
@@ -4960,9 +4944,8 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
 
   // probe message to get correct data size
   auto recvBufSize = 0;
-  MPI_Probe(rank_, globalPos_, MPI_COMM_WORLD,
-            &status);  // global position used as tag because each block has a
-                       // unique one
+  // global position used as tag because each block has a unique one
+  MPI_Probe(rank_, globalPos_, MPI_COMM_WORLD, &status);
   MPI_Get_count(&status, MPI_CHAR, &recvBufSize);  // use MPI_CHAR because
                                                    // sending buffer was
                                                    // allocated with chars
@@ -4972,8 +4955,8 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
   auto *recvBuffer = unqRecvBuffer.get();
 
   // receive message from non-ROOT
-  MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, rank_,
-           globalPos_, MPI_COMM_WORLD, &status);
+  MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, rank_, globalPos_,
+           MPI_COMM_WORLD, &status);
 
   // unpack vector data into allocated vectors
   auto position = 0;
