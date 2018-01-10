@@ -730,7 +730,7 @@ unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
   unique_ptr<thermodynamic> thermo(nullptr);
   if (thermodynamicModel_ == "caloricallyPerfect") {
     thermo = unique_ptr<thermodynamic>{
-        std::make_unique<caloricallyPerfect>(fluids_)};
+        std::make_unique<caloricallyPerfect>(fluids_, tRef_, aRef_)};
   } else if (thermodynamicModel_ == "thermallyPerfect") {
     thermo = unique_ptr<thermodynamic>{
         std::make_unique<thermallyPerfect>(fluids_, tRef_, aRef_)};
