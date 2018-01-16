@@ -445,37 +445,39 @@ inviscidFlux AUSMFlux(const T1 &left, const T2 &right, const physics &phys,
                     std::is_same<primitiveView, T2>::value,
                 "T2 requires primitive or primativeView type");
 
-  // calculate average specific enthalpy on face
-  const auto tl = left.Temperature(phys.EoS());
-  const auto tr = right.Temperature(phys.EoS());
-  const auto mfl = left.MassFractions();
-  const auto mfr = right.MassFractions();
-  const auto hl = phys.Thermodynamic()->SpecEnthalpy(tl, mfl);
-  const auto hr = phys.Thermodynamic()->SpecEnthalpy(tr, mfr);
-  const auto h = 0.5 * (hl + hr);
+  // calculate average specific enthalpy normal to face
+  const auto velNormL = left.Velocity().DotProd(area);
+  const auto velTanSqL = (left.Velocity() - velNormL * area).MagSq();
+  const auto velNormR = right.Velocity().DotProd(area);
+  const auto velTanSqR = (right.Velocity() - velNormR * area).MagSq();
+  const auto hnl = left.Enthalpy(phys) - 0.5 * velTanSqL;
+  const auto hnr = right.Enthalpy(phys) - 0.5 * velTanSqR;
+  const auto hn = 0.5 * (hnl + hnr);
 
   // calculate c* from Kim, Kim, Rho 1998
+  const auto mfl = left.MassFractions();
+  const auto mfr = right.MassFractions();
   vector<double> mf(mfl.size());
   for (auto ii = 0U; ii < mf.size(); ++ii) {
     mf[ii] = 0.5 * (mfl[ii] + mfr[ii]);
   }
+  const auto tl = left.Temperature(phys.EoS());
+  const auto tr = right.Temperature(phys.EoS());
   const auto t = 0.5 * (tl + tr);
   const auto gamma = phys.Thermodynamic()->Gamma(t, mf);
-  const auto sosStar = sqrt(2.0 * h * (gamma - 1.0) / (gamma + 1.0));
+  const auto sosStar = sqrt(2.0 * hn * (gamma - 1.0) / (gamma + 1.0));
 
   // calculate left/right mach numbers
-  const auto vell = left.Velocity().DotProd(area);
-  const auto velr = right.Velocity().DotProd(area);
-  const auto ml = vell / sosStar;
-  const auto mr = velr / sosStar;
+  const auto ml = velNormL / sosStar;
+  const auto mr = velNormR / sosStar;
 
   // calculate speed of sound on face c_1/2 from Kim, Kim, Rho 1998
-  const auto vel = 0.5 * (vell + velr);
+  const auto vel = 0.5 * (velNormL + velNormR);
   auto sos = 0.0;
   if (vel < 0.0) {
-    sos = sosStar * sosStar / std::max(vell, sosStar);
+    sos = sosStar * sosStar / std::max(velNormR, sosStar);
   } else if (vel > 0.0) {
-    sos = sosStar * sosStar / std::max(velr, sosStar);
+    sos = sosStar * sosStar / std::max(velNormL, sosStar);
   }
 
   // calculate split mach number and pressure terms
