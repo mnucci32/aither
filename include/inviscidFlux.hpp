@@ -467,18 +467,18 @@ inviscidFlux AUSMFlux(const T1 &left, const T2 &right, const physics &phys,
   const auto gamma = phys.Thermodynamic()->Gamma(t, mf);
   const auto sosStar = sqrt(2.0 * hn * (gamma - 1.0) / (gamma + 1.0));
 
-  // calculate left/right mach numbers
-  const auto ml = velNormL / sosStar;
-  const auto mr = velNormR / sosStar;
-
   // calculate speed of sound on face c_1/2 from Kim, Kim, Rho 1998
   const auto vel = 0.5 * (velNormL + velNormR);
-  auto sos = 0.0;
+  auto sos = sosStar;
   if (vel < 0.0) {
     sos = sosStar * sosStar / std::max(velNormR, sosStar);
   } else if (vel > 0.0) {
     sos = sosStar * sosStar / std::max(velNormL, sosStar);
   }
+
+  // calculate left/right mach numbers
+  const auto ml = velNormL / sos;
+  const auto mr = velNormR / sos;
 
   // calculate split mach number and pressure terms
   const auto mPlusL =
