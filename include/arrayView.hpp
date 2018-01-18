@@ -421,7 +421,7 @@ T2 arrayView<T1, T2>::SpeciesEnthalpy(const physics &phys,
                                       const int &ss) const {
   static_assert(std::is_same<primitive, T1>::value,
                 "getter only valid for primitive type!");
-  return EnthalpyFunc(*this, phys, ss);
+  return SpeciesEnthalpyFunc(*this, phys, ss);
 }
 
 template <typename T>

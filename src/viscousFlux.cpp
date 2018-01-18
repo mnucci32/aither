@@ -81,9 +81,20 @@ void viscousFlux::CalcFlux(const tensor<double> &velGrad, const physics &phys,
   auto speciesEnthalpyTerm = 0.0;
   const auto isMultiSpecies = state.NumSpecies() > 1;
   if (isMultiSpecies) {
+    auto posDiff = 0.0;
+    auto negDiff = 0.0;
     for (auto ss = 0; ss < state.NumSpecies(); ++ss) {
       (*this)[ss] =
           phys.Diffusion()->DiffCoeff(mu, mut) * mixGrad[ss].DotProd(normArea);
+      negDiff -= std::min((*this)[ss], 0.0);
+      posDiff += std::max((*this)[ss], 0.0);
+    }
+    // enforce zero mass flux
+    // scale diffusion flux so that positive flux equals negative flux
+    auto posDiffFac = (posDiff > negDiff) ? negDiff / posDiff : 1.0;
+    auto negDiffFac = (negDiff > posDiff) ? posDiff / negDiff :1.0;
+    for (auto ss = 0; ss < state.NumSpecies(); ++ss) {
+      (*this)[ss] *= (*this)[ss] > 0.0 ? posDiffFac : negDiffFac;
       const auto hs = state.SpeciesEnthalpy(phys, ss);
       speciesEnthalpyTerm += (*this)[ss] * hs;
     }
