@@ -78,6 +78,7 @@ class transport {
                                   const vector<double> &mf) const = 0;
   double NondimScaling() const { return scaling_; }
   double InvNondimScaling() const {return invScaling_;}
+  virtual vector<double> MoleFractions(const vector<double> &) const = 0;
 
   // Destructor
   virtual ~transport() noexcept {}
@@ -98,7 +99,6 @@ class sutherland : public transport {
   double bulkVisc_ = 0.0;
 
   // private member functions
-  vector<double> MoleFractions(const vector<double> &) const;
   double WilkesVisc(const vector<double> &, const vector<double> &) const;
 
  public:
@@ -135,6 +135,7 @@ class sutherland : public transport {
                           const vector<double> &mf) const override {
     return eddyVisc * thermo->Cp(t, mf) / prt;
   }
+  vector<double> MoleFractions(const vector<double> &) const override;
 
   // Destructor
   ~sutherland() noexcept {}

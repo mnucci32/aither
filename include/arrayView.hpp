@@ -148,6 +148,12 @@ class arrayView {
     }
     return mf;
   }
+  vector<T2> VolumeFractions(const unique_ptr<transport> &trans) const {
+    static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+    // volume fractions equal to mole fractions
+    return trans->MoleFractions(this->MassFractions());
+  }
   const T2 &U() const { 
     static_assert(std::is_same<primitive, T1>::value,
                 "getter only valid for primitive type!");

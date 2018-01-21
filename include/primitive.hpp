@@ -94,6 +94,9 @@ class primitive : public varArray {
     }
     return mf;
   }
+  vector<double> VolumeFractions(const unique_ptr<transport> &trans) const {
+    return trans->MoleFractions(this->MassFractions());
+  }
   const double & U() const { return this->MomentumX(); }
   const double & V() const { return this->MomentumY(); }
   const double & W() const { return this->MomentumZ(); }

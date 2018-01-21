@@ -361,6 +361,11 @@ void WriteFun(const vector<procBlock> &vars, const physics &phys,
                        inp.HaveSpecies(var.substr(3, string::npos))) {
               auto ind = inp.SpeciesIndex(var.substr(3, string::npos));
               value = blk.State(ii, jj, kk).MassFractionN(ind);
+            } else if (var.substr(0, 3) == "vf_" &&
+                       inp.HaveSpecies(var.substr(3, string::npos))) {
+              auto ind = inp.SpeciesIndex(var.substr(3, string::npos));
+              value =
+                  blk.State(ii, jj, kk).VolumeFractions(phys.Transport())[ind];
             } else {
               cerr << "ERROR: Variable " << var
                    << " to write to function file is not defined!" << endl;
