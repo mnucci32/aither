@@ -123,7 +123,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   cellWidthJ_ = {numI, numJ, numK, numGhosts_};
   cellWidthK_ = {numI, numJ, numK, numGhosts_};
 
-  wallDist_ = {numI, numJ, numK, numGhosts_, 1, DEFAULTWALLDIST};
+  wallDist_ = {numI, numJ, numK, numGhosts_, 1, DEFAULT_WALL_DIST};
 
   specRadius_ = {numI, numJ, numK, 0};
   dt_ = {numI, numJ, numK, 0};
@@ -221,7 +221,7 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   fCenterK_ = {ni, nj, nk + 1, numGhosts_};
   residual_ = {ni, nj, nk, 0, numEqns, numSpecies};
   vol_ = {ni, nj, nk, numGhosts_};
-  wallDist_ = {ni, nj, nk, numGhosts_, 1, DEFAULTWALLDIST};
+  wallDist_ = {ni, nj, nk, numGhosts_, 1, DEFAULT_WALL_DIST};
 
   cellWidthI_ = {ni, nj, nk, numGhosts_};
   cellWidthJ_ = {ni, nj, nk, numGhosts_};
@@ -426,6 +426,10 @@ void procBlock::CalcInvFluxI(const physics &phys, const input &inp,
                 inp.IsWenoZ());
           }
         }
+        MSG_ASSERT(faceStateLower.Rho() > 0.0, "nonphysical density");
+        MSG_ASSERT(faceStateLower.P() > 0.0, "nonphysical pressure");
+        MSG_ASSERT(faceStateUpper.Rho() > 0.0, "nonphysical density");
+        MSG_ASSERT(faceStateUpper.P() > 0.0, "nonphysical pressure");
 
         // calculate inviscid flux at face
         const inviscidFlux tempFlux =
@@ -561,6 +565,10 @@ void procBlock::CalcInvFluxJ(const physics &phys,
                 inp.IsWenoZ());
           }
         }
+        MSG_ASSERT(faceStateLower.Rho() > 0.0, "nonphysical density");
+        MSG_ASSERT(faceStateLower.P() > 0.0, "nonphysical pressure");
+        MSG_ASSERT(faceStateUpper.Rho() > 0.0, "nonphysical density");
+        MSG_ASSERT(faceStateUpper.P() > 0.0, "nonphysical pressure");
 
         // calculate inviscid flux at face
         const inviscidFlux tempFlux =
@@ -695,6 +703,10 @@ void procBlock::CalcInvFluxK(const physics &phys,
                 inp.IsWenoZ());
           }
         }
+        MSG_ASSERT(faceStateLower.Rho() > 0.0, "nonphysical density");
+        MSG_ASSERT(faceStateLower.P() > 0.0, "nonphysical pressure");
+        MSG_ASSERT(faceStateUpper.Rho() > 0.0, "nonphysical density");
+        MSG_ASSERT(faceStateUpper.P() > 0.0, "nonphysical pressure");        
 
         // calculate inviscid flux at face
         const inviscidFlux tempFlux =
@@ -1804,15 +1816,41 @@ void procBlock::CalcViscFluxI(const physics &phys, const input &inp,
             state.LimitTurb(phys.Turbulence());
 
             // Get wall distance at face
-            wDist = FaceReconCentral4th(
-                wallDist_(ii - 2, jj, kk), wallDist_(ii - 1, jj, kk),
-                wallDist_(ii, jj, kk), wallDist_(ii + 1, jj, kk), cellWidth);
+            // Use regular central to avoid negative values
+            wDist = FaceReconCentral(
+                wallDist_(ii - 1, jj, kk),
+                wallDist_(ii, jj, kk), {cellWidth[1], cellWidth[2]});
 
             // Get viscosity at face
             mu = FaceReconCentral4th(
                 viscosity_(ii - 2, jj, kk), viscosity_(ii - 1, jj, kk),
                 viscosity_(ii, jj, kk), viscosity_(ii + 1, jj, kk), cellWidth);
+
+            if (wDist < WALL_DIST_NEG_TOL && globalPos_ == 3) {
+              cout << wallDist_(ii - 2, jj, kk) << endl;
+              cout << wallDist_(ii - 1, jj, kk) << endl;
+              cout << wallDist_(ii, jj, kk) << endl;
+              cout << wallDist_(ii + 1, jj, kk) << endl;
+              cout << endl;
+              cout << center_(ii - 2, jj, kk) << endl;
+              cout << center_(ii - 1, jj, kk) << endl;
+              cout << center_(ii, jj, kk) << endl;
+              cout << center_(ii + 1, jj, kk) << endl;
+              cout << "I: " << ii << " " << jj << " " << kk << " " << wDist
+                   << endl;
+            }
+
           }
+          // correct wall distance if within tolerance
+          if (wDist < 0.0 && wDist > WALL_DIST_NEG_TOL) {
+            wDist = 0.0;
+          }
+
+          // sanity checks
+          MSG_ASSERT(state.Rho() > 0.0, "nonphysical density");
+          MSG_ASSERT(state.P() > 0.0, "nonphysical pressure");
+          MSG_ASSERT(mu > 0.0, "nonphysical viscosity");
+          MSG_ASSERT(wDist >= 0.0, "nonphysical wall distance");
 
           // calculate turbulent eddy viscosity and blending coefficients
           if (isTurbulent_) {
@@ -2116,15 +2154,34 @@ void procBlock::CalcViscFluxJ(const physics &phys, const input &inp,
             state.LimitTurb(phys.Turbulence());
 
             // Get wall distance at face
-            wDist = FaceReconCentral4th(
-                wallDist_(ii, jj - 2, kk), wallDist_(ii, jj - 1, kk),
-                wallDist_(ii, jj, kk), wallDist_(ii, jj + 1, kk), cellWidth);
+            // Use regular central to avoid negative values
+            wDist = FaceReconCentral(
+                wallDist_(ii, jj - 1, kk),
+                wallDist_(ii, jj, kk), {cellWidth[1], cellWidth[2]});
 
             // Get wall distance at face
             mu = FaceReconCentral4th(
                 viscosity_(ii, jj - 2, kk), viscosity_(ii, jj - 1, kk),
                 viscosity_(ii, jj, kk), viscosity_(ii, jj + 1, kk), cellWidth);
+
+            if (wDist < WALL_DIST_NEG_TOL) {
+              cout << wallDist_(ii, jj - 2, kk) << endl;
+              cout << wallDist_(ii, jj - 1, kk) << endl;
+              cout << wallDist_(ii, jj, kk) << endl;
+              cout << wallDist_(ii, jj + 1, kk) << endl;
+              cout << "J: " << ii << " " << jj << " " << kk << " " << wDist
+                   << endl;
+            }
           }
+          // correct wall distance if within tolerance
+          if (wDist < 0.0 && wDist > WALL_DIST_NEG_TOL) {
+            wDist = 0.0;
+          }
+
+          MSG_ASSERT(state.Rho() > 0.0, "nonphysical density");
+          MSG_ASSERT(state.P() > 0.0, "nonphysical pressure");
+          MSG_ASSERT(mu > 0.0, "nonphysical viscosity");
+          MSG_ASSERT(wDist >= 0.0, "nonphysical wall distance");
 
           // calculate turbulent eddy viscosity and blending coefficients
           if (isTurbulent_) {
@@ -2434,15 +2491,26 @@ void procBlock::CalcViscFluxK(const physics &phys, const input &inp,
             state.LimitTurb(phys.Turbulence());
 
             // Get wall distance at face
-            wDist = FaceReconCentral4th(
-                wallDist_(ii, jj, kk - 2), wallDist_(ii, jj, kk - 1),
-                wallDist_(ii, jj, kk), wallDist_(ii, jj, kk + 1), cellWidth);
+            // Use regular central to avoid negative values
+            wDist = FaceReconCentral(
+                wallDist_(ii, jj, kk - 1),
+                wallDist_(ii, jj, kk), {cellWidth[1], cellWidth[2]});
 
             // Get wall distance at face
             mu = FaceReconCentral4th(
                 viscosity_(ii, jj, kk - 2), viscosity_(ii, jj, kk - 1),
                 viscosity_(ii, jj, kk), viscosity_(ii, jj, kk + 1), cellWidth);
           }
+          // correct wall distance if within tolerance
+          if (wDist < 0.0 && wDist > WALL_DIST_NEG_TOL) {
+            wDist = 0.0;
+          }
+
+          // sanity checks
+          MSG_ASSERT(state.Rho() > 0.0, "nonphysical density");
+          MSG_ASSERT(state.P() > 0.0, "nonphysical pressure");
+          MSG_ASSERT(mu > 0.0, "nonphysical viscosity");
+          MSG_ASSERT(wDist >= 0.0, "nonphysical wall distance");
 
           // calculate turbulent eddy viscosity and blending coefficients
           if (isTurbulent_) {
@@ -4895,7 +4963,7 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   cellWidthJ_.ClearResize(numI, numJ, numK, numGhosts, 1, 0.0);
   cellWidthK_.ClearResize(numI, numJ, numK, numGhosts, 1, 0.0);
 
-  wallDist_.ClearResize(numI, numJ, numK, numGhosts, 1, DEFAULTWALLDIST);
+  wallDist_.ClearResize(numI, numJ, numK, numGhosts, 1, DEFAULT_WALL_DIST);
 
   residual_.ClearResize(numI, numJ, numK, 0, numEqns, numSpecies);
   specRadius_.ClearResize(numI, numJ, numK, 0);
@@ -6558,55 +6626,75 @@ void procBlock::CalcSrcTerms(const physics &phys, const input &inp,
 void procBlock::CalcWallDistance(const kdtree &tree) {
   vector3d<double> neighbor;
   auto id = 0;
+  // loop over physical cells
+  for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
+    for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
+      for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
+        wallDist_(ii, jj, kk) =
+            tree.NearestNeighbor(center_(ii, jj, kk), neighbor, id);
+      }
+    }
+  }
+
   string surf = "none";
   auto type = 0;
-  // loop over cells, including ghosts
+  // populate ghost cells (not edge ghosts)
   for (auto kk = wallDist_.StartK(); kk < wallDist_.EndK(); kk++) {
     for (auto jj = wallDist_.StartJ(); jj < wallDist_.EndJ(); jj++) {
       for (auto ii = wallDist_.StartI(); ii < wallDist_.EndI(); ii++) {
         // ghost cells across viscous boundaries should have negative wall
         // distance so that wall distance at viscous face will be 0 during flux
         // calculation
-        if (this->IsPhysical(ii, jj, kk)) {
-          wallDist_(ii, jj, kk) = tree.NearestNeighbor(center_(ii, jj, kk),
-                                                       neighbor, id);
-        } else if (this->AtGhostNonEdge(ii, jj, kk, surf, type)) {
+        // other ghost cells just use distance of interior cell
+        if (this->AtGhostNonEdge(ii, jj, kk, surf, type)) {
           if (type == 1) {
             auto bcType = bc_.GetBCName(this->StartI(), jj, kk, type);
-            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
-            wallDist_(ii, jj, kk) = fac *
-                tree.NearestNeighbor(center_(this->StartI(), jj, kk),
-                                     neighbor, id);
+            if (bcType == "viscousWall") {
+              auto index = this->StartI() + std::abs(ii) - 1;
+              wallDist_(ii, jj, kk) = -1.0 * wallDist_(index, jj, kk);
+            } else {
+              wallDist_(ii, jj, kk) = wallDist_(this->StartI(), jj, kk);
+            }
           } else if (type == 2) {
             auto bcType = bc_.GetBCName(this->EndI(), jj, kk, type);
-            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
-            wallDist_(ii, jj, kk) = fac *
-                tree.NearestNeighbor(center_(this->EndI() - 1, jj, kk),
-                                     neighbor, id);
+            if (bcType == "viscousWall") {
+              auto index = this->EndI() - (ii - this->EndI() + 1);
+              wallDist_(ii, jj, kk) = -1.0 * wallDist_(index, jj, kk);
+            } else {
+              wallDist_(ii, jj, kk) = wallDist_(this->EndI() - 1, jj, kk);
+            }
           } else if (type == 3) {
             auto bcType = bc_.GetBCName(ii, this->StartJ(), kk, type);
-            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
-            wallDist_(ii, jj, kk) = fac *
-                tree.NearestNeighbor(center_(ii, this->StartJ(), kk),
-                                     neighbor, id);
+            if (bcType == "viscousWall") {
+              auto index = this->StartJ() + std::abs(jj) - 1;
+              wallDist_(ii, jj, kk) = -1.0 * wallDist_(ii, index, kk);
+            } else {
+              wallDist_(ii, jj, kk) = wallDist_(ii, this->StartJ(), kk);
+            }
           } else if (type == 4) {
             auto bcType = bc_.GetBCName(ii, this->EndJ(), kk, type);
-            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
-            wallDist_(ii, jj, kk) = fac *
-                tree.NearestNeighbor(center_(ii, this->EndJ() - 1, kk),
-                                     neighbor, id);
+            if (bcType == "viscousWall") {
+              auto index = this->EndJ() - (jj - this->EndJ() + 1);
+              wallDist_(ii, jj, kk) = -1.0 * wallDist_(ii, index, kk);
+            } else {
+              wallDist_(ii, jj, kk) = wallDist_(ii, this->EndJ() - 1, kk);
+            }
           } else if (type == 5) {
             auto bcType = bc_.GetBCName(ii, jj, this->StartK(), type);
-            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
-            wallDist_(ii, jj, kk) = fac *
-                tree.NearestNeighbor(center_(ii, jj, this->StartK()),
-                                     neighbor, id);
+            if (bcType == "viscousWall") {
+              auto index = this->StartK() + std::abs(kk) - 1;
+              wallDist_(ii, jj, kk) = -1.0 * wallDist_(ii, jj, index);
+            } else {
+              wallDist_(ii, jj, kk) = wallDist_(ii, jj, this->StartK());
+            }
           } else if (type == 6) {
             auto bcType = bc_.GetBCName(ii, jj, this->EndK(), type);
-            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
-            wallDist_(ii, jj, kk) = fac *
-                tree.NearestNeighbor(center_(ii, jj, this->EndK() - 1),
-                                     neighbor, id);
+            if (bcType == "viscousWall") {
+              auto index = this->EndK() - (kk - this->EndK() + 1);
+              wallDist_(ii, jj, kk) = -1.0 * wallDist_(ii, jj, index);
+            } else {
+              wallDist_(ii, jj, kk) = wallDist_(ii, jj, this->EndK() - 1);
+            }
           }
         }
       }
