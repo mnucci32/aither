@@ -91,15 +91,15 @@ class sutherland : public transport {
   vector<double> viscS_;
   vector<double> condC1_;
   vector<double> condS_;
-  vector<double> muRef_;
-  vector<double> kRef_;
   vector<double> molarMass_;
   double tRef_;
   double muMixRef_;
+  double kMixRef_;
   double bulkVisc_ = 0.0;
 
   // private member functions
   double WilkesVisc(const vector<double> &, const vector<double> &) const;
+  double WilkesCond(const vector<double> &, const vector<double> &) const;
 
  public:
   // Constructors
@@ -117,7 +117,7 @@ class sutherland : public transport {
   sutherland& operator=(const sutherland&) = default;
 
   // Member functions
-  int NumSpecies() const override { return muRef_.size(); }
+  int NumSpecies() const override { return molarMass_.size(); }
   double SpeciesViscosity(const double &, const int &) const override;
   double SpeciesConductivity(const double &, const int &) const override;
   double Viscosity(const double &, const vector<double> &) const override;

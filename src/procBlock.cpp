@@ -1825,21 +1825,6 @@ void procBlock::CalcViscFluxI(const physics &phys, const input &inp,
             mu = FaceReconCentral4th(
                 viscosity_(ii - 2, jj, kk), viscosity_(ii - 1, jj, kk),
                 viscosity_(ii, jj, kk), viscosity_(ii + 1, jj, kk), cellWidth);
-
-            if (wDist < WALL_DIST_NEG_TOL && globalPos_ == 3) {
-              cout << wallDist_(ii - 2, jj, kk) << endl;
-              cout << wallDist_(ii - 1, jj, kk) << endl;
-              cout << wallDist_(ii, jj, kk) << endl;
-              cout << wallDist_(ii + 1, jj, kk) << endl;
-              cout << endl;
-              cout << center_(ii - 2, jj, kk) << endl;
-              cout << center_(ii - 1, jj, kk) << endl;
-              cout << center_(ii, jj, kk) << endl;
-              cout << center_(ii + 1, jj, kk) << endl;
-              cout << "I: " << ii << " " << jj << " " << kk << " " << wDist
-                   << endl;
-            }
-
           }
           // correct wall distance if within tolerance
           if (wDist < 0.0 && wDist > WALL_DIST_NEG_TOL) {
@@ -2163,15 +2148,6 @@ void procBlock::CalcViscFluxJ(const physics &phys, const input &inp,
             mu = FaceReconCentral4th(
                 viscosity_(ii, jj - 2, kk), viscosity_(ii, jj - 1, kk),
                 viscosity_(ii, jj, kk), viscosity_(ii, jj + 1, kk), cellWidth);
-
-            if (wDist < WALL_DIST_NEG_TOL) {
-              cout << wallDist_(ii, jj - 2, kk) << endl;
-              cout << wallDist_(ii, jj - 1, kk) << endl;
-              cout << wallDist_(ii, jj, kk) << endl;
-              cout << wallDist_(ii, jj + 1, kk) << endl;
-              cout << "J: " << ii << " " << jj << " " << kk << " " << wDist
-                   << endl;
-            }
           }
           // correct wall distance if within tolerance
           if (wDist < 0.0 && wDist > WALL_DIST_NEG_TOL) {

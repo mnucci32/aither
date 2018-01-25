@@ -92,7 +92,7 @@ void viscousFlux::CalcFlux(const tensor<double> &velGrad, const physics &phys,
     // enforce zero mass flux
     // scale diffusion flux so that positive flux equals negative flux
     auto posDiffFac = (posDiff > negDiff) ? negDiff / posDiff : 1.0;
-    auto negDiffFac = (negDiff > posDiff) ? posDiff / negDiff :1.0;
+    auto negDiffFac = (negDiff > posDiff) ? posDiff / negDiff : 1.0;
     for (auto ss = 0; ss < state.NumSpecies(); ++ss) {
       (*this)[ss] *= (*this)[ss] > 0.0 ? posDiffFac : negDiffFac;
       const auto hs = state.SpeciesEnthalpy(phys, ss);
@@ -183,6 +183,7 @@ wallVars viscousFlux::CalcWallFlux(
   // calculate other wall data
   wVars.density_ = state.Rho();
   wVars.temperature_ = t;
+  wVars.mf_ = mf;
   wVars.frictionVelocity_ = sqrt(wVars.shearStress_.Mag() / wVars.density_);
 
   // turbulence viscous flux
