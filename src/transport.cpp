@@ -64,7 +64,7 @@ sutherland::sutherland(const vector<fluid> &fl, const double &tRef,
   // calculate reference viscosity for reference mixture and set scaling
   muMixRef_ =
       numSpecies == 1 ? muSpecRef[0] : this->WilkesVisc(muSpecRef, mixRef);
-  kNonDim_ = tRef_ / (aRef * aRef * muMixRef_);
+  kNonDim_ = (aRef * aRef * muMixRef_) / tRef_;
   this->SetScaling(rRef, lRef, muMixRef_, aRef);
 }
 

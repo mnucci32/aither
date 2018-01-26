@@ -5,40 +5,41 @@ gridName: supersonicMixing
 decompositionMethod: cubic
 equationSet: rans
 timeIntegration: implicitEuler
-cflMax: 1
+cflStart: 100
+cflMax: 100
 
 faceReconstruction: thirdOrder
-inviscidFlux: roe
+inviscidFlux: ausm
 inviscidFluxJacobian: rusanov
 viscousFaceReconstruction: central
 limiter: minmod
 
-iterations: 10 #5000
+iterations: 5000
 nonlinearIterations: 1
-outputFrequency: 1 #100
+outputFrequency: 1000
 outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, mf_N2, mf_H2,
-                  mf_H2O, viscosityRatio, viscosity, tke, sdr, rank, globalPosition>
-wallOutputVariables: <yplus, shearStress, frictionVelocity>
+                  mf_H2O, viscosityRatio, viscosity, tke, sdr, rank, 
+                  globalPosition, temperature, vf_N2, vf_H2, vf_H2O>
+wallOutputVariables: <yplus, shearStress, frictionVelocity, pressure, temperature, density>
 restartFrequency: 1000
 
 # reference conditions
 referenceDensity: 0.26
-referenceTemperature: 300
+referenceTemperature: 1150
 referenceLength: 1
 
 fluids: <fluid(name=H2O; referenceMassFraction=0.233),
          fluid(name=H2; referenceMassFraction=0.001),
-	 fluid(name=N2; referenceMassFraction=0.766)>
+	       fluid(name=N2; referenceMassFraction=0.766)>
 thermodynamicModel: caloricallyPerfect
 diffusionModel: schmidt
 turbulenceModel: sst2003
 
-initialConditions: <icState(tag=-1; pressure=101325.9; density=0.26; velocity=[1792.6, 0, 0]; massFractions=[H2O=0.233, H2=0.001, N2=0.766]),
-                    icState(tag=2; pressure=101325.9; density=0.0819; velocity=[1316.16, 0, 0]; massFractions=[H2=1.0])>
-#initialConditions: <icState(tag=-1; pressure=101325.9; density=0.26; velocity=[1792.6, 0, 0]; massFractions=[H2O=0.233, H2=0.001, N2=0.766])>
+initialConditions: <icState(tag=1; pressure=101325.9; density=0.26; velocity=[1792.6, 0, 0]; massFractions=[H2O=0.233, H2=0.001, N2=0.766]),
+                    icState(tag=-1; pressure=101325.9; density=0.0819; velocity=[1316.16, 0, 0]; massFractions=[H2=1.0])>
 
 matrixSolver: lusgs
-matrixSweeps: 1
+matrixSweeps: 2
 matrixRelaxation: 1
 
 boundaryStates: <inlet(tag=6; pressure=101325.9; density=0.0819; velocity=[1316.16, 0, 0]; massFractions=[H2=1.0]),

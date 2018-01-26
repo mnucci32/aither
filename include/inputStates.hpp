@@ -111,7 +111,7 @@ class icState : public inputState {
   double density_ = 0.0;
   double pressure_ = 0.0;
   double turbIntensity_ = 0.01;  // default values
-  double eddyViscRatio_ = 10.0;
+  double eddyViscRatio_ = 0.01;
   map<string, double> massFractions_ = {{"air", 1.0}};
   string file_ = "undefined";
   bool specifiedTurbulence_ = false;
@@ -231,7 +231,7 @@ class stagnationInlet : public inputState {
   double p0_ = 0.0;
   double t0_ = 0.0;
   double turbIntensity_ = 0.01;  // default values
-  double eddyViscRatio_ = 10.0;
+  double eddyViscRatio_ = 0.01;
   map<string, double> massFractions_ = {{"air", 1.0}};
   bool specifiedTurbulence_ = false;
   bool specifiedMassFractions_ = false;
