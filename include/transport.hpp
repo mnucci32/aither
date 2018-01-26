@@ -94,7 +94,7 @@ class sutherland : public transport {
   vector<double> molarMass_;
   double tRef_;
   double muMixRef_;
-  double kMixRef_;
+  double kNonDim_;
   double bulkVisc_ = 0.0;
 
   // private member functions

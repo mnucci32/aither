@@ -43,9 +43,8 @@ sutherland::sutherland(const vector<fluid> &fl, const double &tRef,
 
   tRef_ = tRef;
 
-  vector<double> muSpecRef, kSpecRef;
+  vector<double> muSpecRef;
   muSpecRef.reserve(numSpecies);
-  kSpecRef.reserve(numSpecies);
 
   // get data from fluid class
   for (auto &f : fl) {
@@ -59,19 +58,13 @@ sutherland::sutherland(const vector<fluid> &fl, const double &tRef,
 
     muSpecRef.push_back(viscCoeffs[0] * pow(tRef_, 1.5) /
                         (tRef_ + viscCoeffs[1]));
-    kSpecRef.push_back(condCoeffs[0] * pow(tRef_, 1.5) /
-                       (tRef_ + condCoeffs[1]));
     molarMass_.push_back(f.MolarMass());
   }
 
   // calculate reference viscosity for reference mixture and set scaling
-  if (numSpecies == 1) {
-    muMixRef_ = muSpecRef[0];
-    kMixRef_ = kSpecRef[0];
-  } else {
-    muMixRef_ = this->WilkesVisc(muSpecRef, mixRef);
-    kMixRef_ = this->WilkesCond(kSpecRef, mixRef);
-  }
+  muMixRef_ =
+      numSpecies == 1 ? muSpecRef[0] : this->WilkesVisc(muSpecRef, mixRef);
+  kNonDim_ = tRef_ / (aRef * aRef * muMixRef_);
   this->SetScaling(rRef, lRef, muMixRef_, aRef);
 }
 
@@ -119,29 +112,23 @@ double sutherland::WilkesCond(const vector<double> &specCond,
 
 // Functions for sutherland class
 double sutherland::SpeciesViscosity(const double &t, const int &ii) const {
-  MSG_ASSERT(ii < static_cast<int>(muRef_.size()),
-             "Accessing index out of range");
+  MSG_ASSERT(ii < this->NumSpecies(), "Accessing index out of range");
   // Dimensionalize temperature
   const auto temp = t * tRef_;
-
   // Calculate viscosity
   const auto mu = (viscC1_[ii] * pow(temp, 1.5)) / (temp + viscS_[ii]);
-
   // Nondimensionalize viscosity
-  return (mu / muMixRef_);
+  return mu / muMixRef_;
 }
 
 double sutherland::SpeciesConductivity(const double &t, const int &ii) const {
-  MSG_ASSERT(ii < static_cast<int>(muRef_.size()),
-             "Accessing index out of range");
+  MSG_ASSERT(ii < this->NumSpecies(), "Accessing index out of range");
   // Dimensionalize temperature
   const auto temp = t * tRef_;
-
   // Calculate conductivity
   const auto k = (condC1_[ii] * pow(temp, 1.5)) / (temp + condS_[ii]);
-
   // Nondimensionalize conductivity
-  return (k / kMixRef_);
+  return k / kNonDim_;
 }
 
 
