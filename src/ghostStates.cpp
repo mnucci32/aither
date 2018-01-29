@@ -63,7 +63,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
                         const vector3d<double> &areaVec, const double &wallDist,
                         const int &surf, const input &inputVars, const int &tag,
                         const physics &phys, wallVars &wVars, const int &layer,
-                        const double &dt, const primitive &stateN,
+                        const double &nuW, const double &dt, const primitive &stateN,
                         const vector3d<double> &pressGrad,
                         const tensor<double> &velGrad, const double &avgMach,
                         const double &maxMach) {
@@ -76,6 +76,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
   // tag -- boundary condition tag
   // phys -- physics models
   // layer -- layer of ghost cell to return (1st (closest) or 2nd (farthest))
+  // nuW -- wall adjacent kinematic viscosity
   // dt -- cell time step nearest to wall boundary
   // stateN -- solution at boundary adjacent cell at time n
   // pressGrad -- pressure gradient in adjcent cell
@@ -266,10 +267,6 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
       // so that tke at face will be zero
       ghost[it] = -1.0 * interior.Tke();
 
-      const auto nuW =
-          phys.Transport()->Viscosity(interior.Temperature(phys.EoS()),
-                                      interior.MassFractions()) /
-          interior.Rho();
       const auto wWall = phys.Transport()->NondimScaling() *
                          phys.Transport()->NondimScaling() * 60.0 * nuW /
                          (wallDist * wallDist * phys.Turbulence()->WallBeta());

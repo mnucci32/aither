@@ -403,6 +403,7 @@ class procBlock {
       const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
       const boundarySurface &, const input &, const physics &, const int &,
       const multiArray3d<double> & = {},
+      const multiArray3d<double> & = {},
       const blkMultiArray3d<conserved> & = {},
       const multiArray3d<vector3d<double>> & = {},
       const multiArray3d<tensor<double>> & = {});

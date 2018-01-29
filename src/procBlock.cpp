@@ -2989,6 +2989,8 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
 
         const auto wDist = wallDist_.Slice(dir, aCell, r1, r2);
         const auto dt = dt_.Slice(dir, aCell, r1, r2);
+        // nu wall not used for inviscid BCs
+        const multiArray3d<double> nuW;
         // get boundary state at time n
         const auto consVarsN = consVarsN_.IsEmpty()
                                    ? consVarsN_
@@ -3003,7 +3005,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
 
         const auto ghostStates = this->GetGhostStates(
             boundaryStates, bcName, faceAreas, wDist, surf, inp, phys, layer,
-            dt, consVarsN, pGrad, velGrad);
+            nuW, dt, consVarsN, pGrad, velGrad);
 
         state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
@@ -3257,11 +3259,21 @@ void procBlock::AssignViscousGhostCells(const input &inp,
         }
 
         const auto wDist = wallDist_.Slice(dir, aCell, r1, r2);
+        auto nuW = viscosity_.Slice(dir, aCell, r1, r2);
+        const auto adjacentStates = state_.Slice(dir, aCell, r1, r2);
+        for (auto kk = nuW.StartK(); kk < nuW.EndK(); ++kk) {
+          for (auto jj = nuW.StartJ(); jj < nuW.EndJ(); ++jj) {
+            for (auto ii = nuW.StartI(); ii < nuW.EndI(); ++ii) {
+              nuW(ii, jj, kk) /= adjacentStates(ii, jj, kk).Rho();
+            }
+          }
+        }
 
         // get interior boundary states and ghost states
         const auto boundaryStates = state_.Slice(dir, iCell, r1, r2);
-        const auto ghostStates = this->GetGhostStates(
-            boundaryStates, bcName, faceAreas, wDist, surf, inp, phys, layer);
+        const auto ghostStates =
+            this->GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf,
+                                 inp, phys, layer, nuW);
 
         state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
@@ -3419,21 +3431,28 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
             const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
             const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
 
+            // get wall adjacent viscosity, nu
+            auto nuW2 = viscosity_(dir, d1, cFaceD3_2, gCellD3) /
+                        state_(dir, d1, cFaceD3_2, gCellD3).Rho();
+
+            auto nuW3 = viscosity_(dir, d1, gCellD2, cFaceD2_3) /
+                        state_(dir, d1, gCellD2, cFaceD2_3).Rho();
+
             // not used, only for calling GetGhostState
             wallVars wVars(this->NumSpecies());
 
             // assign states -------------------------------------------------
             // surface-2 is a wall, but surface-3 is not - extend wall bc
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
-              auto ghost =
-                  GetGhostState(state_(dir, d1, pCellD2, gCellD3), bc_2, fArea2,
-                                wDist2, surf2, inp, tag2, phys, wVars, layer2);
+              auto ghost = GetGhostState(state_(dir, d1, pCellD2, gCellD3),
+                                         bc_2, fArea2, wDist2, surf2, inp, tag2,
+                                         phys, wVars, layer2, nuW2);
               state_.InsertBlock(dir, d1, gCellD2, gCellD3, ghost);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
-              auto ghost =
-                  GetGhostState(state_(dir, d1, gCellD2, pCellD3), bc_3, fArea3,
-                                wDist3, surf3, inp, tag3, phys, wVars, layer3);
+              auto ghost = GetGhostState(state_(dir, d1, gCellD2, pCellD3),
+                                         bc_3, fArea3, wDist3, surf3, inp, tag3,
+                                         phys, wVars, layer3, nuW3);
               state_.InsertBlock(dir, d1, gCellD2, gCellD3, ghost);
               // both surfaces are walls - proceed as normal
             } else if (bc_2 == "viscousWall" && bc_3 == "viscousWall") {
@@ -6782,7 +6801,8 @@ blkMultiArray3d<primitive> procBlock::GetGhostStates(
     const multiArray3d<unitVec3dMag<double>> &faceAreas,
     const multiArray3d<double> &wDist, const boundarySurface &surf,
     const input &inp, const physics &phys, const int &layer,
-    const multiArray3d<double> &dt, const blkMultiArray3d<conserved> &consVarsN,
+    const multiArray3d<double> &nuW, const multiArray3d<double> &dt,
+    const blkMultiArray3d<conserved> &consVarsN,
     const multiArray3d<vector3d<double>> &pGrad,
     const multiArray3d<tensor<double>> &velGrad) {
   // bndStates -- states at cells adjacent to boundary
@@ -6793,6 +6813,7 @@ blkMultiArray3d<primitive> procBlock::GetGhostStates(
   // phys -- physics models
   // layer -- layer of ghost cell to return
   //          (1 closest to boundary, or 2 farthest)
+  // nuW -- wall adjacent kinematic viscosity
   // dt -- time step at cells adjacent to boundary
   // consVarsN -- conservative variables at time n
   // pGrad -- pressure gradient at adjacent cell
@@ -6838,16 +6859,18 @@ blkMultiArray3d<primitive> procBlock::GetGhostStates(
     for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
       for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
         wallVars wVars(this->NumSpecies());
+        const auto nuWall = nuW.IsEmpty() ? 0.0 : nuW(ii, jj, kk);
         if (consVarsN.IsEmpty()) {
-          const auto ghost = GetGhostState(
-              bndStates(ii, jj, kk), bcName, faceAreas(ii, jj, kk).UnitVector(),
-              wDist(ii, jj, kk), surfType, inp, tag, phys, wVars, layer);
+          const auto ghost = GetGhostState(bndStates(ii, jj, kk), bcName,
+                                           faceAreas(ii, jj, kk).UnitVector(),
+                                           wDist(ii, jj, kk), surfType, inp,
+                                           tag, phys, wVars, layer, nuWall);
           ghostStates.InsertBlock(ii, jj, kk, ghost);
         } else {  // using dt, state at time n, press grad, vel grad in BC
           const auto stateN = primitive(consVarsN(ii, jj, kk), phys);
           const auto ghost = GetGhostState(
               bndStates(ii, jj, kk), bcName, faceAreas(ii, jj, kk).UnitVector(),
-              wDist(ii, jj, kk), surfType, inp, tag, phys, wVars, layer,
+              wDist(ii, jj, kk), surfType, inp, tag, phys, wVars, layer, nuWall,
               dt(ii, jj, kk), stateN, pGrad(ii, jj, kk), velGrad(ii, jj, kk),
               avgMach, maxMach);
           ghostStates.InsertBlock(ii, jj, kk, ghost);

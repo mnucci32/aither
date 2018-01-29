@@ -38,6 +38,9 @@ using std::set;
 using std::ifstream;
 using std::shared_ptr;
 
+#define DEFAULT_TURB_INTENSITY 0.01
+#define DEFAULT_EDDY_VISC_RATIO 0.01
+
 // this is an abstract base class
 class inputState {
   int tag_;
@@ -110,8 +113,8 @@ class icState : public inputState {
   vector3d<double> velocity_ = {0.0, 0.0, 0.0};
   double density_ = 0.0;
   double pressure_ = 0.0;
-  double turbIntensity_ = 0.01;  // default values
-  double eddyViscRatio_ = 0.01;
+  double turbIntensity_ = DEFAULT_TURB_INTENSITY;
+  double eddyViscRatio_ = DEFAULT_EDDY_VISC_RATIO;
   map<string, double> massFractions_ = {{"air", 1.0}};
   string file_ = "undefined";
   bool specifiedTurbulence_ = false;
@@ -230,8 +233,8 @@ class stagnationInlet : public inputState {
   vector3d<double> direction_ = {0.0, 0.0, 0.0};
   double p0_ = 0.0;
   double t0_ = 0.0;
-  double turbIntensity_ = 0.01;  // default values
-  double eddyViscRatio_ = 0.01;
+  double turbIntensity_ = DEFAULT_TURB_INTENSITY;
+  double eddyViscRatio_ = DEFAULT_EDDY_VISC_RATIO;
   map<string, double> massFractions_ = {{"air", 1.0}};
   bool specifiedTurbulence_ = false;
   bool specifiedMassFractions_ = false;

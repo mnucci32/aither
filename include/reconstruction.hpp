@@ -329,8 +329,11 @@ auto FaceReconCentral(const T &varU, const T &varD,
 // function to reconstruct cell variables to the face using central
 // differences (4th order)
 template <typename T>
-auto FaceReconCentral4th(const T &varU2, const T &varU1, const T &varD1,
-                         const T &varD2, const vector<double> &cellWidth) {
+std::enable_if_t<!std::is_same<primitive, T>::value &&
+                     !std::is_same<primitiveView, T>::value,
+                 T>
+FaceReconCentral4th(const T &varU2, const T &varU1, const T &varD1,
+                    const T &varD2, const vector<double> &cellWidth) {
   // varU2 -- variable at the cell center of the second upwind cell
   // varU1 -- variable at the cell center of the first upwind cell
   // varD1 -- variable at the cell center of the first downwind cell
@@ -346,5 +349,33 @@ auto FaceReconCentral4th(const T &varU2, const T &varU1, const T &varD1,
       coeffs[3] * varD2;
 }
 
+// fourth order reconstruction, but use 2nd order for turbulence variables
+// this is needed because fourth order reconstruction has problems with high
+// omega gradients at will during simulation start up
+template <typename T>
+std::enable_if_t<std::is_same<primitive, T>::value ||
+                     std::is_same<primitiveView, T>::value,
+                 primitive>
+FaceReconCentral4th(const T &varU2, const T &varU1, const T &varD1,
+                    const T &varD2, const vector<double> &cellWidth) {
+  // varU2 -- variable at the cell center of the second upwind cell
+  // varU1 -- variable at the cell center of the first upwind cell
+  // varD1 -- variable at the cell center of the first downwind cell
+  // varD2 -- variable at the cell center of the second downwind cell
+  // cellWidth -- width of cells in stencil
+  MSG_ASSERT(cellWidth.size() == 4, "cell width size is unexpected");
+
+  // get coefficients
+  const auto coeffs = LagrangeCoeff(cellWidth, 3, 1, 1);
+
+  // reconstruct with central difference
+  auto fourth = coeffs[0] * varU2 + coeffs[1] * varU1 + coeffs[2] * varD1 +
+         coeffs[3] * varD2;
+  for (auto ii = fourth.TurbulenceIndex(); ii < fourth.Size(); ++ii) {
+    fourth[ii] =
+        FaceReconCentral(varU1[ii], varD1[ii], {cellWidth[1], cellWidth[2]});
+  }
+  return fourth;
+}
 
 #endif
