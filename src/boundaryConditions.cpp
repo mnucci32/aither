@@ -2599,7 +2599,7 @@ boundarySurface boundarySurface::DependentSplit(const string &dir,
         uBlk = lBlk;
       }
     }
-  } else if (isReversed) {
+  } else if (isReversed && split) {
     std::swap(lBlk, uBlk);
   }
 
