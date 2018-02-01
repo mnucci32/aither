@@ -123,17 +123,41 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
     } else {  // split/send
       auto newBlk = static_cast<int>(grid.size());
 
+      auto affectedConnections = GetBlockInterConnBCs(bcs, grid, blk);
+      cout << "AFFECTED PARTNERS" << endl;
+      for (auto &aff : affectedConnections) {
+        cout << aff.first << endl;
+      }
+
       plot3dBlock lBlk, uBlk;
       grid[blk].Split(dir, ind, lBlk, uBlk);
       grid.push_back(uBlk);
-      vector<boundarySurface> altSurf;
+      vector<pair<int, boundarySurface>> altSurf;
       auto newBcs = bcs[blk].Split(dir, ind, blk, newBlk, altSurf);
       bcs.push_back(newBcs);
 
+      // DEBUG
+      cout << "AFTER SPLIT -------------------------------------------" << endl;
+      for (auto &bc : bcs) {
+        cout << bc << endl;
+      }
+
       for (auto &alt : altSurf) {
-        bcs[alt.PartnerBlock()].DependentSplit(
-            alt, grid[blk], grid[alt.PartnerBlock()], alt.PartnerBlock(), dir,
+        // shouldn't split altSurfs in bcs.Split() now b/c affectedConns are not split
+        cout << "ORIENTATION: "
+             << affectedConnections[alt.second].Orientation() << endl;
+        cout << alt.second << endl;
+        cout << alt.second.PartnerBlock() << ", " << blk << ", " << newBlk << ", "
+             << dir << endl;
+        bcs[alt.second.PartnerBlock()].DependentSplit(
+            alt.second, grid[alt.first], grid[alt.second.PartnerBlock()], alt.second.PartnerBlock(), dir,
             ind, blk, newBlk);
+      }
+
+      // DEBUG
+      cout << "AFTER ALTER -----------------------------------------" << endl;
+      for (auto &bc : bcs) {
+        cout << bc << endl;
       }
 
       // reassign split grid

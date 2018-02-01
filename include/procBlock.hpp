@@ -450,7 +450,7 @@ class procBlock {
                      const int &, const int &);
 
   procBlock Split(const string &, const int &, const int &,
-                  vector<boundarySurface> &);
+                  vector<pair<int, boundarySurface>> &);
   void Join(const procBlock &, const string &, vector<boundarySurface> &);
 
   void SwapStateSlice(const connection &, procBlock &);

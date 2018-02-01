@@ -5286,7 +5286,7 @@ an index. The calling instance will retain the lower portion of the split,
 and the returned instance will retain the upper portion of the split.
 */
 procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
-                           vector<boundarySurface> &alteredSurf) {
+                           vector<pair<int, boundarySurface>> &alteredSurf) {
   // dir -- plane to split along, either i, j, or k
   // ind -- index (face) to split at (w/o counting ghost cells)
   // num -- new block number
