@@ -293,9 +293,9 @@ class boundaryConditions {
   void AssignFromInput(const int&, const vector<string>&);
 
   boundaryConditions Split(const string&, const int&, const int&,
-                           const int&, vector<pair<int, boundarySurface>>&);
-  void DependentSplit(const boundarySurface&, const plot3dBlock&,
-                      const plot3dBlock&, const int&, const string&,
+                           const int&, vector<boundarySurface>&);
+  void DependentSplit(const boundarySurface&, boundarySurface, 
+                      const int&, const int&, const string&,
                       const int&, const int&, const int&);
   void Join(const boundaryConditions&, const string&, vector<boundarySurface>&);
   void Merge(const string &);
@@ -430,7 +430,7 @@ class connection {
 vector<connection> GetConnectionBCs(const vector<boundaryConditions>&,
                                     const vector<plot3dBlock>&,
                                     const decomposition&, const input&);
-map<boundarySurface, connection> GetBlockInterConnBCs(
+map<boundarySurface, pair<boundarySurface, int>> GetBlockInterConnBCs(
     const vector<boundaryConditions> &, const vector<plot3dBlock> &,
     const int &);
 

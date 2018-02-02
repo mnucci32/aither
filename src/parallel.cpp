@@ -122,42 +122,25 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
       decomp.SendToProc(blk, ol, ul);
     } else {  // split/send
       auto newBlk = static_cast<int>(grid.size());
-
+      // find all interblocks that could be altered by this split along with
+      // their partners and orientation
       auto affectedConnections = GetBlockInterConnBCs(bcs, grid, blk);
-      cout << "AFFECTED PARTNERS" << endl;
-      for (auto &aff : affectedConnections) {
-        cout << aff.first << endl;
-      }
 
+      // split grid
       plot3dBlock lBlk, uBlk;
       grid[blk].Split(dir, ind, lBlk, uBlk);
       grid.push_back(uBlk);
-      vector<pair<int, boundarySurface>> altSurf;
+      // split bcs
+      vector<boundarySurface> altSurf;
       auto newBcs = bcs[blk].Split(dir, ind, blk, newBlk, altSurf);
       bcs.push_back(newBcs);
 
-      // DEBUG
-      cout << "AFTER SPLIT -------------------------------------------" << endl;
-      for (auto &bc : bcs) {
-        cout << bc << endl;
-      }
-
+      // update interblock partners affected by split
       for (auto &alt : altSurf) {
-        // shouldn't split altSurfs in bcs.Split() now b/c affectedConns are not split
-        cout << "ORIENTATION: "
-             << affectedConnections[alt.second].Orientation() << endl;
-        cout << alt.second << endl;
-        cout << alt.second.PartnerBlock() << ", " << blk << ", " << newBlk << ", "
-             << dir << endl;
-        bcs[alt.second.PartnerBlock()].DependentSplit(
-            alt.second, grid[alt.first], grid[alt.second.PartnerBlock()], alt.second.PartnerBlock(), dir,
-            ind, blk, newBlk);
-      }
-
-      // DEBUG
-      cout << "AFTER ALTER -----------------------------------------" << endl;
-      for (auto &bc : bcs) {
-        cout << bc << endl;
+        bcs[alt.PartnerBlock()].DependentSplit(
+            alt, affectedConnections.at(alt).first,
+            affectedConnections.at(alt).second, alt.PartnerBlock(), dir, ind,
+            blk, newBlk);
       }
 
       // reassign split grid
