@@ -516,8 +516,9 @@ map<boundarySurface, pair<boundarySurface, int>> GetBlockInterConnBCs(
             patch partPatch(partnerSurf, grid[selfSurf.PartnerBlock()],
                             selfSurf.PartnerBlock(), border, rank, locPos);
             // Test for match
-            connection match(selfPatch, partPatch);
-            if (match.TestPatchMatch(selfPatch, partPatch)) {  // match found
+            // need orientation relative to partner
+            connection match(partPatch, selfPatch);
+            if (match.TestPatchMatch(partPatch, selfPatch)) {  // match found
               selfConnections.insert(std::make_pair(
                   selfSurf, std::make_pair(partnerSurf, match.Orientation())));
             }
