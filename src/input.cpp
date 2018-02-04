@@ -510,7 +510,6 @@ void input::ReadInput(const int &rank) {
             // boundary conditions are space delimited
             tokens = Tokenize(line, " ");
             tempBC[blk].AssignFromInput(surfCounter, tokens);
-
             surfCounter++;
             if (surfCounter == numSurf) {  // at end of block data, increment
               // block index, reset surface
@@ -525,6 +524,9 @@ void input::ReadInput(const int &rank) {
           // if block counter reaches number of blocks, BCs are finished (b/c
           // counter starts at 0), so assign BCs and write them out
           if (blk == numBCBlks) {
+            for (auto &bc : tempBC) {
+              bc.Sort();
+            }
             bc_ = tempBC;
             if (rank == ROOTP) {
               cout << "boundaryConditions: " << this->NumBC() << endl;

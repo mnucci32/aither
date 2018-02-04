@@ -90,14 +90,18 @@ bool boundarySurface::operator==(const boundarySurface &surf) const {
 }
 
 bool boundarySurface::operator<(const boundarySurface &s) const {
-  auto count = 0;
-  for (auto &self : data_) {
-    if (self != s.data_[count]) {
-      return self < s.data_[count];
+  if (this->SurfaceType() == s.SurfaceType()) {
+    auto count = 0;
+    for (auto &self : data_) {
+      if (self != s.data_[count]) {
+        return self < s.data_[count];
+      }
+      count++;
     }
-    count++;
+    return false;
+  } else {
+    return this->SurfaceType() < s.SurfaceType();
   }
-  return false;
 }
 
 // Member function to return the boundary condition type given the
@@ -174,11 +178,10 @@ void boundaryConditions::AssignFromInput(const int &surfCounter,
   // surfCounter -- index at which to place data
   // tokens -- vector of strings read from input file
 
-  boundarySurface bcSurf_(tokens[0], stoi(tokens[1]),
-                          stoi(tokens[2]), stoi(tokens[3]),
-                          stoi(tokens[4]), stoi(tokens[5]),
-                          stoi(tokens[6]), stoi(tokens[7]));
-  surfs_[surfCounter] = bcSurf_;
+  boundarySurface bcSurf(tokens[0], stoi(tokens[1]), stoi(tokens[2]),
+                         stoi(tokens[3]), stoi(tokens[4]), stoi(tokens[5]),
+                         stoi(tokens[6]), stoi(tokens[7]));
+  surfs_[surfCounter] = bcSurf;
 }
 
 /* Member function to determine of what sides of a boundary condition surface
@@ -1239,16 +1242,10 @@ boundaryConditions boundaryConditions::Split(
           } else {
             upper.numSurfK_++;
           }
-        } else {
-          // cgrid broken into 2 blocks - add if not already in
-          if (std::find(std::begin(aSurf), std::end(aSurf), lowSurf) ==
-              std::end(aSurf)) {
-            aSurf.push_back(lowSurf);
-          }
-          if (std::find(std::begin(aSurf), std::end(aSurf), cpair.second) ==
-              std::end(aSurf)) {
-            aSurf.push_back(cpair.second);
-          }
+        } else if (low) {
+          // cgrid broken into 2 blocks, lower needs to be updated to partner
+          // with new block
+          lowSurf.UpdateTagForSplitJoin(newBlkNum);
         }
         break;
       }
@@ -1301,6 +1298,8 @@ boundaryConditions boundaryConditions::Split(
     }
   }
 
+  std::sort(std::begin(lower.surfs_), std::end(lower.surfs_));
+  std::sort(std::begin(upper.surfs_), std::end(upper.surfs_));
   (*this) = lower;
   return upper;
 }
@@ -1325,7 +1324,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &partSurf,
 
   // get iterator of self surface
   auto selfIter = std::find(std::begin(surfs_), std::end(surfs_), selfSurf);
-  MSG_ASSERT(selfIter == std::end(surfs_), "couldn't find surface");
+  MSG_ASSERT(selfIter != std::end(surfs_), "couldn't find surface");
 
   // determine direction and index to split surface
   string candDir = "";
@@ -1531,9 +1530,9 @@ void boundaryConditions::DependentSplit(const boundarySurface &partSurf,
   auto useUpperBlock =
       (dir == partSurf.Direction3() && partSurf.IsUpper()) ? true : false;
 
-  const auto upSurf = selfSurf.DependentSplit(
-      candDir, candInd, sblk, (useUpperBlock ? ublk : lblk), ublk, split, low,
-      orientation);
+  const auto upSurf = selfSurf.DependentSplit(candDir, candInd, sblk,
+                                              (useUpperBlock ? ublk : lblk),
+                                              ublk, split, low, orientation);
 
   // assign boundarySurface back into boundaryConditions, if surface
   // wasn't split partner block was updated

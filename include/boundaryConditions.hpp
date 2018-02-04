@@ -31,6 +31,7 @@ one block. */
 #include <memory>  // unique_ptr
 #include <map>
 #include <utility>
+#include <algorithm>
 #include "mpi.h"  // parallelism
 #include "vector3d.hpp"
 #include "range.hpp"
@@ -245,6 +246,7 @@ class boundaryConditions {
   int NumSurfJ() const {return numSurfJ_;}
   int NumSurfK() const {return numSurfK_;}
   int NumSurfaces() const {return numSurfI_ + numSurfJ_ + numSurfK_;}
+  void Sort() {std::sort(std::begin(surfs_), std::end(surfs_));}
 
   string GetBCTypes(const int &a) const {return surfs_[a].BCType();}
   int GetIMin(const int &a) const {return surfs_[a].IMin();}
