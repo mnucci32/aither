@@ -9,6 +9,8 @@ function InstallMPI() {
     Write-Host "Installing Microsoft MPI Runtime..."
     appveyor DownloadFile http://download.microsoft.com/download/B/2/E/B2EB83FE-98C2-4156-834A-E1711E6884FB/MSMpiSetup.exe
     Start-Process -FilePath MSMpiSetup.exe -ArgumentList -unattend -Wait
+    Write-Host "Microsoft MPI Runtime installation complete..."
+    Get-ChildItem -Path "C:\Program Files (x86)\Microsoft SDKs\MPI" -Recurse
     cd ..
 }
 
