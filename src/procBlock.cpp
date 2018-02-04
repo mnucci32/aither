@@ -4414,9 +4414,9 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, connection &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
-                  slice.FCenterJ(indS[0], indS[1], indS[2] + fac3);
+                  slice.FCenterK(indS[0], indS[1], indS[2] + fac3);
               fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac3 *
-                  slice.FAreaJ(indS[0], indS[1], indS[2] + fac3);
+                  slice.FAreaK(indS[0], indS[1], indS[2] + fac3);
             }
             if (inter.IsLowerLowerOrUpperUpper()) {
               indS[2]--;
