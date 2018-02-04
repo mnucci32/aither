@@ -258,7 +258,7 @@ def main():
     multiCyl.SetNumberOfProcessors(maxProcs)
     multiCyl.SetNumberOfIterations(numIterations)
     multiCyl.SetResiduals(
-        [2.0447e-01, 3.1371e-01, 4.5433e-01, 1.1121e+00, 1.9913e-01])
+        [2.0447e-01, 3.1399e-01, 4.5458e-01, 1.1121e+00, 1.9913e-01])
     multiCyl.SetIgnoreIndices(3)
     multiCyl.SetMpirunPath(options.mpirunPath)
 
@@ -346,10 +346,10 @@ def main():
     viscPlate.SetNumberOfIterations(numIterations)
     if viscPlate.Processors() == 2:
         viscPlate.SetResiduals(
-            [9.0389e-02, 2.4743e-01, 5.2475e-02, 1.0000e+00, 7.9609e-02])
+            [7.6770e-02, 2.4712e-01, 5.2446e-02, 1.0000e+00, 7.9490e-02])
     else:
         viscPlate.SetResiduals(
-            [8.8682e-02, 2.4743e-01, 3.9138e-02, 1.0000e+00, 7.7679e-02])
+            [7.4673e-02, 2.4711e-01, 3.8960e-02, 1.0000e+00, 7.7683e-02])
     viscPlate.SetIgnoreIndices(3)
     viscPlate.SetMpirunPath(options.mpirunPath)
 
@@ -368,11 +368,11 @@ def main():
     turbPlate.SetNumberOfProcessors(maxProcs)
     turbPlate.SetNumberOfIterations(numIterationsShort)
     if turbPlate.Processors() == 2:
-        turbPlate.SetResiduals([2.3543e-01, 2.9744e-01, 1.0000e+00, 2.6550e-01,
-                                2.1569e-01, 7.0937e-06, 2.7730e-04])
+        turbPlate.SetResiduals([2.2801e-01, 2.9863e-01, 1.0000e+00, 3.2381e-01,
+                                2.2326e-01, 2.5206e-07, 3.3015e-06])
     else:
-        turbPlate.SetResiduals([2.3132e-01, 2.9742e-01, 1.0000e+00, 2.6576e-01, 
-                                2.1159e-01, 7.0916e-06, 2.7728e-04])
+        turbPlate.SetResiduals([2.2309e-01, 2.9862e-01, 1.0000e+00, 3.2376e-01,
+                                2.1910e-01, 2.5208e-07, 3.3009e-06])
     turbPlate.SetIgnoreIndices(2)
     turbPlate.SetMpirunPath(options.mpirunPath)
 
@@ -391,11 +391,11 @@ def main():
     rae2822.SetNumberOfProcessors(maxProcs)
     rae2822.SetNumberOfIterations(numIterationsShort)
     if rae2822.Processors() == 2:
-        rae2822.SetResiduals([5.5478e-01, 7.2675e-01, 5.0036e-01, 1.0000e+00, 
-                              4.9839e-01, 2.4006e-05, 1.3646e-04])
+        rae2822.SetResiduals([5.5892e-01, 6.7268e-01, 5.3250e-01, 1.0000e+00,
+                              5.0058e-01, 2.5771e-09, 3.4059e-10])
     else:
-        rae2822.SetResiduals([5.5201e-01, 7.2272e-01, 5.0411e-01, 1.0000e+00, 
-                              4.9499e-01, 2.4006e-05, 1.3578e-04])
+        rae2822.SetResiduals([5.5618e-01, 6.6813e-01, 5.3620e-01, 1.0000e+00,
+                              4.9726e-01, 2.5769e-09, 3.4032e-10])
     rae2822.SetIgnoreIndices(3)
     rae2822.SetMpirunPath(options.mpirunPath)
 
@@ -413,8 +413,8 @@ def main():
     couette.SetProfile(isProfile)
     couette.SetNumberOfProcessors(1)
     couette.SetNumberOfIterations(numIterations)
-    couette.SetResiduals([1.0667e-01, 5.0815e-01, 2.1641e-01, 2.7998e-01, 
-                          1.8353e-01])
+    couette.SetResiduals([1.1816e-01, 5.0725e-01, 6.9807e-02, 5.5916e-01,
+                          2.3024e-01])
     couette.SetIgnoreIndices(3)
     couette.SetMpirunPath(options.mpirunPath)
 
@@ -433,11 +433,11 @@ def main():
     wallLaw.SetNumberOfProcessors(maxProcs)
     wallLaw.SetNumberOfIterations(numIterationsShort)
     if wallLaw.Processors() == 2:
-        wallLaw.SetResiduals([7.3472e-01, 7.4404e-02, 2.8490e-01, 9.2631e-01,
-                              7.4385e-01, 5.4128e-01, 1.2724e-03])
+        wallLaw.SetResiduals([7.3745e-01, 1.5345e-01, 3.1677e-01, 9.2831e-01,
+                              7.1928e-01, 2.6861e-02, 2.6255e-07])
     else:
-        wallLaw.SetResiduals([7.3813e-01, 7.4172e-02, 2.8150e-01, 9.2634e-01,
-                              7.4445e-01, 5.4126e-01, 1.2724e-03])
+        wallLaw.SetResiduals([7.4098e-01, 1.4914e-01, 3.1463e-01, 9.2837e-01,
+                              7.2133e-01, 2.6860e-02, 2.6250e-07])
     wallLaw.SetIgnoreIndices(1)
     wallLaw.SetMpirunPath(options.mpirunPath)
 
@@ -456,13 +456,13 @@ def main():
     thermallyPerfect.SetNumberOfProcessors(maxProcs)
     thermallyPerfect.SetNumberOfIterations(numIterationsShort)
     if thermallyPerfect.Processors() == 2:
-        thermallyPerfect.SetResiduals([5.8655e-01, 3.8172e-01, 4.9448e-01,
-                                       1.0000e+00, 6.0669e-01, 3.5553e-02,
-                                       9.4796e-03])
+        thermallyPerfect.SetResiduals([5.8177e-01, 3.8066e-01, 4.8670e-01,
+                                       1.0000e+00, 5.9931e-01, 1.2830e-06,
+                                       3.5031e-04])
     else:
-        thermallyPerfect.SetResiduals([5.8655e-01, 3.8172e-01, 4.9448e-01,
-                                       1.0000e+00, 6.0669e-01, 3.5551e-02,
-                                       9.4796e-03])
+        thermallyPerfect.SetResiduals([5.8177e-01, 3.8066e-01, 4.8670e-01,
+                                       1.0000e+00, 5.9931e-01, 1.2830e-06,
+                                       3.5031e-04])
     thermallyPerfect.SetIgnoreIndices(3)
     thermallyPerfect.SetMpirunPath(options.mpirunPath)
 
@@ -480,8 +480,8 @@ def main():
     uniform.SetProfile(isProfile)
     uniform.SetNumberOfProcessors(1)
     uniform.SetNumberOfIterations(numIterationsShort)
-    uniform.SetResiduals([1.0108e+00, 9.0923e-01, 2.6751e-01, 8.5787e-01,
-                          9.3999e-01, 5.5688e-09, 2.4667e-09])
+    uniform.SetResiduals([1.0398e+00, 9.5420e-01, 2.7337e-01, 9.1341e-01,
+                          9.3095e-01, 1.4756e-07, 1.8748e-07])
     uniform.SetMpirunPath(options.mpirunPath)
 
     # run regression case
@@ -498,13 +498,38 @@ def main():
     vortex.SetProfile(isProfile)
     vortex.SetNumberOfProcessors(1)
     vortex.SetNumberOfIterations(numIterations)
-    vortex.SetResiduals([5.2797e+00, 6.3732e-01, 7.0930e-01, 1.0000e+00, 
+    vortex.SetResiduals([5.2772e+00, 6.3732e-01, 7.0928e-01, 1.0000e+00, 
                          7.9563e-01])
     vortex.SetIgnoreIndices(3)
     vortex.SetMpirunPath(options.mpirunPath)
 
     # run regression case
     passed = vortex.RunCase()
+    totalPass = totalPass and all(passed)
+
+    # ------------------------------------------------------------------
+    # supersonic mixing with diffusion
+    # turbulent, schmidt diffusion, 4th central, bdplur
+    supersonicMixing = regressionTest()
+    supersonicMixing.SetRegressionCase("supersonicMixing")
+    supersonicMixing.SetAitherPath(options.aitherPath)
+    supersonicMixing.SetRunDirectory("supersonicMixing")
+    supersonicMixing.SetProfile(isProfile)
+    supersonicMixing.SetNumberOfProcessors(maxProcs)
+    supersonicMixing.SetNumberOfIterations(numIterationsShort)
+    if supersonicMixing.Processors() == 2:
+        supersonicMixing.SetResiduals([5.7436e-01, 4.9499e-01, 2.4193e+00, 
+                                       2.3909e-01, 4.5435e-01, 5.1492e-04,
+                                       4.1399e-05])
+    else:
+        supersonicMixing.SetResiduals([5.7436e-01, 4.9499e-01, 2.4193e+00,
+                                       2.3902e-01, 4.5435e-01, 5.1492e-04,
+                                       4.1400e-05])
+    supersonicMixing.SetIgnoreIndices(3)
+    supersonicMixing.SetMpirunPath(options.mpirunPath)
+
+    # run regression case
+    passed = supersonicMixing.RunCase()
     totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------
@@ -530,6 +555,7 @@ def main():
         print("thermallyPerfect:", thermallyPerfect.PassedStatus())
         print("uniform:", uniform.PassedStatus())
         print("convectingVortex:", vortex.PassedStatus())
+        print("supersonicMixing:", supersonicMixing.PassedStatus())
         sys.exit(1)
 
 

@@ -11,10 +11,10 @@ cflMax: 100
 faceReconstruction: thirdOrder
 inviscidFlux: ausm
 inviscidFluxJacobian: rusanov
-viscousFaceReconstruction: central
+viscousFaceReconstruction: centralFourth
 limiter: minmod
 
-iterations: 5000
+iterations: 2000
 nonlinearIterations: 1
 outputFrequency: 1000
 outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, mf_N2, mf_H2,
@@ -38,8 +38,8 @@ turbulenceModel: sst2003
 initialConditions: <icState(tag=1; pressure=101325.9; density=0.26; velocity=[1792.6, 0, 0]; massFractions=[H2O=0.233, H2=0.001, N2=0.766]),
                     icState(tag=-1; pressure=101325.9; density=0.0819; velocity=[1316.16, 0, 0]; massFractions=[H2=1.0])>
 
-matrixSolver: lusgs
-matrixSweeps: 2
+matrixSolver: bdplur
+matrixSweeps: 4
 matrixRelaxation: 1
 
 boundaryStates: <inlet(tag=6; pressure=101325.9; density=0.0819; velocity=[1316.16, 0, 0]; massFractions=[H2=1.0]),
