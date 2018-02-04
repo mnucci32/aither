@@ -46,6 +46,21 @@ matrix:
     - os: linux
       dist: trusty
       sudo: required
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7 gcc-7 libstdc++-7-dev
+      env:
+        - CXX_COMPILER=g++-7
+        - C_COMPILER=gcc-7
+        - BUILD_TYPE=release
+        - AITHER_FLUID_DATABASE=$TRAVIS_BUILD_DIR/build/install/fluidDatabase
+    - os: linux
+      dist: trusty
+      sudo: required
       compiler: clang
       addons:
         apt:

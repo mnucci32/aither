@@ -1325,7 +1325,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &partSurf,
 
   // get iterator of self surface
   auto selfIter = std::find(std::begin(surfs_), std::end(surfs_), selfSurf);
-  MSG_ASSERT(selfIter != std::end(surfs_), "couldn't find surface");
+  MSG_ASSERT(selfIter == std::end(surfs_), "couldn't find surface");
 
   // determine direction and index to split surface
   string candDir = "";
