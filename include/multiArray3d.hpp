@@ -102,8 +102,20 @@ class multiArray3d {
   int Start(const string &) const;
   int End(const string &) const;
   int GetLoc1D(const int &ii, const int &jj, const int &kk) const {
-    return (ii + numGhosts_) + (jj + numGhosts_) * numI_ +
-        (kk + numGhosts_) * numI_ * numJ_;
+    MSG_ASSERT(ii >= this->StartI() && ii < this->EndI(),
+               "i-index out of range");
+    MSG_ASSERT(jj >= this->StartJ() && jj < this->EndJ(),
+               "j-index out of range");
+    MSG_ASSERT(kk >= this->StartK() && kk < this->EndK(),
+               "k-index out of range");
+    return blkSize_ * ((ii + numGhosts_) + (jj + numGhosts_) * numI_ +
+                       (kk + numGhosts_) * numI_ * numJ_);
+  }
+  int GetLoc1D(const int &ii, const int &jj, const int &kk,
+               const int &ll) const {
+    MSG_ASSERT(ll >= 0 && ll < blkSize_,
+               "accessing index outside of block limit");
+    return this->GetLoc1D(ii, jj, kk) + ll;
   }
 
   int PhysStartI() const {return 0;}
@@ -182,49 +194,41 @@ class multiArray3d {
   }
 
   // operator overloads
-  T &operator()(const int &ii, const int &jj, const int &kk) {
-    MSG_ASSERT(this->BlockSize() == 1,
-               "shouldn't be used with blkMultiArray3d");
-    return data_[this->GetLoc1D(ii, jj, kk)];
+  T &operator()(const int &ii, const int &jj, const int &kk,
+                const int &ll = 0) {
+    return data_[this->GetLoc1D(ii, jj, kk, ll)];
   }
-  const T &operator()(const int &ii, const int &jj, const int &kk) const {
-    MSG_ASSERT(this->BlockSize() == 1,
-               "shouldn't be used with blkMultiArray3d");
-    return data_[this->GetLoc1D(ii, jj, kk)];
+  const T &operator()(const int &ii, const int &jj, const int &kk,
+                      const int &ll = 0) const {
+    return data_[this->GetLoc1D(ii, jj, kk, ll)];
   }
   T &operator()(const int &ind) {
-    MSG_ASSERT(this->BlockSize() == 1,
-               "shouldn't be used with blkMultiArray3d");
     return data_[ind];
   }
   const T &operator()(const int &ind) const {
-    MSG_ASSERT(this->BlockSize() == 1,
-               "shouldn't be used with blkMultiArray3d");
     return data_[ind];
   }
   T &operator()(const string &dir, const int &d1, const int &d2,
-                const int &d3) {
-    MSG_ASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
+                const int &d3, const int &bb = 0) {
     if (dir == "i") {  // direction 1 is i
-      return (*this)(d1, d2, d3);
+      return (*this)(d1, d2, d3, bb);
     } else if (dir == "j") {  // direction 1 is j
-      return (*this)(d3, d1, d2);
+      return (*this)(d3, d1, d2, bb);
     } else if (dir == "k") {  // direction 1 is k
-      return (*this)(d2, d3, d1);
+      return (*this)(d2, d3, d1, bb);
     } else {
       cerr << "ERROR: Direction " << dir << " is not recognized!" << endl;
       exit(EXIT_FAILURE);
     }
   }
   const T& operator()(const string &dir, const int &d1, const int &d2,
-                      const int &d3) const {
-    MSG_ASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
+                      const int &d3, const int &bb = 0) const {
     if (dir == "i") {  // direction 1 is i
-      return (*this)(d1, d2, d3);
+      return (*this)(d1, d2, d3, bb);
     } else if (dir == "j") {  // direction 1 is j
-      return (*this)(d3, d1, d2);
+      return (*this)(d3, d1, d2, bb);
     } else if (dir == "k") {  // direction 1 is k
-      return (*this)(d2, d3, d1);
+      return (*this)(d2, d3, d1, bb);
     } else {
       cerr << "ERROR: Direction " << dir << " is not recognized!" << endl;
       exit(EXIT_FAILURE);
@@ -333,8 +337,12 @@ class multiArray3d {
     *this = multiArray3d<T>(ii, jj, kk, ng, blkSize_);
   }
   void ClearResize(const int &ii, const int &jj, const int &kk, const int &ng,
-                   const T &val) {
-    *this = multiArray3d<T>(ii, jj, kk, ng, blkSize_, val);
+                   const int &bs) {
+    *this = multiArray3d<T>(ii, jj, kk, ng, bs);
+  }
+  void ClearResize(const int &ii, const int &jj, const int &kk, const int &ng,
+                   const int &bs, const T &val) {
+    *this = multiArray3d<T>(ii, jj, kk, ng, bs, val);
   }
 
   void SameSizeResize(const int &ii, const int &jj, const int &kk);

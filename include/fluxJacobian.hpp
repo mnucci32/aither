@@ -679,57 +679,60 @@ void fluxJacobian::ApproxTSLJacobian(const T &state, const double &lamVisc,
   const auto t = state.Temperature(phys.EoS());
   const auto mu = phys.Transport()->NondimScaling() * lamVisc;
   const auto mut = phys.Transport()->NondimScaling() * turbVisc;
-  const auto norm = area.UnitVector();
-  const auto velNorm = state.Velocity().DotProd(norm);
+  const auto n = area.UnitVector();
+  const auto velNorm = state.Velocity().DotProd(n);
   const auto mf = state.MassFractions();
   const auto rho = state.Rho();
+  const auto k = phys.Transport()->EffectiveConductivity(t, mf);
+  const auto kt = phys.Transport()->TurbConductivity(
+      mut, phys.Turbulence()->TurbPrandtlNumber(), t, phys.Thermodynamic(), mf);
 
-  const auto tauNorm = TauNormal(vGrad, norm, mu, mut, phys.Transport());
+  const auto tauNorm = TauNormal(vGrad, n, mu, mut, phys.Transport());
 
   auto fac = left ? -1.0 : 1.0;
 
   constexpr auto third = 1.0 / 3.0;
   const auto ns = state.NumSpecies();
   for (auto ii = 0; ii < ns; ++ii) {
+    auto speciesEnthalpy = 0.0;
+    for (auto jj = 0; jj < ns; ++jj) {
+      this->FlowJacobian(ii, jj) = phys.Diffusion()->DiffCoeff(mu, mut) *
+                                   (Kronecker(ii, jj) - mf[ii]) /
+                                   ((mu + mut) * rho);
+      speciesEnthalpy +=
+          this->FlowJacobian(ii, jj) * state.SpeciesEnthalpy(phys, jj);
+    }
+
     // assign species column
     this->FlowJacobian(ns + 3, ii) =
-        -(phys.Transport()->EffectiveConductivity(t, mf) +
-          phys.Transport()->TurbConductivity(
-              mut, phys.Turbulence()->TurbPrandtlNumber(), t,
-              phys.Thermodynamic(), mf)) *
-        t / ((mu + mut) * rho);
+        -(k + kt) * t / ((mu + mut) * rho) + speciesEnthalpy;
   }
 
   // assign column 1
-  this->FlowJacobian(ns + 0, ns) = third * norm.X() * norm.X() + 1.0;
-  this->FlowJacobian(ns + 1, ns) = third * norm.X() * norm.Y();
-  this->FlowJacobian(ns + 2, ns) = third * norm.X() * norm.Z();
+  this->FlowJacobian(ns + 0, ns) = third * n.X() * n.X() + 1.0;
+  this->FlowJacobian(ns + 1, ns) = third * n.X() * n.Y();
+  this->FlowJacobian(ns + 2, ns) = third * n.X() * n.Z();
   this->FlowJacobian(ns + 3, ns) = fac * 0.5 * dist / (mu + mut) * tauNorm.X() +
-                                   third * norm.X() * velNorm + state.U();
+                                   third * n.X() * velNorm + state.U();
 
   // assign column 2
-  this->FlowJacobian(ns + 0, ns + 1) = third * norm.Y() * norm.X();
-  this->FlowJacobian(ns + 1, ns + 1) = third * norm.Y() * norm.Y() + 1.0;
-  this->FlowJacobian(ns + 2, ns + 1) = third * norm.Y() * norm.Z();
+  this->FlowJacobian(ns + 0, ns + 1) = third * n.Y() * n.X();
+  this->FlowJacobian(ns + 1, ns + 1) = third * n.Y() * n.Y() + 1.0;
+  this->FlowJacobian(ns + 2, ns + 1) = third * n.Y() * n.Z();
   this->FlowJacobian(ns + 3, ns + 1) =
-      fac * 0.5 * dist / (mu + mut) * tauNorm.Y() + third * norm.Y() * velNorm +
+      fac * 0.5 * dist / (mu + mut) * tauNorm.Y() + third * n.Y() * velNorm +
       state.V();
 
   // assign column 3
-  this->FlowJacobian(ns + 0, ns + 2) = third * norm.Z() * norm.X();
-  this->FlowJacobian(ns + 1, ns + 2) = third * norm.Z() * norm.Y();
-  this->FlowJacobian(ns + 2, ns + 2) = third * norm.Z() * norm.Z() + 1.0;
+  this->FlowJacobian(ns + 0, ns + 2) = third * n.Z() * n.X();
+  this->FlowJacobian(ns + 1, ns + 2) = third * n.Z() * n.Y();
+  this->FlowJacobian(ns + 2, ns + 2) = third * n.Z() * n.Z() + 1.0;
   this->FlowJacobian(ns + 3, ns + 2) =
-      fac * 0.5 * dist / (mu + mut) * tauNorm.Z() + third * norm.Z() * velNorm +
+      fac * 0.5 * dist / (mu + mut) * tauNorm.Z() + third * n.Z() * velNorm +
       state.W();
 
   // assign column 4
-  this->FlowJacobian(ns + 3, ns + 3) =
-      (phys.Transport()->EffectiveConductivity(t, mf) +
-       phys.Transport()->TurbConductivity(
-           mut, phys.Turbulence()->TurbPrandtlNumber(), t, phys.Thermodynamic(),
-           mf)) /
-      ((mu + mut) * rho);
+  this->FlowJacobian(ns + 3, ns + 3) = (k + kt) / ((mu + mut) * rho);
 
   this->MultFlowJacobian(area.Mag() * (mu + mut) / dist);
 

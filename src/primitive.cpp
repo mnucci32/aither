@@ -44,11 +44,9 @@ void primitive::NondimensionalInitialize(const physics &phys, const input &inp,
   auto ic = inp.ICStateForBlock(parBlock);
   auto massFracs = ic.MassFractions();
 
-  // DEBUG -- need to make sure species are going into correct index
-  auto ii = 0;
   for (auto &mf : massFracs) {
-    (*this)[ii] = mf.second * ic.Density();
-    ii++;
+    auto ind = inp.SpeciesIndex(mf.first);
+    (*this)[ind] = mf.second * ic.Density();
   }
 
   (*this)[this->MomentumXIndex()] = ic.Velocity().X();

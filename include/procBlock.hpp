@@ -91,6 +91,7 @@ class procBlock {
   multiArray3d<vector3d<double>> pressureGrad_;
   multiArray3d<vector3d<double>> tkeGrad_;
   multiArray3d<vector3d<double>> omegaGrad_;
+  multiArray3d<vector3d<double>> mixtureGrad_;
 
   // auxillary variables
   multiArray3d<double> temperature_;
@@ -114,6 +115,7 @@ class procBlock {
   bool isRANS_;
   bool storeTimeN_;
   bool isMultiLevelTime_;
+  bool isMultiSpecies_;
 
   // private member functions
   void CalcInvFluxI(const physics &, const input &, matMultiArray3d &);
@@ -149,9 +151,9 @@ class procBlock {
             const int &, const int &, const int &, const input &);
   procBlock(const int &, const int &, const int &, const int &, const int &,
             const int &, const bool &, const bool &, const bool &, const bool &,
-            const bool &);
+            const bool &, const bool &);
   procBlock()
-      : procBlock(0, 0, 0, 0, 0, 0, false, false, false, false, false) {}
+      : procBlock(0, 0, 0, 0, 0, 0, false, false, false, false, false, false) {}
 
   // move constructor and assignment operator
   procBlock(procBlock&&) noexcept = default;
@@ -351,6 +353,10 @@ class procBlock {
                              const int &kk) const {
     return isRANS_ ? omegaGrad_(ii, jj, kk) : vector3d<double>();
   }
+  vector3d<double> MixtureGrad(const int &ii, const int &jj, const int &kk,
+                               const int &ll) const {
+    return isMultiSpecies_ ? mixtureGrad_(ii, jj, kk, ll) : vector3d<double>();
+  }
 
   double Temperature(const int &ii, const int &jj, const int &kk) const {
     return temperature_(ii, jj, kk);
@@ -397,19 +403,23 @@ class procBlock {
       const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
       const boundarySurface &, const input &, const physics &, const int &,
       const multiArray3d<double> & = {},
+      const multiArray3d<double> & = {},
       const blkMultiArray3d<conserved> & = {},
       const multiArray3d<vector3d<double>> & = {},
       const multiArray3d<tensor<double>> & = {});
 
   void CalcGradsI(const int &, const int &, const int &, tensor<double> &,
                   vector3d<double> &, vector3d<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
+                  vector3d<double> &, vector3d<double> &,
+                  vector<vector3d<double>> &) const;
   void CalcGradsJ(const int &, const int &, const int &, tensor<double> &,
                   vector3d<double> &, vector3d<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
+                  vector3d<double> &, vector3d<double> &,
+                  vector<vector3d<double>> &) const;
   void CalcGradsK(const int &, const int &, const int &, tensor<double> &,
                   vector3d<double> &, vector3d<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
+                  vector3d<double> &, vector3d<double> &,
+                  vector<vector3d<double>> &) const;
 
   void CalcWallDistance(const kdtree &);
 

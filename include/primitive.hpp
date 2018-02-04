@@ -94,6 +94,9 @@ class primitive : public varArray {
     }
     return mf;
   }
+  vector<double> VolumeFractions(const unique_ptr<transport> &trans) const {
+    return trans->MoleFractions(this->MassFractions());
+  }
   const double & U() const { return this->MomentumX(); }
   const double & V() const { return this->MomentumY(); }
   const double & W() const { return this->MomentumZ(); }
@@ -120,6 +123,9 @@ class primitive : public varArray {
 
   double Energy(const physics &phys) const {
     return InternalEnergy(*this, phys);
+  }
+  double SpeciesEnthalpy(const physics &phys, const int &ss) const {
+    return SpeciesEnthalpyFunc(*this, phys, ss);
   }
   double Enthalpy(const physics &phys) const {
     return EnthalpyFunc(*this, phys);

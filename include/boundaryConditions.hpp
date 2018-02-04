@@ -29,6 +29,8 @@ one block. */
 #include <string>  // string
 #include <iostream>  // ostream
 #include <memory>  // unique_ptr
+#include <map>
+#include <utility>
 #include "mpi.h"  // parallelism
 #include "vector3d.hpp"
 #include "range.hpp"
@@ -40,6 +42,8 @@ using std::string;
 using std::cout;
 using std::endl;
 using std::shared_ptr;
+using std::pair;
+using std::map;
 
 // forward class declaration
 class plot3dBlock;
@@ -78,7 +82,21 @@ class boundarySurface {
   int KMax() const {return data_[5];}
   int Tag() const {return data_[6];}
 
+  void MoveI(const int &s) {
+    data_[0] += s;
+    data_[1] += s;
+  }
+  void MoveJ(const int &s) {
+    data_[2] += s;
+    data_[3] += s;
+  }
+  void MoveK(const int &s) {
+    data_[4] += s;
+    data_[5] += s;
+  }
+
   int SurfaceType() const;
+  bool IsUpper() const { return this->SurfaceType() % 2 == 0; }
   string Direction1() const;
   string Direction2() const;
   string Direction3() const;
@@ -123,6 +141,7 @@ class boundarySurface {
 
   bool operator==(const boundarySurface &) const;
   bool operator!=(const boundarySurface &s) const { return !(*this == s); };
+  bool operator<(const boundarySurface &s) const;
 
   // Destructor
   ~boundarySurface() noexcept {}
@@ -275,8 +294,8 @@ class boundaryConditions {
 
   boundaryConditions Split(const string&, const int&, const int&,
                            const int&, vector<boundarySurface>&);
-  void DependentSplit(const boundarySurface&, const plot3dBlock&,
-                      const plot3dBlock&, const int&, const string&,
+  void DependentSplit(const boundarySurface&, boundarySurface, 
+                      const int&, const int&, const string&,
                       const int&, const int&, const int&);
   void Join(const boundaryConditions&, const string&, vector<boundarySurface>&);
   void Merge(const string &);
@@ -285,6 +304,8 @@ class boundaryConditions {
 
   void PackBC(char*(&), const int&, int&) const;
   void UnpackBC(char*(&), const int&, int&);
+
+  vector<pair<boundarySurface, boundarySurface>> CGridPairs(const int &) const;
 
   // Destructor
   ~boundaryConditions() noexcept {}
@@ -409,6 +430,9 @@ class connection {
 vector<connection> GetConnectionBCs(const vector<boundaryConditions>&,
                                     const vector<plot3dBlock>&,
                                     const decomposition&, const input&);
+map<boundarySurface, pair<boundarySurface, int>> GetBlockInterConnBCs(
+    const vector<boundaryConditions> &, const vector<plot3dBlock> &,
+    const int &);
 
 ostream & operator<< (ostream &os, const boundaryConditions&);
 ostream & operator<< (ostream &os, const boundarySurface&);

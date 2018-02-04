@@ -39,11 +39,12 @@ sutherland::sutherland(const vector<fluid> &fl, const double &tRef,
   viscS_.reserve(numSpecies);
   condC1_.reserve(numSpecies);
   condS_.reserve(numSpecies);
-  muRef_.reserve(numSpecies);
-  kRef_.reserve(numSpecies);
   molarMass_.reserve(numSpecies);
 
   tRef_ = tRef;
+
+  vector<double> muSpecRef;
+  muSpecRef.reserve(numSpecies);
 
   // get data from fluid class
   for (auto &f : fl) {
@@ -55,17 +56,15 @@ sutherland::sutherland(const vector<fluid> &fl, const double &tRef,
     condC1_.push_back(condCoeffs[0]);
     condS_.push_back(condCoeffs[1]);
 
-    muRef_.push_back(viscCoeffs[0] * pow(tRef_, 1.5) / (tRef_ + viscCoeffs[1]));
-    kRef_.push_back(condCoeffs[0] * pow(tRef_, 1.5) / (tRef_ + condCoeffs[1]));
+    muSpecRef.push_back(viscCoeffs[0] * pow(tRef_, 1.5) /
+                        (tRef_ + viscCoeffs[1]));
     molarMass_.push_back(f.MolarMass());
   }
 
   // calculate reference viscosity for reference mixture and set scaling
-  if (numSpecies == 1) {
-    muMixRef_ = muRef_[0];
-  } else {
-    muMixRef_ = this->WilkesVisc(muRef_, mixRef);
-  }
+  muMixRef_ =
+      numSpecies == 1 ? muSpecRef[0] : this->WilkesVisc(muSpecRef, mixRef);
+  kNonDim_ = (aRef * aRef * muMixRef_) / tRef_;
   this->SetScaling(rRef, lRef, muMixRef_, aRef);
 }
 
@@ -94,31 +93,42 @@ double sutherland::WilkesVisc(const vector<double> &specVisc,
   return 4.0 / sqrt(2.0) * mixtureVisc;
 }
 
+// member function to use Wilke's method to calculate mixture conductivity
+double sutherland::WilkesCond(const vector<double> &specCond,
+                              const vector<double> &mf) const {
+  // calculate mole fractions
+  auto moleFrac = this->MoleFractions(mf);
+
+  auto weightedAvg = 0.0;
+  auto harmonicAvg = 0.0;
+  for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
+    weightedAvg += moleFrac[ii] * specCond[ii];
+    harmonicAvg += moleFrac[ii] / specCond[ii];
+  }
+  harmonicAvg = 1.0 / harmonicAvg;
+  return 0.5 * (weightedAvg + harmonicAvg);
+}
+
+
 // Functions for sutherland class
 double sutherland::SpeciesViscosity(const double &t, const int &ii) const {
-  MSG_ASSERT(ii < static_cast<int>(muRef_.size()),
-             "Accessing index out of range");
+  MSG_ASSERT(ii < this->NumSpecies(), "Accessing index out of range");
   // Dimensionalize temperature
   const auto temp = t * tRef_;
-
   // Calculate viscosity
   const auto mu = (viscC1_[ii] * pow(temp, 1.5)) / (temp + viscS_[ii]);
-
   // Nondimensionalize viscosity
-  return (mu / muRef_[ii]);
+  return mu / muMixRef_;
 }
 
 double sutherland::SpeciesConductivity(const double &t, const int &ii) const {
-  MSG_ASSERT(ii < static_cast<int>(muRef_.size()),
-             "Accessing index out of range");
+  MSG_ASSERT(ii < this->NumSpecies(), "Accessing index out of range");
   // Dimensionalize temperature
   const auto temp = t * tRef_;
-
-  // Calculate viscosity
+  // Calculate conductivity
   const auto k = (condC1_[ii] * pow(temp, 1.5)) / (temp + condS_[ii]);
-
-  // Nondimensionalize viscosity
-  return (k / kRef_[ii]);
+  // Nondimensionalize conductivity
+  return k / kNonDim_;
 }
 
 
@@ -175,16 +185,7 @@ double sutherland::Conductivity(const double &t,
     for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
       specCond[ii] = this->SpeciesConductivity(t, ii);
     }
-    auto moleFrac = this->MoleFractions(mf);
-
-    auto weightedAvg = 0.0;
-    auto harmonicAvg = 0.0;
-    for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
-      weightedAvg += moleFrac[ii] * specCond[ii];
-      harmonicAvg += moleFrac[ii] / specCond[ii];
-    }
-    harmonicAvg = 1.0 / harmonicAvg;
-    return 0.5 * (weightedAvg + harmonicAvg);
+    return this->WilkesCond(specCond, mf);
   }
 }
 

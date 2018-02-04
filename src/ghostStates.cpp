@@ -57,13 +57,13 @@ ____________________|___________
 
 Currently the following boundary conditions are supported: slipWall,
 viscousWall, characteristic, stagnationInlet, pressureOutlet, subsonicInflow,
-subsonicOutflow, supersonicInflow, supersonicOutflow, inflow
+subsonicOutflow, supersonicInflow, supersonicOutflow, inlet
 */
 primitive GetGhostState(const primitiveView &interior, const string &bcType,
                         const vector3d<double> &areaVec, const double &wallDist,
                         const int &surf, const input &inputVars, const int &tag,
                         const physics &phys, wallVars &wVars, const int &layer,
-                        const double &dt, const primitive &stateN,
+                        const double &nuW, const double &dt, const primitive &stateN,
                         const vector3d<double> &pressGrad,
                         const tensor<double> &velGrad, const double &avgMach,
                         const double &maxMach) {
@@ -76,6 +76,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
   // tag -- boundary condition tag
   // phys -- physics models
   // layer -- layer of ghost cell to return (1st (closest) or 2nd (farthest))
+  // nuW -- wall adjacent kinematic viscosity
   // dt -- cell time step nearest to wall boundary
   // stateN -- solution at boundary adjacent cell at time n
   // pressGrad -- pressure gradient in adjcent cell
@@ -152,7 +153,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
 
         if (wVars.SwitchToLowRe()) {
           const auto tGhost = 2.0 * tWall - interior.Temperature(phys.EoS());
-          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P());
+          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P(), mf);
           for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
             ghost[ii] = rho * interior.MassFractionN(ii);
           }
@@ -161,15 +162,13 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
           // need turbulent contribution because eddy viscosity is not 0 at wall
           // assume mass fractions at wall are same as interior
           const auto kappa =
-              phys.Transport()->EffectiveConductivity(
-                  wVars.temperature_, interior.MassFractions()) +
+              phys.Transport()->EffectiveConductivity(wVars.temperature_, mf) +
               phys.Transport()->TurbConductivity(
                   wVars.turbEddyVisc_, phys.Turbulence()->TurbPrandtlNumber(),
-                  wVars.temperature_, phys.Thermodynamic(),
-                  interior.MassFractions());
+                  wVars.temperature_, phys.Thermodynamic(), mf);
           // 2x wall distance as gradient length
           const auto tGhost = tWall - wVars.heatFlux_ / kappa * 2.0 * wallDist;
-          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P());
+          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P(), mf);
           for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
             ghost[ii] = rho * interior.MassFractionN(ii);
           }
@@ -185,7 +184,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
         }
       } else {  // low-Re wall treatment
         const auto tGhost = 2.0 * tWall - interior.Temperature(phys.EoS());
-        const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P());
+        const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P(), mf);
         for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
           ghost[ii] = rho * interior.MassFractionN(ii);
         }
@@ -206,7 +205,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
           // 2x wall distance as gradient length
           const auto tGhost =
               interior.Temperature(phys.EoS()) - qWall / kappa * 2.0 * wallDist;
-          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P());
+          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P(), mf);
           for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
             ghost[ii] = rho * interior.MassFractionN(ii);
           }
@@ -214,7 +213,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
           // use wall law wall temperature to get ghost cell density
           const auto tGhost =
               2.0 * wVars.temperature_ - interior.Temperature(phys.EoS());
-          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P());
+          const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P(), mf);
           for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
             ghost[ii] = rho * interior.MassFractionN(ii);
           }
@@ -236,7 +235,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
         // 2x wall distance as gradient length
         const auto tGhost =
             interior.Temperature(phys.EoS()) - qWall / kappa * 2.0 * wallDist;
-        const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P());
+        const auto rho = phys.EoS()->DensityTP(tGhost, ghost.P(), mf);
         for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
           ghost[ii] = rho * interior.MassFractionN(ii);
         }
@@ -268,10 +267,6 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
       // so that tke at face will be zero
       ghost[it] = -1.0 * interior.Tke();
 
-      const auto nuW =
-          phys.Transport()->Viscosity(interior.Temperature(phys.EoS()),
-                                      interior.MassFractions()) /
-          interior.Rho();
       const auto wWall = phys.Transport()->NondimScaling() *
                          phys.Transport()->NondimScaling() * 60.0 * nuW /
                          (wallDist * wallDist * phys.Turbulence()->WallBeta());
@@ -397,8 +392,8 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
   } else if (bcType == "inlet") {
     const auto &bcData = inputVars.BCData(tag);
     // freestream variables
-    const auto freeVel = bcData->Velocity();
     primitive freeState(inputVars.NumEquations(), inputVars.NumSpecies());
+    const auto freeVel = bcData->Velocity();
     const auto freeRho = bcData->Density();
     const auto freeMf = bcData->MassFractions();
     for (auto &mf : freeMf) {
@@ -483,13 +478,14 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
         ghost.ApplyFarfieldTurbBC(freeVel, bcData->TurbulenceIntensity(),
                                   bcData->EddyViscosityRatio(), phys);
       }
-    }
 
-    // extrapolate from boundary to ghost cell
-    ghost = ExtrapolateHoldMixture(ghost, 2.0, interior);
+      // only extrapolating for subsonic condition
+      // extrapolate from boundary to ghost cell
+      ghost = ExtrapolateHoldMixture(ghost, 2.0, interior);
 
-    if (layer > 1) {  // extrapolate to get ghost state at deeper layers
-      ghost = ExtrapolateHoldMixture(ghost, layer, interior);
+      if (layer > 1) {  // extrapolate to get ghost state at deeper layers
+        ghost = ExtrapolateHoldMixture(ghost, layer, interior);
+      }
     }
 
     // supersonic inflow boundary condition
@@ -568,11 +564,15 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
       ghost[ii] = 0.0;
     }
     // assign densities from BC
-    const auto rhoGhost = phys.EoS()->DensityTP(tb, pb);
-    const auto mfGhost = bcData->MassFractions();
-    for (auto &mf : mfGhost) {
-      auto ind = inputVars.SpeciesIndex(mf.first);
-      ghost[ind] = rhoGhost * mf.second;
+    const auto mfGhostMap = bcData->MassFractions();
+    vector<double> mfGhost(interior.NumSpecies(), 0);
+    for (auto &mfg : mfGhostMap) {
+      auto ind = inputVars.SpeciesIndex(mfg.first);
+      mfGhost[ind] = mfg.second;
+    }
+    const auto rhoGhost = phys.EoS()->DensityTP(tb, pb, mfGhost);
+    for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
+      ghost[ii] = rhoGhost * mfGhost[ii];
     }
     ghost[imx] = vbMag * bcData->Direction().X();
     ghost[imy] = vbMag * bcData->Direction().Y();
@@ -671,7 +671,7 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
     // --------------------------------------------------------------------------
     // this boundary condition is appropriate for point matched interfaces
     // between physical blocks or processor blocks
-  } else if (bcType == "interblock" || "periodic") {
+  } else if (bcType == "interblock" || bcType == "periodic") {
     // do nothing -- assign interior state to ghost state (already done)
     // for second layer of ghost cells interior state should be 2nd interior
     // cell
@@ -694,12 +694,15 @@ primitive ExtrapolateHoldMixture(const primitive &boundary,
                                  const primitiveView &interior) {
   auto bndRho = boundary.Rho();
   auto bndMf = boundary.MassFractions();
-
   auto intRho = interior.Rho();
+
+  auto ghostRho = factor * bndRho - intRho;
+  if (ghostRho <= 0.0) {  // big density change at boundary, don't extrapolate
+    return boundary;
+  }
 
   // keep boundary mass fractions, but use extrapolated density
   auto ghost = factor * boundary - interior;
-  auto ghostRho = factor * bndRho - intRho;
   for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
     ghost[ii] = std::max(ghostRho * bndMf[ii], 0.0);
   }

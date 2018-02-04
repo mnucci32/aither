@@ -122,18 +122,25 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
       decomp.SendToProc(blk, ol, ul);
     } else {  // split/send
       auto newBlk = static_cast<int>(grid.size());
+      // find all interblocks that could be altered by this split along with
+      // their partners and orientation
+      auto affectedConnections = GetBlockInterConnBCs(bcs, grid, blk);
 
+      // split grid
       plot3dBlock lBlk, uBlk;
       grid[blk].Split(dir, ind, lBlk, uBlk);
       grid.push_back(uBlk);
+      // split bcs
       vector<boundarySurface> altSurf;
       auto newBcs = bcs[blk].Split(dir, ind, blk, newBlk, altSurf);
       bcs.push_back(newBcs);
 
-      for (auto ii = 0U; ii < altSurf.size(); ii++) {
-        bcs[altSurf[ii].PartnerBlock()].DependentSplit(
-            altSurf[ii], grid[blk], grid[altSurf[ii].PartnerBlock()],
-            altSurf[ii].PartnerBlock(), dir, ind, blk, newBlk);
+      // update interblock partners affected by split
+      for (auto &alt : altSurf) {
+        bcs[alt.PartnerBlock()].DependentSplit(
+            alt, affectedConnections.at(alt).first,
+            affectedConnections.at(alt).second, alt.PartnerBlock(), dir, ind,
+            blk, newBlk);
       }
 
       // reassign split grid
@@ -356,20 +363,20 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
   //------------------------------------------------------------------------
   if (rank == ROOTP) {  // may have to pack and send data
     // loop over ALL blocks
-    for (auto ii = 0U; ii < blocks.size(); ii++) {
+    for (auto &blk : blocks) {
       // no need to send data because it is already on root processor
-      if (blocks[ii].Rank() == ROOTP) {
-        localBlocks[blocks[ii].LocalPosition()] = blocks[ii];
+      if (blk.Rank() == ROOTP) {
+        localBlocks[blk.LocalPosition()] = blk;
       } else {  // send data to receiving processors
         // pack and send procBlock
-        blocks[ii].PackSendGeomMPI(MPI_vec3d, MPI_vec3dMag);
+        blk.PackSendGeomMPI(MPI_vec3d, MPI_vec3dMag);
       }
     }
     //--------------------------------------------------------------------------
     //                                NON - ROOT
     //--------------------------------------------------------------------------
   } else {  // receive and unpack data (non-root)
-    for (auto ii = 0; ii < numProcBlock; ii++) {
+    for (auto ii = 0; ii < numProcBlock; ++ii) {
       // recv and unpack procBlock
       procBlock tempBlock;
       tempBlock.RecvUnpackGeomMPI(MPI_vec3d, MPI_vec3dMag, inp);
@@ -407,41 +414,38 @@ void GetProcBlocks(vector<procBlock> &blocks,
   //                                      ROOT
   //--------------------------------------------------------------------------
   if (rank == ROOTP) {  // may have to recv and unpack data
-    for (auto ii = 0U; ii < blocks.size(); ii++) {  // loop over ALL blocks
-      if (blocks[ii].Rank() == ROOTP) {  // no need to recv data because it is
-                                        // already on ROOT processor
-        // assign local state block to global state block in order of local
-        // state vector
-        blocks[ii] = localBlocks[blocks[ii].LocalPosition()];
+    // loop over ALL blocks
+    auto count = 0;
+    for (auto &blk : blocks) {
+      if (blk.Rank() == ROOTP) {  // data already on ROOT processor
+        // assign local block to global block in order of local vector
+        blk = localBlocks[blk.LocalPosition()];
       } else {  // recv data from sending processors
-        blocks[ii].RecvUnpackSolMPI(MPI_uncoupledScalar, MPI_vec3d,
-                                    MPI_tensorDouble, inp);
+        blk.RecvUnpackSolMPI(MPI_uncoupledScalar, MPI_vec3d, MPI_tensorDouble,
+                             inp);
       }
+      count++;
     }
     //-------------------------------------------------------------------------
     //                                   NON - ROOT
     //-------------------------------------------------------------------------
   } else {  // pack and send data (non-root)
     // get vector of local positions
-    vector<int> localPos(localBlocks.size());
-    for (auto ii = 0U; ii < localPos.size(); ii++) {
-      localPos[ii] = localBlocks[ii].LocalPosition();
+    vector<std::pair<int, int>> localPos;
+    localPos.reserve(localBlocks.size());
+    for (auto &lb : localBlocks) {
+      localPos.push_back(std::make_pair(lb.LocalPosition(), lb.GlobalPos()));
     }
+    // sort by global position
+    // need to send data in order of global position, not local position to
+    // prevent deadlock
+    std::sort(
+        std::begin(localPos), std::end(localPos),
+        [](const auto &d1, const auto &d2) { return d1.second < d2.second; });
 
-    for (auto ii = 0U; ii < localBlocks.size(); ii++) {
-      // need to send data in order of global position, not local position to
-      // prevent deadlock
-      auto minGlobal = 0;
-      for (auto jj = 0U; jj < localPos.size(); jj++) {
-        if (localBlocks[localPos[jj]].GlobalPos() <
-            localBlocks[minGlobal].GlobalPos()) {
-          minGlobal = jj;
-        }
-      }
-
-      localBlocks[localPos[minGlobal]].PackSendSolMPI(
-          MPI_uncoupledScalar, MPI_vec3d, MPI_tensorDouble);
-      localPos.erase(localPos.begin() + minGlobal);
+    for (auto &lp : localPos) {
+      localBlocks[lp.first].PackSendSolMPI(MPI_uncoupledScalar, MPI_vec3d,
+                                           MPI_tensorDouble);
     }
   }
 }

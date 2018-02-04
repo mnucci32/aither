@@ -391,6 +391,11 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->TransportModel() << endl;
           }
+        } else if (key == "diffusionModel") {
+          diffusionModel_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->DiffusionModel() << endl;
+          }
         } else if (key == "schmidtNumber") {
           schmidtNumber_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
@@ -725,7 +730,7 @@ unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
   unique_ptr<thermodynamic> thermo(nullptr);
   if (thermodynamicModel_ == "caloricallyPerfect") {
     thermo = unique_ptr<thermodynamic>{
-        std::make_unique<caloricallyPerfect>(fluids_)};
+        std::make_unique<caloricallyPerfect>(fluids_, tRef_, aRef_)};
   } else if (thermodynamicModel_ == "thermallyPerfect") {
     thermo = unique_ptr<thermodynamic>{
         std::make_unique<thermallyPerfect>(fluids_, tRef_, aRef_)};
@@ -964,7 +969,7 @@ bool input::HaveSpecies(const string &species) const {
 }
 
 // member function to get index of species
-bool input::SpeciesIndex(const string &species) const {
+int input::SpeciesIndex(const string &species) const {
   auto ind = -1;
   find_if(std::begin(fluids_), std::end(fluids_),
           [&species, &ind](const fluid &fl) {
@@ -1027,6 +1032,7 @@ icState input::ICStateForBlock(const int &block) const {
     } else if (ic.Tag() == block) {
       blockIC = ic;
       foundExactMatch = true;
+      break;
     }
   }
 

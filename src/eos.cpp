@@ -29,9 +29,9 @@ idealGas::idealGas(const vector<fluid> &fl, const double &tRef,
                    const double &aRef) {
   const auto numSpecies = fl.size();
   gasConst_.reserve(numSpecies);
-  for (auto ss = 0U; ss < numSpecies; ++ss) {
+  for (auto &f : fl) {
     // nondimensionalize gas constant
-    gasConst_.push_back(fl[ss].GasConstant() * tRef / (aRef * aRef));
+    gasConst_.push_back(f.GasConstant() * tRef / (aRef * aRef));
   }
 }
 
@@ -72,6 +72,12 @@ double idealGas::Energy(const double &specEn, const double &vel) const {
   return specEn + 0.5 * vel * vel;
 }
 
+double idealGas::SpeciesEnthalpy(const unique_ptr<thermodynamic> &thermo,
+                                 const double &t, const double &vel,
+                                 const int &ss) const {
+  return thermo->SpeciesSpecEnthalpy(t, ss) + 0.5 * vel * vel;
+}
+
 double idealGas::Enthalpy(const unique_ptr<thermodynamic> &thermo,
                           const double &t, const double &vel,
                           const vector<double> &mf) const {
@@ -103,10 +109,8 @@ double idealGas::Temperature(const double &pressure,
   return pressure / rhoR;
 }
 
-double idealGas::DensityTP(const double &temp, const double &press) const {
-  auto rho = 0.0;
-  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    rho += press / (gasConst_[ss] * temp);
-  }
-  return rho;
+double idealGas::DensityTP(const double &temp, const double &press,
+                           const vector<double> &mf) const {
+  auto R = this->MixtureGasConstant(mf);
+  return press / (R * temp);
 }

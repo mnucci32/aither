@@ -21,8 +21,10 @@
 // This header file contains the equation of state classes
 
 #include <memory>
+#include <algorithm>
 #include "vector3d.hpp"
 #include "thermodynamic.hpp"
+#include "macros.hpp"
 
 using std::unique_ptr;
 
@@ -47,6 +49,7 @@ class eos {
   // Member functions for abstract base class
   virtual int NumSpecies() const = 0;
   virtual double GasConstant(const int &ii) const = 0;
+  virtual double MixtureGasConstant(const vector<double> &mf) const = 0;
   virtual const vector<double> &GasConstants() const = 0;
   virtual double PressFromEnergy(const unique_ptr<thermodynamic> &thermo,
                                  const vector<double> &rho,
@@ -58,6 +61,9 @@ class eos {
                             const double &t,
                             const vector<double> &mf) const = 0;
   virtual double Energy(const double &specEn, const double &vel) const = 0;
+  virtual double SpeciesEnthalpy(const unique_ptr<thermodynamic> &thermo,
+                                 const double &t, const double &vel,
+                                 const int &ss) const = 0;
   virtual double Enthalpy(const unique_ptr<thermodynamic> &thermo,
                           const double &t, const double &vel,
                           const vector<double> &mf) const = 0;
@@ -66,7 +72,8 @@ class eos {
                      const vector<double> &rho) const = 0;
   virtual double Temperature(const double &pressure,
                              const vector<double> &rho) const = 0;
-  virtual double DensityTP(const double &temp, const double &press) const = 0;
+  virtual double DensityTP(const double &temp, const double &press,
+                           const vector<double> &mf) const = 0;
 
   // Destructor
   virtual ~eos() noexcept {}
@@ -87,6 +94,11 @@ class idealGas : public eos {
   // Member functions
   int NumSpecies() const override { return gasConst_.size(); }
   double GasConstant(const int &ii) const override { return gasConst_[ii]; }
+  double MixtureGasConstant(const vector<double> &mf) const override {
+    MSG_ASSERT(mf.size() == gasConst_.size(), "mismatch in species size");
+    return std::inner_product(std::begin(mf), std::end(mf),
+                              std::begin(gasConst_), 0.0);
+  }
   const vector<double> &GasConstants() const override { return gasConst_; }
   double PressFromEnergy(const unique_ptr<thermodynamic> &thermo,
                          const vector<double> &rho, const double &energy,
@@ -96,13 +108,17 @@ class idealGas : public eos {
   double SpecEnergy(const unique_ptr<thermodynamic> &thermo, const double &t,
                     const vector<double> &mf) const override;
   double Energy(const double &specEn, const double &vel) const override;
+  double SpeciesEnthalpy(const unique_ptr<thermodynamic> &thermo,
+                         const double &t, const double &vel,
+                         const int &ss) const override;
   double Enthalpy(const unique_ptr<thermodynamic> &thermo, const double &t,
                   const double &vel, const vector<double> &mf) const override;
   double SoS(const unique_ptr<thermodynamic> &thermo, const double &pressure,
              const vector<double> &rho) const override;
   double Temperature(const double &pressure,
                      const vector<double> &rho) const override;
-  double DensityTP(const double &temp, const double &press) const override;
+  double DensityTP(const double &temp, const double &press,
+                   const vector<double> &mf) const override;
 
   // Destructor
   ~idealGas() noexcept {}

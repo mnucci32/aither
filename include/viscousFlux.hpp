@@ -56,8 +56,8 @@ class viscousFlux : public varArray {
   void CalcFlux(const tensor<double> &, const physics &,
                 const vector3d<double> &, const vector3d<double> &,
                 const vector3d<double> &, const vector3d<double> &,
-                const primitive &, const double &, const double &,
-                const double &);
+                const vector<vector3d<double>> &, const primitive &,
+                const double &, const double &, const double &);
   wallVars CalcWallFlux(const tensor<double> &, const physics &,
                         const vector3d<double> &, const vector3d<double> &,
                         const vector3d<double> &, const vector3d<double> &,
