@@ -26,7 +26,7 @@ function InstallCmake() {
 
 function main() {
     InstallMPI
-    InstallCmake
+    # InstallCmake
 }
 
 main
