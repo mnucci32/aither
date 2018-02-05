@@ -3,7 +3,6 @@ function BuildAither() {
     # Build Aither with cmake
     md build
     cd build
-    cmake --version
     cmake -G "Visual Studio 15 2017 Win64" -DMPI_DIR="C:\Program Files (x86)\Microsoft SDKs\MPI" ..
     cmake --build . --target INSTALL --config release
     cd ..
