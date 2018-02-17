@@ -20,6 +20,7 @@
 // This header file contains the classes for chemistry models
 
 #include <vector>
+#include "reactions.hpp"
 
 using std::vector;
 
@@ -42,12 +43,15 @@ class chemistry {
 
   // Member functions for abstract base class
   const int& NumReactions() const { return numReactions_; }
+  virtual vector<double> SourceTerms(const vector<double>& rho,
+                                     const double& t) const = 0;
+  virtual void AddReaction(const reaction &r) {}
 
   // Destructor
   virtual ~chemistry() noexcept {}
 };
 
-// this class models no chemistry
+// this class models no reacting chemistry
 class frozen : public chemistry {
 
  public:
@@ -63,9 +67,43 @@ class frozen : public chemistry {
   frozen& operator=(const frozen&) = default;
 
   // Member functions
+  vector<double> SourceTerms(const vector<double>& rho,
+                             const double& t) const override {
+    return vector<double>(rho.size(), 0.0);
+  }
 
   // Destructor
   ~frozen() noexcept {}
+};
+
+
+// this class models reacting chemistry
+class reacting : public chemistry {
+  vector<reaction> reactions_;
+  vector<double> molarMass_;
+
+ public:
+  // Constructors
+  reacting(const int& nr, const vector<double>& m)
+      : chemistry(nr), molarMass_(m) {
+    reactions_.reserve(nr);
+  }
+
+  // move constructor and assignment operator
+  reacting(reacting&&) noexcept = default;
+  reacting& operator=(reacting&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  reacting(const reacting&) = default;
+  reacting& operator=(const reacting&) = default;
+
+  // Member functions
+  vector<double> SourceTerms(const vector<double>& rho,
+                             const double& t) const override;
+  void AddReaction(const reaction& r) override { reactions_.push_back(r); }
+
+  // Destructor
+  ~reacting() noexcept {}
 };
 
 // --------------------------------------------------------------------------
