@@ -694,16 +694,14 @@ void fluxJacobian::ApproxTSLJacobian(const T &state, const double &lamVisc,
   constexpr auto third = 1.0 / 3.0;
   const auto ns = state.NumSpecies();
   for (auto ii = 0; ii < ns; ++ii) {
-    auto speciesEnthalpy = 0.0;
     for (auto jj = 0; jj < ns; ++jj) {
       this->FlowJacobian(ii, jj) = phys.Diffusion()->DiffCoeff(mu, mut) *
                                    (Kronecker(ii, jj) - mf[ii]) /
                                    ((mu + mut) * rho);
-      speciesEnthalpy +=
-          this->FlowJacobian(ii, jj) * state.SpeciesEnthalpy(phys, jj);
     }
-
     // assign species column
+    const auto speciesEnthalpy =
+        this->FlowJacobian(ii, ii) * state.SpeciesEnthalpy(phys, ii);
     this->FlowJacobian(ns + 3, ii) =
         -(k + kt) * t / ((mu + mut) * rho) + speciesEnthalpy;
   }
