@@ -25,6 +25,7 @@
 #include "thermodynamic.hpp"
 #include "diffusion.hpp"
 #include "turbulence.hpp"
+#include "chemistry.hpp"
 
 using std::unique_ptr;
 
@@ -38,17 +39,19 @@ class physics {
   unique_ptr<thermodynamic> thermodynamic_;
   unique_ptr<diffusion> diffusion_;
   unique_ptr<turbModel> turbulence_;
+  unique_ptr<chemistry> chemistry_;
 
  public:
   // Constructor
   physics(unique_ptr<eos> &eqnState, unique_ptr<transport> &trans,
           unique_ptr<thermodynamic> &thermo, unique_ptr<diffusion> &diff,
-          unique_ptr<turbModel> &turb)
+          unique_ptr<turbModel> &turb, unique_ptr<chemistry> &chem)
       : eos_(std::move(eqnState)),
         transport_(std::move(trans)),
         thermodynamic_(std::move(thermo)),
         diffusion_(std::move(diff)),
-        turbulence_(std::move(turb)) {}
+        turbulence_(std::move(turb)),
+        chemistry_(std::move(chem)) {}
 
   // move constructor and assignment operator
   physics(physics&&) noexcept = default;
@@ -67,6 +70,7 @@ class physics {
   }
   const unique_ptr<diffusion> &Diffusion() const { return diffusion_; }
   const unique_ptr<turbModel> &Turbulence() const { return turbulence_; }
+  const unique_ptr<chemistry> &Chemistry() const { return chemistry_; }
 
   // Destructor
   virtual ~physics() noexcept {}

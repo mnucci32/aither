@@ -41,6 +41,7 @@ class transport;
 class thermodynamic;
 class diffusion;
 class physics;
+class chemistry;
 
 class input {
   string simName_;  // simulation name
@@ -87,6 +88,7 @@ class input {
   string equationOfState_;  // model for equation of state
   string transportModel_;  // model for viscous transport
   string diffusionModel_;  // model for species diffusion
+  string chemistryModel_;  // model for chemical reactions
   int restartFrequency_;  // how often to output restart data
   int iterationStart_;  // starting number for iterations
   double schmidtNumber_;  // schmidt number for species diffusion
@@ -109,6 +111,7 @@ class input {
   unique_ptr<transport> AssignTransportModel() const;
   unique_ptr<diffusion> AssignDiffusionModel(const double &) const;
   unique_ptr<thermodynamic> AssignThermodynamicModel() const;
+  unique_ptr<chemistry> AssignChemistryModel() const;
 
  public:
   // constructor
@@ -215,6 +218,7 @@ class input {
   string EquationOfState() const {return equationOfState_;}
   string TransportModel() const {return transportModel_;}
   string DiffusionModel() const {return diffusionModel_;}
+  string ChemistryModel() const {return chemistryModel_;}
 
   int NumVars() const {return vars_.size();}
   int NumVarsOutput() const {return outputVariables_.size();}

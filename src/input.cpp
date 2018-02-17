@@ -88,6 +88,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   equationOfState_ = "idealGas";  // default to ideal gas
   transportModel_ = "sutherland";  // default to sutherland
   diffusionModel_ = "none";  // default to no diffusion
+  chemistryModel_ = "frozen";  // default to nonreacting flow
   restartFrequency_ = 0;  // default to not write restarts
   iterationStart_ = 0;  // default to start from iteration zero
   schmidtNumber_ = 0.9;
@@ -126,6 +127,7 @@ input::input(const string &name, const string &resName) : simName_(name),
            "turbulenceModel",
            "thermodynamicModel",
            "diffusionModel",
+           "chemistryModel",
            "equationOfState",
            "transportModel",
            "outputVariables",
@@ -390,6 +392,11 @@ void input::ReadInput(const int &rank) {
           transportModel_ = tokens[1];
           if (rank == ROOTP) {
             cout << key << ": " << this->TransportModel() << endl;
+          }
+        } else if (key == "chemistryModel") {
+          chemistryModel_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->ChemistryModel() << endl;
           }
         } else if (key == "diffusionModel") {
           diffusionModel_ = tokens[1];
@@ -761,13 +768,29 @@ unique_ptr<diffusion> input::AssignDiffusionModel(const double &sct) const {
   return diff;
 }
 
+// member function to get chemistry model
+unique_ptr<chemistry> input::AssignChemistryModel() const {
+  // define thermodynamic model
+  unique_ptr<chemistry> chem(nullptr);
+  if (chemistryModel_ == "frozen" || chemistryModel_ == "none") {
+    chem = unique_ptr<chemistry>{std::make_unique<frozen>()};
+  } else {
+    cerr << "ERROR: Error in input::AssignChemistryModel(). Chemistry "
+         << "model " << chemistryModel_ << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return chem;
+}
+
+
 physics input::AssignPhysicsModels() const {
   auto eqnState = this->AssignEquationOfState();
   auto trans = this->AssignTransportModel();
   auto thermo = this->AssignThermodynamicModel();
   auto turb = this->AssignTurbulenceModel();
   auto diff = this->AssignDiffusionModel(turb->TurbSchmidtNumber());
-  return {eqnState, trans, thermo, diff, turb};
+  auto chem = this->AssignChemistryModel();
+  return {eqnState, trans, thermo, diff, turb, chem};
 }
 
 // member function to return the name of the simulation without the file
