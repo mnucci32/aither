@@ -46,6 +46,11 @@ class chemistry {
   virtual vector<double> SourceTerms(const vector<double>& rho,
                                      const double& t) const = 0;
   virtual void AddReaction(const reaction &r) {}
+  virtual bool IsReacting() const { return false; }
+  virtual double SrcSpecRad(const vector<double>& rho, const double& t,
+                            const double& vol) const {
+    return 0.0;
+  }
 
   // Destructor
   virtual ~chemistry() noexcept {}
@@ -101,6 +106,11 @@ class reacting : public chemistry {
   vector<double> SourceTerms(const vector<double>& rho,
                              const double& t) const override;
   void AddReaction(const reaction& r) override { reactions_.push_back(r); }
+  bool IsReacting() const override { return true; }
+  double SrcSpecRad(const vector<double>& rho, const double& t,
+                    const double& vol) const override {
+    return 0.0;
+  }
 
   // Destructor
   ~reacting() noexcept {}

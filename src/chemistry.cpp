@@ -38,7 +38,7 @@ vector<double> reacting::SourceTerms(const vector<double>& rho,
       for (auto ff = 0U; ff < src.size(); ++ff) {
         bckTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichProduct(ff));
       }
-      src[ss] += kf * fwdTerm - kb * bckTerm;
+      src[ss] += prodMinReac * (kf * fwdTerm - kb * bckTerm);
     }
     src[ss] *= molarMass_[ss];
   }

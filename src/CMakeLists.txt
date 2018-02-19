@@ -29,6 +29,7 @@ configure_file (
 set(sources
   main.cpp
   boundaryConditions.cpp
+  chemistry.cpp
   conserved.cpp
   eos.cpp
   fluid.cpp

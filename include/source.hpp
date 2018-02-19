@@ -62,6 +62,8 @@ class source : public residual {
                            const unique_ptr<transport> &, const double &,
                            const double &, const double &, const double &,
                            const double &);
+  squareMatrix CalcChemSrc(const unique_ptr<chemistry> &, const primitiveView &,
+                           const double &);
 
   // destructor
   ~source() noexcept {}

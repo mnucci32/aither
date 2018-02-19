@@ -56,7 +56,7 @@ class reaction {
   double BackwardRate(const double &t) const {
     return this->ForwardRate(t) / this->EquilibriumRate(t);
   }
-  double EquilibriumRate(const double &t) const;
+  double EquilibriumRate(const double &t) const { return 0.0; }
 
   // Destructor
   ~reaction() noexcept {}

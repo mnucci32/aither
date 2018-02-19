@@ -23,6 +23,8 @@
 #include "vector3d.hpp"
 #include "tensor.hpp"
 #include "matrix.hpp"
+#include "arrayView.hpp"
+#include "primitive.hpp"
 
 using std::cout;
 using std::endl;
@@ -35,6 +37,16 @@ ostream &operator<<(ostream &os, const source &m) {
     os << m[rr] << endl;
   }
   return os;
+}
+
+// Member function to calculate the source terms for the species equations
+squareMatrix source::CalcChemSrc(const unique_ptr<chemistry> &chem,
+                                 const primitiveView &state,
+                                 const double &temperature) {
+  const auto src = chem->SourceTerms(state.RhoVec(), temperature);
+  std::copy(std::begin(src), std::end(src), std::begin(*this));
+
+  return squareMatrix();
 }
 
 // Member function to calculate the source terms for the turbulence equations
