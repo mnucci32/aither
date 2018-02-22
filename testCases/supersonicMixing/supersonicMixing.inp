@@ -1,3 +1,6 @@
+# Supersonic mixing simulation of Burrows & Kurkov experiments
+# https://www.grc.nasa.gov/WWW/wind/valid/bk/study01/bk1.html
+
 # grid name
 gridName: supersonicMixing
 
@@ -30,7 +33,7 @@ referenceLength: 1
 
 fluids: <fluid(name=H2O; referenceMassFraction=0.233),
          fluid(name=H2; referenceMassFraction=0.001),
-	       fluid(name=N2; referenceMassFraction=0.766)>
+         fluid(name=N2; referenceMassFraction=0.766)>
 thermodynamicModel: caloricallyPerfect
 diffusionModel: schmidt
 turbulenceModel: sst2003
@@ -38,8 +41,8 @@ turbulenceModel: sst2003
 initialConditions: <icState(tag=1; pressure=101325.9; density=0.26; velocity=[1792.6, 0, 0]; massFractions=[H2O=0.233, H2=0.001, N2=0.766]),
                     icState(tag=-1; pressure=101325.9; density=0.0819; velocity=[1316.16, 0, 0]; massFractions=[H2=1.0])>
 
-matrixSolver: bdplur
-matrixSweeps: 4
+matrixSolver: lusgs
+matrixSweeps: 2
 matrixRelaxation: 1
 
 boundaryStates: <inlet(tag=6; pressure=101325.9; density=0.0819; velocity=[1316.16, 0, 0]; massFractions=[H2=1.0]),
