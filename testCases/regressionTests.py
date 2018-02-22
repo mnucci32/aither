@@ -519,13 +519,13 @@ def main():
     supersonicMixing.SetNumberOfProcessors(maxProcs)
     supersonicMixing.SetNumberOfIterations(numIterationsShort)
     if supersonicMixing.Processors() == 2:
-        supersonicMixing.SetResiduals([5.7436e-01, 4.9499e-01, 2.4193e+00, 
-                                       2.3909e-01, 4.5435e-01, 5.1492e-04,
-                                       4.1399e-05])
+        supersonicMixing.SetResiduals([2.1444e-01, 1.5217e-01, 1.2462e+00, 
+                                       8.2062e-02, 1.1356e-01, 3.6555e-04,
+                                       1.1891e-05])
     else:
-        supersonicMixing.SetResiduals([5.7436e-01, 4.9499e-01, 2.4193e+00,
-                                       2.3902e-01, 4.5435e-01, 5.1492e-04,
-                                       4.1400e-05])
+        supersonicMixing.SetResiduals([2.1185e-01, 1.5024e-01, 1.2409e+00,
+                                       8.6013e-02, 1.1192e-01, 3.6604e-04,
+                                       1.1882e-05])
     supersonicMixing.SetIgnoreIndices(3)
     supersonicMixing.SetMpirunPath(options.mpirunPath)
 
