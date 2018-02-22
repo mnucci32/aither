@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,6 +39,8 @@ class turbModel;
 class eos;
 class transport;
 class thermodynamic;
+class diffusion;
+class physics;
 
 class input {
   string simName_;  // simulation name
@@ -54,7 +56,8 @@ class input {
   double tRef_;  // reference temperature
   double lRef_;  // reference length
   double aRef_;  // reference speed of sound
-  vector<fluid> fluids_;  // fluids in simulation
+  vector<double> mixtureRef_;  // reference mixture mass fractions
+  vector<fluid> fluids_;           // fluids in simulation
   vector<boundaryConditions> bc_;  // vector of boundary conditions for each
                                   // block
   string timeIntegration_;  // time integration method
@@ -83,8 +86,10 @@ class input {
   string thermodynamicModel_;  // model for thermodynamics
   string equationOfState_;  // model for equation of state
   string transportModel_;  // model for viscous transport
+  string diffusionModel_;  // model for species diffusion
   int restartFrequency_;  // how often to output restart data
   int iterationStart_;  // starting number for iterations
+  double schmidtNumber_;  // schmidt number for species diffusion
 
   set<string> outputVariables_;  // variables to output
   set<string> wallOutputVariables_;  // wall variables to output
@@ -98,6 +103,12 @@ class input {
   void CheckWallOutputVariables();
   void CheckTurbulenceModel() const;
   void CheckSpecies() const;
+  void CheckNonreflecting() const;
+  unique_ptr<turbModel> AssignTurbulenceModel() const;
+  unique_ptr<eos> AssignEquationOfState() const;
+  unique_ptr<transport> AssignTransportModel() const;
+  unique_ptr<diffusion> AssignDiffusionModel(const double &) const;
+  unique_ptr<thermodynamic> AssignThermodynamicModel() const;
 
  public:
   // constructor
@@ -125,9 +136,17 @@ class input {
   int IterationStart() const {return iterationStart_;}
 
   double RRef() const {return rRef_;}
-  double LRef() const {return lRef_;}
+  double LRef() const { return lRef_; }
   double TRef() const {return tRef_;}
   double ARef() const {return aRef_;}
+  vector<double> MixtureRef() const { return mixtureRef_; }
+  vector<double> RRefVec() const {
+    auto rhoVec = mixtureRef_;
+    for (auto &rho : rhoVec) {
+      rho *= rRef_;
+    }
+    return rhoVec;
+  }
   void NondimensionalizeStateData(const unique_ptr<eos> &);
   void NondimensionalizeFluid();
 
@@ -137,6 +156,7 @@ class input {
 
   string TimeIntegration() const { return timeIntegration_; }
   bool IsMultilevelInTime() const { return timeIntegration_ == "bdf2"; }
+  bool IsMultiSpecies() const { return this->NumSpecies() > 1; }
   bool NeedToStoreTimeN() const {
     return this->IsImplicit() || this->TimeIntegration() == "rk4";
   }
@@ -194,12 +214,14 @@ class input {
   string ThermodynamicModel() const {return thermodynamicModel_;}
   string EquationOfState() const {return equationOfState_;}
   string TransportModel() const {return transportModel_;}
+  string DiffusionModel() const {return diffusionModel_;}
 
   int NumVars() const {return vars_.size();}
   int NumVarsOutput() const {return outputVariables_.size();}
   int NumWallVarsOutput() const {return wallOutputVariables_.size();}
   int NumEquations() const;
-  int NumFlowEquations() const {return NUMFLOWVARS;}
+  int NumSpecies() const { return fluids_.size(); }
+  int NumFlowEquations() const {return 4 + this->NumSpecies();}
   int NumTurbEquations() const;
 
   void ReadInput(const int &);
@@ -210,23 +232,27 @@ class input {
   bool IsRANS() const;
   bool IsLES() const;
   bool IsBlockMatrix() const;
-
+  bool IsTimeAccurate() const {
+    return timeIntegration_ == "bdf2" || timeIntegration_ == "rk4" ||
+           timeIntegration_ == "crankNicholson";
+  }
   string OrderOfAccuracy() const;
 
-  unique_ptr<turbModel> AssignTurbulenceModel() const;
-  unique_ptr<eos> AssignEquationOfState(const unique_ptr<thermodynamic> &);
-  unique_ptr<transport> AssignTransportModel() const;
-  unique_ptr<thermodynamic> AssignThermodynamicModel() const;
+  physics AssignPhysicsModels() const;
 
   double ViscousCFLCoefficient() const;
-
   int NumberGhostLayers() const;
 
   icState ICStateForBlock(const int &) const;
   const shared_ptr<inputState> & BCData(const int &) const;
-  fluid Fluid(const int = 0) const;
+  const fluid &Fluid(const int &ii) const { return fluids_[ii]; }
+  void CheckSpecies(const vector<string> &) const;
+  bool HaveSpecies(const string &) const;
+  int SpeciesIndex(const string &) const;
 
   bool IsWenoZ() const {return this->FaceReconstruction() == "wenoZ";}
+
+  double SchmidtNumber() const { return schmidtNumber_; }
 
   // destructor
   ~input() noexcept {}

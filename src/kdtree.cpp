@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ kdtree::kdtree(const vector<vector3d<double>> &points) {
   // points -- all points to search through, stored in kdtree
 
   nodes_.resize(points.size());
-  for (auto ii = 0; ii < nodes_.size(); ++ii) {
+  for (auto ii = 0U; ii < nodes_.size(); ++ii) {
     nodes_[ii] = std::make_pair(points[ii], ii);
   }
   right_ = vector<int>(points.size(), -1);

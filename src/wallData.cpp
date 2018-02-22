@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,91 @@
 #include "vector3d.hpp"
 #include "input.hpp"
 #include "eos.hpp"
-#include "primVars.hpp"
+#include "primitive.hpp"
+
+// wallVars functions
+void wallVars::Pack(char *(&sendBuffer), const int &sendBufSize, int &position,
+                    const MPI_Datatype &MPI_vec3d) const {
+  // sendBuffer -- buffer to pack data into
+  // sendBufSize -- size of buffer
+  // position -- location within buffer
+  // MPI_vec3d -- datatype for vector3d
+
+  // pack wall shear stress
+  MPI_Pack(&shearStress_, 1, MPI_vec3d, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  // pack wall scalars
+  MPI_Pack(&heatFlux_, 1, MPI_DOUBLE, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&yplus_, 1, MPI_DOUBLE, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&temperature_, 1, MPI_DOUBLE, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&turbEddyVisc_, 1, MPI_DOUBLE, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&viscosity_, 1, MPI_DOUBLE, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&density_, 1, MPI_DOUBLE, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&frictionVelocity_, 1, MPI_DOUBLE, sendBuffer, sendBufSize,
+           &position, MPI_COMM_WORLD);
+  MPI_Pack(&tke_, 1, MPI_DOUBLE, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&sdr_, 1, MPI_DOUBLE, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(mf_)), mf_.size(), MPI_DOUBLE, sendBuffer, sendBufSize,
+           &position, MPI_COMM_WORLD);
+}
+
+void wallVars::PackSize(int &sendBufSize, const MPI_Datatype &MPI_vec3d) const {
+  auto tempSize = 0;
+  // add size for shear stress
+  MPI_Pack_size(1, MPI_vec3d, MPI_COMM_WORLD, &tempSize);
+  sendBufSize += tempSize;
+  // 9 because 9 scalar varialbes
+  MPI_Pack_size(9, MPI_DOUBLE, MPI_COMM_WORLD, &tempSize);
+  sendBufSize += tempSize;
+  // add size for mf
+  MPI_Pack_size(mf_.size(), MPI_DOUBLE, MPI_COMM_WORLD, &tempSize);
+  sendBufSize += tempSize;
+}
+
+void wallVars::Unpack(char *(&recvBuffer), const int &recvBufSize,
+                      int &position, const MPI_Datatype &MPI_vec3d,
+                      const int &numSpecies) {
+  // recvBuffer -- buffer to unpack data from
+  // recvBufSize -- size of buffer
+  // position -- location within buffer
+
+  // unpack shear stress
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &shearStress_, 1, MPI_vec3d,
+             MPI_COMM_WORLD);
+  // unpack wall scalars
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &heatFlux_, 1, MPI_DOUBLE,
+             MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &yplus_, 1, MPI_DOUBLE,
+             MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &temperature_, 1, MPI_DOUBLE,
+             MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &turbEddyVisc_, 1, MPI_DOUBLE,
+             MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &viscosity_, 1, MPI_DOUBLE,
+             MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &density_, 1, MPI_DOUBLE,
+             MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &frictionVelocity_, 1,
+             MPI_DOUBLE, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &tke_, 1, MPI_DOUBLE,
+             MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &sdr_, 1, MPI_DOUBLE,
+             MPI_COMM_WORLD);
+  // unpack mass fractions
+  mf_.clear();
+  mf_.resize(numSpecies);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(mf_)),
+             numSpecies, MPI_DOUBLE, MPI_COMM_WORLD);
+}
+
 
 // member functions
 vector3d<double> wallData::WallShearStress(const int &ii, const int &jj,
@@ -55,7 +139,7 @@ double wallData::WallEddyViscosity(const int &ii, const int &jj,
 
 double wallData::WallPressure(const int &ii, const int &jj, const int &kk,
                               const unique_ptr<eos> &eqnState) const {
-  return eqnState->PressureRT(this->WallDensity(ii, jj, kk),
+  return eqnState->PressureRT(this->WallDensityVec(ii, jj, kk),
                               this->WallTemperature(ii, jj, kk));
 }
 
@@ -69,6 +153,20 @@ double wallData::WallDensity(const int &ii, const int &jj,
   return (*this)(ii, jj, kk).density_;
 }
 
+vector<double> wallData::WallMassFractions(const int &ii, const int &jj,
+                                           const int &kk) const {
+  return (*this)(ii, jj, kk).mf_;
+}
+
+vector<double> wallData::WallDensityVec(const int &ii, const int &jj,
+                                        const int &kk) const {
+  const auto rho = this->WallDensity(ii, jj, kk);
+  auto rhoVec = this->WallMassFractions(ii, jj, kk);
+  std::for_each(rhoVec.begin(), rhoVec.end(),
+                [&rho](double &val) { val *= rho; });
+  return rhoVec;
+}
+
 double wallData::WallFrictionVelocity(const int &ii, const int &jj,
                                       const int &kk) const {
   return (*this)(ii, jj, kk).frictionVelocity_;
@@ -76,7 +174,7 @@ double wallData::WallFrictionVelocity(const int &ii, const int &jj,
 
 void wallData::PackWallData(char *(&sendBuffer), const int &sendBufSize,
                             int &position,
-                            const MPI_Datatype &MPI_wallData) const {
+                            const MPI_Datatype &MPI_vec3d) const {
   // sendBuffer -- buffer to pack data into
   // sendBufSize -- size of buffer
   // position -- location within buffer
@@ -87,21 +185,28 @@ void wallData::PackWallData(char *(&sendBuffer), const int &sendBufSize,
   MPI_Pack(&viscousForce_, 1, MPI_DOUBLE, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
 
+  // pack number of species counter
+  MPI_Pack(&numSpecies_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+
   // pointer to bc data - remote processor can get data from input class
 
   // pack boundarySurface
   surf_.PackBoundarySurface(sendBuffer, sendBufSize, position);
 
   // pack wall variables
-  MPI_Pack(&(*std::begin(data_)), data_.Size(), MPI_wallData, sendBuffer,
-           sendBufSize, &position, MPI_COMM_WORLD);
+  for (auto &wv : data_) {
+    wv.Pack(sendBuffer, sendBufSize, position, MPI_vec3d);
+  }
 }
 
-void wallData::PackSize(int &sendBufSize,
-                        const MPI_Datatype &MPI_wallData) const {
+void wallData::PackSize(int &sendBufSize, const MPI_Datatype &MPI_vec3d) const {
   auto tempSize = 0;
   // add sizes for force data
   MPI_Pack_size(2, MPI_DOUBLE, MPI_COMM_WORLD, &tempSize);
+  sendBufSize += tempSize;
+  // add sizes for number of species
+  MPI_Pack_size(1, MPI_INT, MPI_COMM_WORLD, &tempSize);
   sendBufSize += tempSize;
   // 8 because iMin, iMax, jMin, jMax, kMin, kMax, tags, string sizes
   MPI_Pack_size(8, MPI_INT, MPI_COMM_WORLD, &tempSize);
@@ -111,12 +216,13 @@ void wallData::PackSize(int &sendBufSize,
   sendBufSize += tempSize;
 
   // add array of wallData
-  MPI_Pack_size(data_.Size(), MPI_wallData, MPI_COMM_WORLD, &tempSize);
-  sendBufSize += tempSize;
+  for (auto &wv : data_) {
+    wv.PackSize(sendBufSize, MPI_vec3d);
+  }
 }
 
 void wallData::UnpackWallData(char *(&recvBuffer), const int &recvBufSize,
-                              int &position, const MPI_Datatype &MPI_wallData,
+                              int &position, const MPI_Datatype &MPI_vec3d,
                               const input &inp) {
   // recvBuffer -- buffer to unpack data from
   // recvBufSize -- size of buffer
@@ -128,6 +234,10 @@ void wallData::UnpackWallData(char *(&recvBuffer), const int &recvBufSize,
   MPI_Unpack(recvBuffer, recvBufSize, &position, &viscousForce_, 1, MPI_DOUBLE,
              MPI_COMM_WORLD);
 
+  // unpack number of species
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &numSpecies_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+
   // unpack BC surface
   surf_.UnpackBoundarySurface(recvBuffer, recvBufSize, position);
   
@@ -135,9 +245,11 @@ void wallData::UnpackWallData(char *(&recvBuffer), const int &recvBufSize,
   bcData_ = inp.BCData(surf_.Tag());
 
   // unpack wall variables
-  data_.ClearResize(surf_.NumI(), surf_.NumJ(), surf_.NumK(), 0);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(data_)),
-             data_.Size(), MPI_wallData, MPI_COMM_WORLD);
+  data_.ClearResize(surf_.NumI(), surf_.NumJ(), surf_.NumK(), 0, 1,
+                    wallVars(numSpecies_));
+  for (auto &wv : data_) {
+    wv.Unpack(recvBuffer, recvBufSize, position, MPI_vec3d, numSpecies_);
+  }
 }
 
 // Split wallData at given direction and index
@@ -173,7 +285,8 @@ void wallData::Join(const wallData &upper, const string &dir, bool &joined) {
     inviscidForce_ += upper.inviscidForce_;
     viscousForce_ += upper.viscousForce_;
 
-    multiArray3d<wallVars> newVars(surf_.NumI(), surf_.NumJ(), surf_.NumK(), 0);
+    multiArray3d<wallVars> newVars(surf_.NumI(), surf_.NumJ(), surf_.NumK(), 0,
+                                   1, wallVars(numSpecies_));
     newVars.Insert(dir, {data_.Start(dir), data_.PhysEnd(dir)},
                    data_.Slice(dir, {data_.Start(dir), data_.PhysEnd(dir)}));
     newVars.Insert(dir, {data_.PhysEnd(dir), newVars.End(dir)},
@@ -183,16 +296,26 @@ void wallData::Join(const wallData &upper, const string &dir, bool &joined) {
   }
 }
 
-  primVars wallData::WallState(const int &ii, const int &jj, const int &kk,
-                     const unique_ptr<eos> &eqnState) const {
-    return primVars(this->WallDensity(ii, jj, kk), this->WallVelocity(),
-                    this->WallPressure(ii, jj, kk, eqnState),
-                    this->WallTke(ii, jj, kk), this->WallSdr(ii, jj, kk));
+  void wallData::WallState(const int &ii, const int &jj, const int &kk,
+                     const unique_ptr<eos> &eqnState, primitive &wState) const {
+    auto rhoVec = this->WallDensityVec(ii, jj, kk);
+    for (auto ii = 0; ii < wState.NumSpecies(); ++ii) {
+      wState[ii] = rhoVec[ii];
+    }
+    wState[wState.MomentumXIndex()] = this->WallVelocity().X();
+    wState[wState.MomentumYIndex()] = this->WallVelocity().Y();
+    wState[wState.MomentumZIndex()] = this->WallVelocity().Z();
+    wState[wState.EnergyIndex()] = this->WallPressure(ii, jj, kk, eqnState);
+    for (auto ii = 0; ii < wState.NumTurbulence(); ++ii) {
+      wState[wState.TurbulenceIndex() + ii] =
+          (ii == 0) ? this->WallTke(ii, jj, kk) : this->WallSdr(ii, jj, kk);
+    }
   }
 
   void wallData::Print(ostream &os) const {
     os << "Inviscid Force: " << inviscidForce_ << endl;
     os << "Viscous Force: " << viscousForce_ << endl;
+    os << "Number of Species: " << numSpecies_ << endl;
     os << "BC Data: ";
     bcData_->Print(os);
     os << endl;

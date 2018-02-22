@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,13 +20,51 @@
 
 #include <iostream>
 #include <vector>
+#include <algorithm>
+#include <functional>
 #include "macros.hpp"
 
 using std::ostream;
 using std::vector;
 
-// forward class declarations
-class genArray;
+// forward class declaration
+class varArray;
+
+// ---------------------------------------------------------------------------
+// matrix functions
+
+// function for matrix multiplication
+// using cache efficient implimentation
+void MatrixMultiply(const vector<double>::const_iterator &matL,
+                    const vector<double>::const_iterator &matR,
+                    const vector<double>::iterator &result, const int &size);
+
+double MaximumAbsValOnDiagonal(const vector<double>::const_iterator &mat,
+                               const int &size);
+
+void IdentityMatrix(const vector<double>::iterator &mat, const int &size);
+
+int FindMaxInColumn(const vector<double>::const_iterator &mat, const int &size,
+                    const int &c, const int &start, const int &end);
+
+void RowMultiplyFactor(const vector<double>::iterator &mat, const int &size,
+                       const int &r, const int &c, const double &factor);
+
+void LinearCombRow(const vector<double>::iterator &mat, const int &size,
+                   const int &r1, const double &factor, const int &r2);
+
+void SwapMatRows(const vector<double>::iterator &mat, const int &size,
+                 const int &r1, const int &r2);
+
+void MatrixInverse(const vector<double>::iterator &mat, const int &size);
+
+void MultiplyFacOnDiagonal(const vector<double>::iterator &mat, const int &size,
+                           const double &val);
+
+void AddFacOnDiagonal(const vector<double>::iterator &mat, const int &size,
+                      const double &val);
+
+// ---------------------------------------------------------------------------                      
 
 // class to store a square matrix
 class squareMatrix {
@@ -52,17 +90,36 @@ class squareMatrix {
   squareMatrix& operator=(const squareMatrix &) = default;
 
   // member functions
+  // provide begin and end so std::begin and std::end can be used
+  // use lower case to conform with std::begin, std::end
+  auto begin() noexcept {return data_.begin();}
+  const auto begin() const noexcept {return data_.begin();}
+  auto end() noexcept {return data_.end();}
+  const auto end() const noexcept {return data_.end();}
+
   int Size() const {return size_;}
-  void SwapRows(const int &, const int &);
-  void Inverse();
-  int FindMaxInCol(const int &, const int &, const int &) const;
-  void RowMultiply(const int &, const int &, const double &);
-  void LinCombRow(const int &, const double &, const int &);
-  void Zero();
-  void Identity();
+  void SwapRows(const int &r1, const int &r2) {
+    SwapMatRows(this->begin(), size_, r1, r2);
+  }
+  void Inverse() { MatrixInverse(this->begin(), size_); }
+  int FindMaxInCol(const int &c, const int &start, const int &end) const {
+    return FindMaxInColumn(this->begin(), size_, c, start, end);
+  }
+  void RowMultiply(const int &r, const int &c, const double &fac) {
+    RowMultiplyFactor(this->begin(), size_, r, c, fac);
+  }
+  void LinCombRow(const int &r1, const double &fac, const int &r2) {
+    LinearCombRow(this->begin(), size_, r1, fac, r2);
+  }
+  void Zero() { std::fill(this->begin(), this->end(), 0.0); }
+  void Identity() { IdentityMatrix(this->begin(), size_); }
   squareMatrix MatMult(const squareMatrix &) const;
-  genArray ArrayMult(const genArray &, const int = 0) const;
-  double MaxAbsValOnDiagonal() const;
+  template <typename T,
+            typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+  T ArrayMult(const T &, const int = 0) const;
+  double MaxAbsValOnDiagonal() const {
+    return MaximumAbsValOnDiagonal(this->begin(), size_);
+  }
 
   // operator overloads
   double & operator()(const int &r, const int &c) {
@@ -105,37 +162,62 @@ class squareMatrix {
 
 
 // function declarations
+// member function to do matrix/vector multplication with varArray type
+template <typename T, typename TT>
+T squareMatrix::ArrayMult(const T &vec, const int pos) const {
+  // vec -- vector to multiply with
+  auto product = vec;
+
+  // zero out portion of array that will be written over
+  if (pos == 0) {
+    for (auto ii = 0; ii < vec.TurbulenceIndex(); ii++) {
+      product[ii] = 0.0;
+    }
+  } else {
+    for (auto ii = pos; ii < vec.Size(); ii++) {
+      product[ii] = 0.0;
+    }
+  }
+
+  for (auto rr = 0; rr < size_; rr++) {
+    for (auto cc = 0; cc < size_; cc++) {
+      product[pos + rr] += (*this)(rr, cc) * vec[pos + cc];
+    }
+  }
+  return product;
+}
+
 ostream &operator<<(ostream &os, const squareMatrix &);
 
 // operator overload for addition
 squareMatrix & squareMatrix::operator+=(const squareMatrix &mat) {
-  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
-    data_[ii] += mat.data_[ii];
-  }
+  MSG_ASSERT(this->Size() == mat.Size(), "matrix sizes must be equal");
+  std::transform(this->begin(), this->end(), mat.begin(), this->begin(),
+                 std::plus<double>());
   return *this;
 }
 
 // operator overload for subtraction
 squareMatrix & squareMatrix::operator-=(const squareMatrix &mat) {
-  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
-    data_[ii] -= mat.data_[ii];
-  }
+  MSG_ASSERT(this->Size() == mat.Size(), "matrix sizes must be equal");
+  std::transform(this->begin(), this->end(), mat.begin(), this->begin(),
+                 std::minus<double>());
   return *this;
 }
 
 // operator overload for elementwise multiplication
 squareMatrix & squareMatrix::operator*=(const squareMatrix &mat) {
-  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
-    data_[ii] *= mat.data_[ii];
-  }
+  MSG_ASSERT(this->Size() == mat.Size(), "matrix sizes must be equal");
+  std::transform(this->begin(), this->end(), mat.begin(), this->begin(),
+                 std::multiplies<double>());
   return *this;
 }
 
 // operator overload for elementwise multiplication
 squareMatrix & squareMatrix::operator/=(const squareMatrix &mat) {
-  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
-    data_[ii] /= mat.data_[ii];
-  }
+  MSG_ASSERT(this->Size() == mat.Size(), "matrix sizes must be equal");
+  std::transform(this->begin(), this->end(), mat.begin(), this->begin(),
+                 std::divides<double>());
   return *this;
 }
 
@@ -158,33 +240,29 @@ inline const squareMatrix operator/(squareMatrix lhs, const squareMatrix &rhs) {
 // operator overloads for double --------------------------------------------
 // operator overload for addition
 squareMatrix & squareMatrix::operator+=(const double &scalar) {
-  for (auto &val : data_) {
-    val += scalar;
-  }
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val += scalar; });
   return *this;
 }
 
 // operator overload for subtraction
 squareMatrix & squareMatrix::operator-=(const double &scalar) {
-  for (auto &val : data_) {
-    val -= scalar;
-  }
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val -= scalar; });
   return *this;
 }
 
 // operator overload for multiplication
 squareMatrix & squareMatrix::operator*=(const double &scalar) {
-  for (auto &val : data_) {
-    val *= scalar;
-  }
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val *= scalar; });
   return *this;
 }
 
 // operator overload for division
 squareMatrix & squareMatrix::operator/=(const double &scalar) {
-  for (auto &val : data_) {
-    val /= scalar;
-  }
+  std::for_each(this->begin(), this->end(),
+                [&scalar](auto &val) { val /= scalar; });
   return *this;
 }
 
@@ -193,11 +271,7 @@ inline const squareMatrix operator+(const double &lhs, squareMatrix rhs) {
 }
 
 inline const squareMatrix operator-(const double &lhs, squareMatrix rhs) {
-  for (auto rr = 0; rr < rhs.Size(); rr++) {
-    for (auto cc = 0; cc < rhs.Size(); cc++) {
-      rhs(rr, cc) = lhs - rhs(rr, cc);
-    }
-  }
+  std::for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs - val; });
   return rhs;
 }
 
@@ -206,11 +280,7 @@ inline const squareMatrix operator*(const double &lhs, squareMatrix rhs) {
 }
 
 inline const squareMatrix operator/(const double &lhs, squareMatrix rhs) {
-  for (auto rr = 0; rr < rhs.Size(); rr++) {
-    for (auto cc = 0; cc < rhs.Size(); cc++) {
-      rhs(rr, cc) = lhs / rhs(rr, cc);
-    }
-  }
+  std::for_each(rhs.begin(), rhs.end(), [&lhs](auto &val) { val = lhs / val; });
   return rhs;
 }
 

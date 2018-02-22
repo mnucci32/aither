@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,10 +21,15 @@
 // This header file contains the equation of state classes
 
 #include <memory>
+#include <algorithm>
 #include "vector3d.hpp"
 #include "thermodynamic.hpp"
+#include "macros.hpp"
 
 using std::unique_ptr;
+
+// forward class declaration
+class fluid;
 
 // abstract base class for equation of state
 class eos {
@@ -42,22 +47,33 @@ class eos {
   eos& operator=(const eos&) = default;
 
   // Member functions for abstract base class
+  virtual int NumSpecies() const = 0;
+  virtual double GasConstant(const int &ii) const = 0;
+  virtual double MixtureGasConstant(const vector<double> &mf) const = 0;
+  virtual const vector<double> &GasConstants() const = 0;
   virtual double PressFromEnergy(const unique_ptr<thermodynamic> &thermo,
-                                 const double &rho, const double &energy,
+                                 const vector<double> &rho,
+                                 const double &energy,
                                  const double &vel) const = 0;
-  virtual double PressureRT(const double &rho,
+  virtual double PressureRT(const vector<double> &rho,
                             const double &temperature) const = 0;
   virtual double SpecEnergy(const unique_ptr<thermodynamic> &thermo,
-                            const double &t) const = 0;
+                            const double &t,
+                            const vector<double> &mf) const = 0;
   virtual double Energy(const double &specEn, const double &vel) const = 0;
+  virtual double SpeciesEnthalpy(const unique_ptr<thermodynamic> &thermo,
+                                 const double &t, const double &vel,
+                                 const int &ss) const = 0;
   virtual double Enthalpy(const unique_ptr<thermodynamic> &thermo,
-                          const double &t, const double &vel) const = 0;
-  virtual double SoS(const double &pressure, const double &rho) const = 0;
+                          const double &t, const double &vel,
+                          const vector<double> &mf) const = 0;
+  virtual double SoS(const unique_ptr<thermodynamic> &thermo,
+                     const double &pressure,
+                     const vector<double> &rho) const = 0;
   virtual double Temperature(const double &pressure,
-                             const double &rho) const = 0;
-  virtual double PressureDim(const double &rho,
-                             const double &temperature) const = 0;
-  virtual double DensityTP(const double &temp, const double &press) const = 0;
+                             const vector<double> &rho) const = 0;
+  virtual double DensityTP(const double &temp, const double &press,
+                           const vector<double> &mf) const = 0;
 
   // Destructor
   virtual ~eos() noexcept {}
@@ -69,42 +85,40 @@ class eos {
 // nondimensional from it is P = rho * T / gammaRef
 
 class idealGas : public eos {
-  const double gammaRef_;
-  const double gasConst_;
+  vector<double> gasConst_;
 
  public:
   // Constructor
-  idealGas(const unique_ptr<thermodynamic> &thermo, const double &r,
-           const double &t)
-      : gammaRef_(thermo->Gamma(t)), gasConst_(r) {}
-
-  // move constructor and assignment operator
-  idealGas(idealGas&&) noexcept = default;
-  idealGas& operator=(idealGas&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  idealGas(const idealGas&) = default;
-  idealGas& operator=(const idealGas&) = default;
+  idealGas(const vector<fluid> &, const double &, const double &);
 
   // Member functions
-  double PressFromEnergy(const unique_ptr<thermodynamic> &thermo,
-                         const double &rho, const double &energy,
-                         const double &vel) const override;
-  double PressureRT(const double &rho,
-                    const double &temperature) const override;
-  double SpecEnergy(const unique_ptr<thermodynamic> &thermo,
-                    const double &t) const override;
-  double Energy(const double &specEn, const double &vel) const override;
-  double Enthalpy(const unique_ptr<thermodynamic> &thermo, const double &t,
-                  const double &vel) const override;
-  double SoS(const double &pressure, const double &rho) const override;
-  double Temperature(const double &pressure, const double &rho) const override;
-  double PressureDim(const double &rho,
-                     const double &temperature) const override;
-  // nondimensional version (R=1/gamma)
-  double DensityTP(const double &temp, const double &press) const override {
-    return press * gammaRef_ / temp;
+  int NumSpecies() const override { return gasConst_.size(); }
+  double GasConstant(const int &ii) const override { return gasConst_[ii]; }
+  double MixtureGasConstant(const vector<double> &mf) const override {
+    MSG_ASSERT(mf.size() == gasConst_.size(), "mismatch in species size");
+    return std::inner_product(std::begin(mf), std::end(mf),
+                              std::begin(gasConst_), 0.0);
   }
+  const vector<double> &GasConstants() const override { return gasConst_; }
+  double PressFromEnergy(const unique_ptr<thermodynamic> &thermo,
+                         const vector<double> &rho, const double &energy,
+                         const double &vel) const override;
+  double PressureRT(const vector<double> &rho,
+                    const double &temperature) const override;
+  double SpecEnergy(const unique_ptr<thermodynamic> &thermo, const double &t,
+                    const vector<double> &mf) const override;
+  double Energy(const double &specEn, const double &vel) const override;
+  double SpeciesEnthalpy(const unique_ptr<thermodynamic> &thermo,
+                         const double &t, const double &vel,
+                         const int &ss) const override;
+  double Enthalpy(const unique_ptr<thermodynamic> &thermo, const double &t,
+                  const double &vel, const vector<double> &mf) const override;
+  double SoS(const unique_ptr<thermodynamic> &thermo, const double &pressure,
+             const vector<double> &rho) const override;
+  double Temperature(const double &pressure,
+                     const vector<double> &rho) const override;
+  double DensityTP(const double &temp, const double &press,
+                   const vector<double> &mf) const override;
 
   // Destructor
   ~idealGas() noexcept {}

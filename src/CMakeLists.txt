@@ -2,7 +2,7 @@ project (aither)
 
 # set version number
 set (aither_VERSION_MAJOR 0)
-set (aither_VERSION_MINOR 6)
+set (aither_VERSION_MINOR 8)
 set (aither_VERSION_PATCH 0)
 
 message (STATUS "Cmake version ${CMAKE_VERSION}")
@@ -13,6 +13,7 @@ message (STATUS "Library path: ${CMAKE_LIBRARY_PATH}")
 message (STATUS "Prefix path: ${CMAKE_PREFIX_PATH}")
 message (STATUS "Module path: ${CMAKE_MODULE_PATH}")
 message (STATUS "Build type is: ${CMAKE_BUILD_TYPE}")
+message (STATUS "System name: ${CMAKE_SYSTEM_NAME}")
 
 # add include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
@@ -28,19 +29,22 @@ configure_file (
 set(sources
   main.cpp
   boundaryConditions.cpp
+  conserved.cpp
   eos.cpp
   fluid.cpp
   fluxJacobian.cpp
-  genArray.cpp
+  ghostStates.cpp
   input.cpp
   inputStates.cpp
   inviscidFlux.cpp
   kdtree.cpp
+  limiter.cpp
+  matMultiArray3d.cpp
   matrix.cpp
   output.cpp
   parallel.cpp
   plot3d.cpp
-  primVars.cpp
+  primitive.cpp
   procBlock.cpp
   range.cpp
   resid.cpp
@@ -51,6 +55,7 @@ set(sources
   turbulence.cpp
   uncoupledScalar.cpp
   utility.cpp
+  varArray.cpp
   viscousFlux.cpp
   wallData.cpp
   wallLaw.cpp
@@ -77,31 +82,31 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # set additional c++ flags for all build types
-if (${CMAKE_SYSTEM_NAME} MATCHES "WINDOWS")
-   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} /O2 /DNDEBUG")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS}")
 else()
-   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -march=native -O3 -DNDEBUG")
+   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -Wall -pedantic")
 endif()
 
 # release build type
-if (${CMAKE_SYSTEM_NAME} MATCHES "WINDOWS")
-   set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMPILER_SPEC_FLAGS}")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+   set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMPILER_SPEC_FLAGS} /O2 /DNDEBUG")
 else()
-  set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -march=native")
+  set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -march=native -DNDEBUG")
 endif()
 
 # debug build type
-if (${CMAKE_SYSTEM_NAME} MATCHES "WINDOWS")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
    set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${COMPILER_SPEC_FLAGS} /Wall /Od /PROFILE")
 else()
    set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -O0 -ggdb -pg --coverage")
 endif()
 
 # create profile build type
-if (${CMAKE_SYSTEM_NAME} MATCHES "WINDOWS")
-   set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} /PROFILE")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+   set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} /PROFILE /DNDEBUG")
 else()
-   set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -pg")
+   set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -pg -DNDEBUG")
 endif()
 
 # set compiler flags based on release type
@@ -140,3 +145,7 @@ install (TARGETS aither aitherStatic aitherShared
 FILE (GLOB files "${CMAKE_SOURCE_DIR}/include/*.hpp")
 install (FILES ${files} DESTINATION include)
 install (FILES "${PROJECT_BINARY_DIR}/macros.hpp" DESTINATION include)
+
+# install fluid database files
+FILE (GLOB files "${CMAKE_SOURCE_DIR}/fluidDatabase/*.dat")
+install (FILES ${files} DESTINATION fluidDatabase)

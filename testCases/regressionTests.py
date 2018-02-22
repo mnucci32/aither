@@ -1,5 +1,5 @@
 #   This file is part of aither.
-#   Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+#   Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 #
 #   Aither is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -39,6 +39,8 @@ class regressionTest:
         self.percentTolerance = 0.01
         self.isRestart = False
         self.restartFile = "none"
+        self.passedStatus = "none"
+        self.isProfile = False
 
     def SetRegressionCase(self, name):
         self.caseName = name
@@ -51,6 +53,9 @@ class regressionTest:
 
     def Processors(self):
         return self.procs
+
+    def PassedStatus(self):
+        return self.passedStatus
 
     def SetResiduals(self, resid):
         self.residuals = resid
@@ -75,6 +80,9 @@ class regressionTest:
 
     def SetRestart(self, resFlag):
         self.isRestart = resFlag
+
+    def SetProfile(self, profFlag):
+        self.isProfile = profFlag
 
     def SetRestartFile(self, resFile):
         self.restartFile = resFile
@@ -104,7 +112,7 @@ class regressionTest:
                        for ii, resid in enumerate(resids)]
         else:
             passing = [False for ii in resids]
-        return passing, resids
+        return passing, resids, truthResids
 
     def GetResiduals(self):
         return self.residuals
@@ -121,6 +129,8 @@ class regressionTest:
                         fout.write("iterations: " + str(self.iterations) + "\n")
                     elif "outputFrequency:" in line:
                         fout.write("outputFrequency: " + str(self.iterations) + "\n")
+                    elif "restartFrequency:" in line and self.isProfile:
+                        fout.write("restartFrequency: " + str(self.iterations) + "\n")
                     else:
                         fout.write(line)
 
@@ -152,18 +162,24 @@ class regressionTest:
 
         if (returnCode == 0):
             print("Simulation completed with no errors")
+            # test residuals for pass/fail
+            if not self.isProfile:
+                passed, resids, truth = self.CompareResiduals(returnCode)
+                if all(passed):
+                    print("All tests for", self.caseName, "PASSED!")
+                    self.passedStatus = "PASSED"
+                else:
+                    print("Tests for", self.caseName, "FAILED!")
+                    print("Residuals should be:", truth)
+                    print("Residuals are:", resids)
+                    self.passedStatus = "MISMATCH"
+            else:
+              passed = [True]
+              self.passedStatus = "PROFILE"
         else:
             print("ERROR: Simulation terminated with errors")
+            self.passedStatus = "ERRORS"
         duration = datetime.datetime.now() - start
-
-        # test residuals for pass/fail
-        passed, resids = self.CompareResiduals(returnCode)
-        if all(passed):
-            print("All tests for", self.caseName, "PASSED!")
-        else:
-            print("Tests for", self.caseName, "FAILED!")
-            print("Residuals should be:", self.GetResiduals())
-            print("Residuals are:", resids)
 
         print("Test Duration:", duration)
         print("---------- End Test:", self.caseName, "----------")
@@ -177,7 +193,7 @@ def main():
     # Set up options
     parser = optparse.OptionParser()
     parser.add_option("-a", "--aitherPath", action="store", dest="aitherPath",
-                      default="aither", 
+                      default="aither",
                       help="Path to aither executable. Default = aither")
     parser.add_option("-o", "--operatingSystem", action="store",
                       dest="operatingSystem", default="linux",
@@ -185,19 +201,27 @@ def main():
     parser.add_option("-m", "--mpirunPath", action="store",
                       dest="mpirunPath", default="mpirun",
                       help="Path to mpirun. Default = mpirun")
-                      
+    parser.add_option("-b", "--build", action="store",
+                      dest="build", default="release",
+                      help="build type used in compilation. Default = release")
+
     options, remainder = parser.parse_args()
 
     # travis macOS images have 1 proc, ubuntu have 2
     # appveyor windows images have 2 procs
-    if (options.operatingSystem == "linux" or options.operatingSystem == "windows"):
-        maxProcs = 2
-    else:
+    maxProcs = 2
+    if (options.operatingSystem == "macOS"):
         maxProcs = 1
 
+    isProfile = options.build == "debug"
     numIterations = 100
     numIterationsShort = 20
     numIterationsRestart = 50
+    if isProfile:
+      numIterations = 1
+      numIterationsShort = 1
+      numIterationsRestart = 1
+
     totalPass = True
 
     # ------------------------------------------------------------------
@@ -211,9 +235,11 @@ def main():
     subCyl.SetRegressionCase("subsonicCylinder")
     subCyl.SetAitherPath(options.aitherPath)
     subCyl.SetRunDirectory("subsonicCylinder")
+    subCyl.SetProfile(isProfile)
     subCyl.SetNumberOfProcessors(1)
     subCyl.SetNumberOfIterations(numIterations)
-    subCyl.SetResiduals([1.5371e-1, 1.4991e-1, 1.5910e-1, 8.2250e-1, 1.5297e-1])
+    subCyl.SetResiduals(
+        [1.8751e-01, 2.6727e-01, 3.1217e-01, 7.9662e-01, 1.8639e-01])
     subCyl.SetIgnoreIndices(3)
     subCyl.SetMpirunPath(options.mpirunPath)
 
@@ -228,10 +254,11 @@ def main():
     multiCyl.SetRegressionCase("multiblockCylinder")
     multiCyl.SetAitherPath(options.aitherPath)
     multiCyl.SetRunDirectory("multiblockCylinder")
+    multiCyl.SetProfile(isProfile)
     multiCyl.SetNumberOfProcessors(maxProcs)
     multiCyl.SetNumberOfIterations(numIterations)
-    multiCyl.SetResiduals([2.3117e-01, 2.5907e-01, 4.0735e-01, 1.0640e+00,
-                           2.2955e-01])
+    multiCyl.SetResiduals(
+        [2.0447e-01, 3.1399e-01, 4.5458e-01, 1.1121e+00, 1.9913e-01])
     multiCyl.SetIgnoreIndices(3)
     multiCyl.SetMpirunPath(options.mpirunPath)
 
@@ -246,9 +273,11 @@ def main():
     shockTube.SetRegressionCase("shockTube")
     shockTube.SetAitherPath(options.aitherPath)
     shockTube.SetRunDirectory("shockTube")
+    shockTube.SetProfile(isProfile)
     shockTube.SetNumberOfProcessors(1)
     shockTube.SetNumberOfIterations(numIterations)
-    shockTube.SetResiduals([5.0503e-1, 4.4569e-1, 1.0e0, 1.0e0, 2.6181e-1])
+    shockTube.SetResiduals(
+        [4.8537e-01, 4.5855e-01, 1.0000e+00, 1.0000e+00, 2.6434e-01])
     shockTube.SetIgnoreIndices(2)
     shockTube.SetIgnoreIndices(3)
     shockTube.SetMpirunPath(options.mpirunPath)
@@ -263,7 +292,7 @@ def main():
     shockTubeRestart = shockTube
     shockTubeRestart.SetNumberOfIterations(numIterationsRestart)
     shockTubeRestart.SetRestart(True)
-    shockTubeRestart.SetRestartFile("shockTube_50.rst")
+    shockTubeRestart.SetRestartFile("shockTube_" + str(numIterationsRestart) + ".rst")
 
     # run regression case
     passed = shockTubeRestart.RunCase()
@@ -276,6 +305,7 @@ def main():
     supWedge.SetRegressionCase("supersonicWedge")
     supWedge.SetAitherPath(options.aitherPath)
     supWedge.SetRunDirectory("supersonicWedge")
+    supWedge.SetProfile(isProfile)
     supWedge.SetNumberOfProcessors(1)
     supWedge.SetNumberOfIterations(numIterations)
     supWedge.SetResiduals([4.1813e-1, 4.2549e-1, 3.6525e-1, 3.9971e-1, 4.0998e-1])
@@ -293,9 +323,10 @@ def main():
     transBump.SetRegressionCase("transonicBump")
     transBump.SetAitherPath(options.aitherPath)
     transBump.SetRunDirectory("transonicBump")
+    transBump.SetProfile(isProfile)
     transBump.SetNumberOfProcessors(1)
     transBump.SetNumberOfIterations(numIterations)
-    transBump.SetResiduals([1.1839e-1, 6.8615e-2, 8.4925e-2, 1.0000, 9.9669e-2])
+    transBump.SetResiduals([1.1901e-01, 7.0606e-02, 8.4288e-02, 1.0000e+00, 1.0032e-01])
     transBump.SetIgnoreIndices(3)
     transBump.SetMpirunPath(options.mpirunPath)
 
@@ -310,12 +341,15 @@ def main():
     viscPlate.SetRegressionCase("viscousFlatPlate")
     viscPlate.SetAitherPath(options.aitherPath)
     viscPlate.SetRunDirectory("viscousFlatPlate")
+    viscPlate.SetProfile(isProfile)
     viscPlate.SetNumberOfProcessors(maxProcs)
     viscPlate.SetNumberOfIterations(numIterations)
     if viscPlate.Processors() == 2:
-        viscPlate.SetResiduals([7.7239e-2, 2.4713e-1, 5.6557e-2, 8.4112e-1, 7.9342e-2])
+        viscPlate.SetResiduals(
+            [7.6770e-02, 2.4712e-01, 5.2446e-02, 1.0000e+00, 7.9490e-02])
     else:
-        viscPlate.SetResiduals([7.6467e-2, 2.4714e-1, 4.0109e-2, 8.3161e-1, 7.9240e-2])
+        viscPlate.SetResiduals(
+            [7.4673e-02, 2.4711e-01, 3.8960e-02, 1.0000e+00, 7.7683e-02])
     viscPlate.SetIgnoreIndices(3)
     viscPlate.SetMpirunPath(options.mpirunPath)
 
@@ -330,14 +364,15 @@ def main():
     turbPlate.SetRegressionCase("turbFlatPlate")
     turbPlate.SetAitherPath(options.aitherPath)
     turbPlate.SetRunDirectory("turbFlatPlate")
+    turbPlate.SetProfile(isProfile)
     turbPlate.SetNumberOfProcessors(maxProcs)
     turbPlate.SetNumberOfIterations(numIterationsShort)
     if turbPlate.Processors() == 2:
-        turbPlate.SetResiduals([2.2326e-01, 2.9704e-01, 4.5442e-01, 2.4928e-01,
-                                2.1792e-01, 7.9769e-07, 2.3288e-04])
+        turbPlate.SetResiduals([2.2801e-01, 2.9863e-01, 1.0000e+00, 3.2381e-01,
+                                2.2326e-01, 2.5206e-07, 3.3015e-06])
     else:
-        turbPlate.SetResiduals([2.1828e-01, 2.9702e-01, 4.5628e-01, 2.4928e-01,
-                                2.1361e-01, 7.9753e-07, 2.3287e-04])
+        turbPlate.SetResiduals([2.2309e-01, 2.9862e-01, 1.0000e+00, 3.2376e-01,
+                                2.1910e-01, 2.5208e-07, 3.3009e-06])
     turbPlate.SetIgnoreIndices(2)
     turbPlate.SetMpirunPath(options.mpirunPath)
 
@@ -352,14 +387,15 @@ def main():
     rae2822.SetRegressionCase("rae2822")
     rae2822.SetAitherPath(options.aitherPath)
     rae2822.SetRunDirectory("rae2822")
+    rae2822.SetProfile(isProfile)
     rae2822.SetNumberOfProcessors(maxProcs)
     rae2822.SetNumberOfIterations(numIterationsShort)
     if rae2822.Processors() == 2:
-        rae2822.SetResiduals([5.5472e-01, 7.2623e-01, 5.0035e-01, 4.8794e-01,
-                              4.9827e-01, 2.4542e-05, 9.3450e-05])
+        rae2822.SetResiduals([5.5892e-01, 6.7268e-01, 5.3250e-01, 1.0000e+00,
+                              5.0058e-01, 2.5771e-09, 3.4059e-10])
     else:
-        rae2822.SetResiduals([5.5195e-01, 7.2220e-01, 5.0410e-01, 6.9139e-01,
-                              4.9487e-01, 2.4542e-05, 9.2871e-05])
+        rae2822.SetResiduals([5.5618e-01, 6.6813e-01, 5.3620e-01, 1.0000e+00,
+                              4.9726e-01, 2.5769e-09, 3.4032e-10])
     rae2822.SetIgnoreIndices(3)
     rae2822.SetMpirunPath(options.mpirunPath)
 
@@ -374,9 +410,11 @@ def main():
     couette.SetRegressionCase("couette")
     couette.SetAitherPath(options.aitherPath)
     couette.SetRunDirectory("couette")
+    couette.SetProfile(isProfile)
     couette.SetNumberOfProcessors(1)
     couette.SetNumberOfIterations(numIterations)
-    couette.SetResiduals([1.1343e-1, 5.0725e-1, 7.4086e-2, 4.7218e-1, 2.2789e-1])
+    couette.SetResiduals([1.1816e-01, 5.0725e-01, 6.9807e-02, 5.5916e-01,
+                          2.3024e-01])
     couette.SetIgnoreIndices(3)
     couette.SetMpirunPath(options.mpirunPath)
 
@@ -391,14 +429,15 @@ def main():
     wallLaw.SetRegressionCase("wallLaw")
     wallLaw.SetAitherPath(options.aitherPath)
     wallLaw.SetRunDirectory("wallLaw")
+    wallLaw.SetProfile(isProfile)
     wallLaw.SetNumberOfProcessors(maxProcs)
     wallLaw.SetNumberOfIterations(numIterationsShort)
     if wallLaw.Processors() == 2:
-        wallLaw.SetResiduals([8.1949e-01, 1.0542e-01, 1.3522e-01, 9.2939e-01,
-                              8.5213e-01, 6.0529e-02, 6.7596e-05])
+        wallLaw.SetResiduals([7.3745e-01, 1.5345e-01, 3.1677e-01, 9.2831e-01,
+                              7.1928e-01, 2.6861e-02, 2.6255e-07])
     else:
-        wallLaw.SetResiduals([8.1310e-01, 1.0392e-01, 1.3302e-01, 9.2927e-01,
-                              8.4532e-01, 6.0527e-02, 6.7585e-05])
+        wallLaw.SetResiduals([7.4098e-01, 1.4914e-01, 3.1463e-01, 9.2837e-01,
+                              7.2133e-01, 2.6860e-02, 2.6250e-07])
     wallLaw.SetIgnoreIndices(1)
     wallLaw.SetMpirunPath(options.mpirunPath)
 
@@ -413,16 +452,17 @@ def main():
     thermallyPerfect.SetRegressionCase("thermallyPerfect")
     thermallyPerfect.SetAitherPath(options.aitherPath)
     thermallyPerfect.SetRunDirectory("thermallyPerfect")
+    thermallyPerfect.SetProfile(isProfile)
     thermallyPerfect.SetNumberOfProcessors(maxProcs)
     thermallyPerfect.SetNumberOfIterations(numIterationsShort)
     if thermallyPerfect.Processors() == 2:
-        thermallyPerfect.SetResiduals([5.8862e-01, 3.8007e-01, 4.9681e-01,
-                                       8.4268e-03, 6.0802e-01, 3.5653e-02,
-                                       1.4414e-02])
+        thermallyPerfect.SetResiduals([5.8177e-01, 3.8066e-01, 4.8670e-01,
+                                       1.0000e+00, 5.9931e-01, 1.2830e-06,
+                                       3.5031e-04])
     else:
-        thermallyPerfect.SetResiduals([5.8862e-01, 3.8007e-01, 4.9681e-01,
-                                       1.9063e-03, 6.0803e-01, 3.5651e-02,
-                                       1.4414e-02])
+        thermallyPerfect.SetResiduals([5.8177e-01, 3.8066e-01, 4.8670e-01,
+                                       1.0000e+00, 5.9931e-01, 1.2830e-06,
+                                       3.5031e-04])
     thermallyPerfect.SetIgnoreIndices(3)
     thermallyPerfect.SetMpirunPath(options.mpirunPath)
 
@@ -437,26 +477,87 @@ def main():
     uniform.SetRegressionCase("uniformFlow")
     uniform.SetAitherPath(options.aitherPath)
     uniform.SetRunDirectory("uniformFlow")
+    uniform.SetProfile(isProfile)
     uniform.SetNumberOfProcessors(1)
     uniform.SetNumberOfIterations(numIterationsShort)
-    uniform.SetResiduals([2.6167e-01, 3.2443e-01, 1.8594e-01, 1.8633e-01,
-                          2.5828e-01, 7.7757e-09, 2.4621e-09])
+    uniform.SetResiduals([1.0342e+00, 9.0115e-01, 2.7211e-01, 8.8273e-01,
+                          9.0131e-01, 1.4756e-07, 1.8748e-07])
     uniform.SetMpirunPath(options.mpirunPath)
 
     # run regression case
     passed = uniform.RunCase()
+    # only care if this case ran, since nothing is changing, residuals have
+    # some variation with compiler, os, optimiziation level, etc
+
+    # ------------------------------------------------------------------
+    # convecting vortex
+    # initialization from file, nonreflecting boundary
+    vortex = regressionTest()
+    vortex.SetRegressionCase("convectingVortex")
+    vortex.SetAitherPath(options.aitherPath)
+    vortex.SetRunDirectory("convectingVortex")
+    vortex.SetProfile(isProfile)
+    vortex.SetNumberOfProcessors(1)
+    vortex.SetNumberOfIterations(numIterations)
+    vortex.SetResiduals([5.2772e+00, 6.3732e-01, 7.0928e-01, 1.0000e+00, 
+                         7.9563e-01])
+    vortex.SetIgnoreIndices(3)
+    vortex.SetMpirunPath(options.mpirunPath)
+
+    # run regression case
+    passed = vortex.RunCase()
+    totalPass = totalPass and all(passed)
+
+    # ------------------------------------------------------------------
+    # supersonic mixing with diffusion
+    # turbulent, schmidt diffusion, 4th central, bdplur
+    supersonicMixing = regressionTest()
+    supersonicMixing.SetRegressionCase("supersonicMixing")
+    supersonicMixing.SetAitherPath(options.aitherPath)
+    supersonicMixing.SetRunDirectory("supersonicMixing")
+    supersonicMixing.SetProfile(isProfile)
+    supersonicMixing.SetNumberOfProcessors(maxProcs)
+    supersonicMixing.SetNumberOfIterations(numIterationsShort)
+    if supersonicMixing.Processors() == 2:
+        supersonicMixing.SetResiduals([2.1444e-01, 1.5217e-01, 1.2462e+00, 
+                                       8.2062e-02, 1.1356e-01, 3.6555e-04,
+                                       1.1891e-05])
+    else:
+        supersonicMixing.SetResiduals([2.1185e-01, 1.5024e-01, 1.2409e+00,
+                                       8.6013e-02, 1.1192e-01, 3.6604e-04,
+                                       1.1882e-05])
+    supersonicMixing.SetIgnoreIndices(3)
+    supersonicMixing.SetMpirunPath(options.mpirunPath)
+
+    # run regression case
+    passed = supersonicMixing.RunCase()
     totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------
     # regression test overall pass/fail
     # ------------------------------------------------------------------
-    if totalPass:
+    if totalPass and uniform.PassedStatus() != "ERRORS":
         print("All tests passed!")
-        sys.exit(0)
     else:
         print("ERROR: Some tests failed")
         sys.exit(1)
-
+    print("--------------------------------------------------")
+    print("subsonicCylinder:", subCyl.PassedStatus())
+    print("multiblockCylinder:", multiCyl.PassedStatus())
+    print("shockTube:", shockTube.PassedStatus())
+    print("shockTubeRestart:", shockTubeRestart.PassedStatus())
+    print("supersonicWedge:", supWedge.PassedStatus())
+    print("transonicBump:", transBump.PassedStatus())
+    print("viscousFlatPlate:", viscPlate.PassedStatus())
+    print("turbulentFlatPlate:", turbPlate.PassedStatus())
+    print("rae2822:", rae2822.PassedStatus())
+    print("couette:", couette.PassedStatus())
+    print("wallLaw:", wallLaw.PassedStatus())
+    print("thermallyPerfect:", thermallyPerfect.PassedStatus())
+    print("uniform:", uniform.PassedStatus())
+    print("convectingVortex:", vortex.PassedStatus())
+    print("supersonicMixing:", supersonicMixing.PassedStatus())
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()

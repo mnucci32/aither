@@ -5,8 +5,8 @@ gridName: wallLaw
 decompositionMethod: cubic
 equationSet: rans
 timeIntegration: implicitEuler
-cflStart: 100000
-cflMax: 100000
+cflStart: 100
+cflMax: 100
 
 faceReconstruction: thirdOrder
 inviscidFlux: roe

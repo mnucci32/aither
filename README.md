@@ -5,11 +5,11 @@
 | Master  | [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=master)](https://travis-ci.org/mnucci32/aither) | [![Build status](https://ci.appveyor.com/api/projects/status/o7fc231lp9jxlsib/branch/master?svg=true)](https://ci.appveyor.com/project/mnucci32/aither/branch/master) | [![Coverage Status](https://codecov.io/github/mnucci32/aither/coverage.svg?branch=master)](https://codecov.io/github/mnucci32/aither?branch=master) |
 | Develop | [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=develop)](https://travis-ci.org/mnucci32/aither) | [![Build status](https://ci.appveyor.com/api/projects/status/o7fc231lp9jxlsib/branch/develop?svg=true)](https://ci.appveyor.com/project/mnucci32/aither/branch/develop) | [![Coverage Status](https://codecov.io/github/mnucci32/aither/coverage.svg?branch=develop)](https://codecov.io/github/mnucci32/aither?branch=develop) |
 
-### About The code
+### About The Code
 This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is 
 a cell centered, structured solver, using multi-block structured grids in Plot3D 
 format. It uses explicit and implicit time integration methods. It uses MUSCL 
-extrapolation to reconstruct the primative variables from the cell centers to 
+extrapolation to reconstruct the primitive variables from the cell centers to 
 the cell faces for 2nd order accuracy. Higher order reconstruction is acheived 
 with a 5th order WENO reconstruction for the inviscid fluxes, and a 4th order 
 central reconstruction for the viscous fluxes. The code uses the Roe 
@@ -28,31 +28,39 @@ are the implicit euler (1st order), Crank-Nicholson (2nd order), and BDF2
 parallel using MPI. For RANS simulations the Wilcox K-Omega 2006 and SST 2003 
 turbulence models are available. Wall functions are supported for both models. 
 For detatched eddy simulations, the SST-DES turbulence model is available. For 
-large eddy simulations, the WALE subgrid scale model is available.
+large eddy simulations, the WALE subgrid scale model is available. A 
+Multi-species flow capability is in progress. Supported diffusion models will be
+Schmidt number based diffusion.
 
 ### To Do List
-* Add non-reflecting boundary conditions
 * Add multigrid scheme for improved convergence
-* Add multi-species flow capability
+* Add reacting flow capability
+* Performance improvements
 
 ### Dependencies
 * MPI - OpenMPI, MPICH, & MS-MPI have been used
 * C++ compiler with C++14 support
 * Cmake - Cmake only depends on a C++ compiler
 
-### How To compile
+### How To Compile And Install
 Aither is compiled and installed with the standard cmake process.
 
 ```bash
 cmake -DCMAKE_INSTALL_PREFIX=/path/to/installation -DCMAKE_BUILD_TYPE=release /path/to/source
 make
 make install
+
+export AITHER_FLUID_DATABASE=/path/to/installation/fluidDatabase
 ```
 
 Cmake will automatically look for an MPI package. To specify a specific 
-installation, set *-DMPI_DIR* to the MPI installation directory. In addition 
-to *release*, other supported build types are *debug*, *profile*,
-*relwithdebinfo*, and *minsizerel*.
+installation, set **-DMPI_DIR** to the MPI installation directory. In addition 
+to **release**, other supported build types are **debug**, **profile**,
+**relwithdebinfo**, and **minsizerel**.
+
+The **AITHER_FLUID_DATABASE** environment variable should be set to the 
+**fluidDatabase** folder inside of the installation directory. This tells aither
+where to look for fluid properties.
 
 ### How To Run
 ```bash

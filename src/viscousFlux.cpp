@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,11 +18,8 @@
 #include <string>
 #include <memory>
 #include "viscousFlux.hpp"
-#include "eos.hpp"            // equation of state
-#include "transport.hpp"      // transport model
-#include "thermodynamic.hpp"  // thermodynamic model
-#include "primVars.hpp"       // primVars
-#include "turbulence.hpp"     // turbModel
+#include "physicsModels.hpp"
+#include "primitive.hpp"       // primitive
 #include "matrix.hpp"         // squareMatrix
 #include "utility.hpp"        // TauNormal
 #include "wallData.hpp"       // wallVars
@@ -36,7 +33,9 @@ using std::unique_ptr;
 // constructor -- initialize flux from velocity gradient
 /*
 Viscous flux normal to face:
-F = [ 0,
+F = [ D_0 mixGrad_0 (dot) area,
+      ...
+      D_n mixGrad_n (dot) area,
       taux,
       tauy,
       tauz,
@@ -56,121 +55,157 @@ In the above equation lambda is the bulk viscosity, velGradTrace is the trace of
 the velocity gradient, area is the normalized face area, mu is the dynamic
 viscosity, and velGrad is the velocity gradient tensor.
 */
-void viscousFlux::CalcFlux(
-    const tensor<double> &velGrad, const unique_ptr<transport> &trans,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
-    const vector3d<double> &tGrad, const vector3d<double> &normArea,
-    const vector3d<double> &tkeGrad, const vector3d<double> &omegaGrad,
-    const unique_ptr<turbModel> &turb, const primVars &state,
-    const double &lamVisc, const double &turbVisc, const double &f1) {
+void viscousFlux::CalcFlux(const tensor<double> &velGrad, const physics &phys,
+                           const vector3d<double> &tGrad,
+                           const vector3d<double> &normArea,
+                           const vector3d<double> &tkeGrad,
+                           const vector3d<double> &omegaGrad,
+                           const vector<vector3d<double>> &mixGrad,
+                           const primitive &state, const double &lamVisc,
+                           const double &turbVisc, const double &f1) {
   // velGrad -- velocity gradient tensor
-  // trans -- viscous transport model
-  // thermo -- thermodynamic model
-  // eqnState -- equation of state
+  // phys -- physics models
   // tGrad -- temperature gradient
   // normArea -- unit area vector of face
   // tkeGrad -- tke gradient
   // omegaGrad -- omega gradient
-  // turb -- turbulence model
-  // state -- primative variables at face
+  // state -- primitive variables at face
   // lamVisc -- laminar viscosity
   // turbVisc -- turbulent viscosity
   // f1 -- first blending coefficient
 
   // get viscosity with nondimensional normalization
-  const auto mu = trans->NondimScaling() * lamVisc;
-  const auto mut = trans->NondimScaling() * turbVisc;
+  const auto mu = phys.Transport()->NondimScaling() * lamVisc;
+  const auto mut = phys.Transport()->NondimScaling() * turbVisc;
+
+  auto speciesEnthalpyTerm = 0.0;
+  const auto isMultiSpecies = state.NumSpecies() > 1;
+  if (isMultiSpecies) {
+    auto posDiff = 0.0;
+    auto negDiff = 0.0;
+    for (auto ss = 0; ss < state.NumSpecies(); ++ss) {
+      (*this)[ss] =
+          phys.Diffusion()->DiffCoeff(mu, mut) * mixGrad[ss].DotProd(normArea);
+      negDiff -= std::min((*this)[ss], 0.0);
+      posDiff += std::max((*this)[ss], 0.0);
+    }
+    // enforce zero mass flux
+    // scale diffusion flux so that positive flux equals negative flux
+    auto posDiffFac = (posDiff > negDiff) ? negDiff / posDiff : 1.0;
+    auto negDiffFac = (negDiff > posDiff) ? posDiff / negDiff : 1.0;
+    for (auto ss = 0; ss < state.NumSpecies(); ++ss) {
+      (*this)[ss] *= (*this)[ss] > 0.0 ? posDiffFac : negDiffFac;
+      const auto hs = state.SpeciesEnthalpy(phys, ss);
+      speciesEnthalpyTerm += (*this)[ss] * hs;
+    }
+  }
 
   // wall shear stress
-  const auto tau = TauNormal(velGrad, normArea, mu, mut, trans);
+  const auto tau = TauNormal(velGrad, normArea, mu, mut, phys.Transport());
+  (*this)[this->MomentumXIndex()] = tau.X();
+  (*this)[this->MomentumYIndex()] = tau.Y();
+  (*this)[this->MomentumZIndex()] = tau.Z();
 
-  const auto t = state.Temperature(eqnState);
-
-  data_[0] = tau.X();
-  data_[1] = tau.Y();
-  data_[2] = tau.Z();
-  data_[3] = tau.DotProd(state.Velocity()) +
-      (trans->Conductivity(mu, t, thermo) +
-       trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) *
-      tGrad.DotProd(normArea);
+  const auto t = state.Temperature(phys.EoS());
+  const auto mf = state.MassFractions();
+  const auto k = phys.Transport()->EffectiveConductivity(t, mf);
+  const auto kt = phys.Transport()->TurbConductivity(
+      mut, phys.Turbulence()->TurbPrandtlNumber(), t, phys.Thermodynamic(), mf);
+  (*this)[this->EnergyIndex()] = tau.DotProd(state.Velocity()) +
+                                 (k + kt) * tGrad.DotProd(normArea) +
+                                 speciesEnthalpyTerm;
 
   // turbulence viscous flux
-  // get molecular diffusion coefficients for turbulence equations
-  const auto tkeCoeff = turb->SigmaK(f1);
-  const auto omgCoeff = turb->SigmaW(f1);
+  if (this->HasTurbulenceData()) {
+    // get molecular diffusion coefficients for turbulence equations
+    const auto tkeCoeff = phys.Turbulence()->SigmaK(f1);
+    const auto omgCoeff = phys.Turbulence()->SigmaW(f1);
 
-  // some turbulence models use the unlimited eddy viscosity for the
-  // turbulence viscous flux instead of the limited eddy viscosity
-  const auto mutt = turb->UseUnlimitedEddyVisc() ?
-      trans->NondimScaling() * turb->EddyViscNoLim(state) : mut;
-  data_[4] = (mu + tkeCoeff * mutt) * tkeGrad.DotProd(normArea);
-  data_[5] = (mu + omgCoeff * mutt) * omegaGrad.DotProd(normArea);
+    // some turbulence models use the unlimited eddy viscosity for the
+    // turbulence viscous flux instead of the limited eddy viscosity
+    const auto mutt = phys.Turbulence()->UseUnlimitedEddyVisc()
+                          ? phys.Transport()->NondimScaling() *
+                                phys.Turbulence()->EddyViscNoLim(state)
+                          : mut;
+    (*this)[this->TurbulenceIndex()] =
+        (mu + tkeCoeff * mutt) * tkeGrad.DotProd(normArea);
+    (*this)[this->TurbulenceIndex() + 1] =
+        (mu + omgCoeff * mutt) * omegaGrad.DotProd(normArea);
+  }
 }
 
 wallVars viscousFlux::CalcWallFlux(
-    const tensor<double> &velGrad, const unique_ptr<transport> &trans,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
+    const tensor<double> &velGrad, const physics &phys,
     const vector3d<double> &tGrad, const vector3d<double> &normArea,
     const vector3d<double> &tkeGrad, const vector3d<double> &omegaGrad,
-    const unique_ptr<turbModel> &turb, const primVars &state,
-    const double &lamVisc, const double &turbVisc, const double &f1) {
+    const primitive &state, const double &lamVisc, const double &turbVisc,
+    const double &f1) {
   // velGrad -- velocity gradient tensor
-  // trans -- viscous transport model
-  // thermo -- thermodynamic model
-  // eqnState -- equation of state
+  // phys -- physics models
   // tGrad -- temperature gradient
   // normArea -- unit area vector of face
   // tkeGrad -- tke gradient
   // omegaGrad -- omega gradient
-  // turb -- turbulence model
-  // state -- primative variables at face
+  // state -- primitive variables at face
   // lamVisc -- laminar viscosity
   // turbVisc -- turbulent viscosity
   // f1 -- first blending coefficient
 
-  wallVars wVars;
+  // no diffusion on wall boundary, therfore no contribution to energy flux
+
+  wallVars wVars(state.NumSpecies());
 
   // get viscosity with nondimensional normalization
-  wVars.viscosity_ = trans->NondimScaling() * lamVisc;
-  wVars.turbEddyVisc_ = trans->NondimScaling() * turbVisc;
+  wVars.viscosity_ = phys.Transport()->NondimScaling() * lamVisc;
+  wVars.turbEddyVisc_ = phys.Transport()->NondimScaling() * turbVisc;
 
   // wall shear stress
-  wVars.shearStress_ =
-      TauNormal(velGrad, normArea, wVars.viscosity_, wVars.turbEddyVisc_, trans);
+  wVars.shearStress_ = TauNormal(velGrad, normArea, wVars.viscosity_,
+                                 wVars.turbEddyVisc_, phys.Transport());
 
-  const auto t = state.Temperature(eqnState);
+  (*this)[this->MomentumXIndex()] = wVars.shearStress_.X();
+  (*this)[this->MomentumYIndex()] = wVars.shearStress_.Y();
+  (*this)[this->MomentumZIndex()] = wVars.shearStress_.Z();
+
+  const auto t = state.Temperature(phys.EoS());
+  const auto mf = state.MassFractions();
+  const auto k = phys.Transport()->EffectiveConductivity(t, mf);
+  const auto kt = phys.Transport()->TurbConductivity(
+      wVars.turbEddyVisc_, phys.Turbulence()->TurbPrandtlNumber(), t,
+      phys.Thermodynamic(), mf);
 
   // wall heat flux
-  wVars.heatFlux_ =
-      (trans->Conductivity(wVars.viscosity_, t, thermo) +
-       trans->TurbConductivity(wVars.turbEddyVisc_, turb->TurbPrandtlNumber(),
-                               t, thermo)) *
-      tGrad.DotProd(normArea);
+  wVars.heatFlux_ = (k + kt) * tGrad.DotProd(normArea);
 
-  data_[0] = wVars.shearStress_.X();
-  data_[1] = wVars.shearStress_.Y();
-  data_[2] = wVars.shearStress_.Z();
-  data_[3] = wVars.shearStress_.DotProd(state.Velocity()) + wVars.heatFlux_;
+  (*this)[this->EnergyIndex()] =
+      wVars.shearStress_.DotProd(state.Velocity()) + wVars.heatFlux_;
 
   // calculate other wall data
   wVars.density_ = state.Rho();
   wVars.temperature_ = t;
-  wVars.tke_ = state.Tke();
-  wVars.sdr_ = state.Omega();
+  wVars.mf_ = mf;
   wVars.frictionVelocity_ = sqrt(wVars.shearStress_.Mag() / wVars.density_);
 
   // turbulence viscous flux
-  // get molecular diffusion coefficients for turbulence equations
-  const auto tkeCoeff = turb->SigmaK(f1);
-  const auto omgCoeff = turb->SigmaW(f1);
+  if (this->HasTurbulenceData()) {
+    wVars.tke_ = state.Tke();
+    wVars.sdr_ = state.Omega();
 
-  // some turbulence models use the unlimited eddy viscosity for the
-  // turbulence viscous flux instead of the limited eddy viscosity
-  const auto mutt = turb->UseUnlimitedEddyVisc()
-                        ? trans->NondimScaling() * turb->EddyViscNoLim(state)
-                        : wVars.turbEddyVisc_;
-  data_[4] = (wVars.viscosity_ + tkeCoeff * mutt) * tkeGrad.DotProd(normArea);
-  data_[5] = (wVars.viscosity_ + omgCoeff * mutt) * omegaGrad.DotProd(normArea);
+    // get molecular diffusion coefficients for turbulence equations
+    const auto tkeCoeff = phys.Turbulence()->SigmaK(f1);
+    const auto omgCoeff = phys.Turbulence()->SigmaW(f1);
+
+    // some turbulence models use the unlimited eddy viscosity for the
+    // turbulence viscous flux instead of the limited eddy viscosity
+    const auto mutt = phys.Turbulence()->UseUnlimitedEddyVisc()
+                          ? phys.Transport()->NondimScaling() *
+                                phys.Turbulence()->EddyViscNoLim(state)
+                          : wVars.turbEddyVisc_;
+    (*this)[this->TurbulenceIndex()] =
+        (wVars.viscosity_ + tkeCoeff * mutt) * tkeGrad.DotProd(normArea);
+    (*this)[this->TurbulenceIndex() + 1] =
+        (wVars.viscosity_ + omgCoeff * mutt) * omegaGrad.DotProd(normArea);
+  }
 
   return wVars;
 }
@@ -189,34 +224,35 @@ void viscousFlux::CalcWallLawFlux(
   // omegaGrad -- omega gradient
   // turb -- turbulence model
 
-  data_[0] = tauWall.X();
-  data_[1] = tauWall.Y();
-  data_[2] = tauWall.Z();
-  data_[3] = tauWall.DotProd(velWall) + qWall;
+  // no diffusion on wall boundary, therefore no contribution to energy flux
+
+  (*this)[this->MomentumXIndex()] = tauWall.X();
+  (*this)[this->MomentumYIndex()] = tauWall.Y();
+  (*this)[this->MomentumZIndex()] = tauWall.Z();
+  (*this)[this->EnergyIndex()] = tauWall.DotProd(velWall) + qWall;
 
   // turbulence viscous flux
-  // get molecular diffusion coefficients for turbulence equations
-  const auto tkeCoeff = turb->WallSigmaK();
-  const auto omgCoeff = turb->WallSigmaW();
+  if (this->HasTurbulenceData()) {
+    // get molecular diffusion coefficients for turbulence equations
+    const auto tkeCoeff = turb->WallSigmaK();
+    const auto omgCoeff = turb->WallSigmaW();
 
-  // some turbulence models use the unlimited eddy viscosity for the
-  // turbulence viscous flux instead of the limited eddy viscosity
-  // for wall laws, eddy viscosity is prescribed
-  data_[4] = (muWall + tkeCoeff * mutWall) * tkeGrad.DotProd(normArea);
-  data_[5] = (muWall + omgCoeff * mutWall) * omegaGrad.DotProd(normArea);
+    // some turbulence models use the unlimited eddy viscosity for the
+    // turbulence viscous flux instead of the limited eddy viscosity
+    // for wall laws, eddy viscosity is prescribed
+    (*this)[this->TurbulenceIndex()] =
+        (muWall + tkeCoeff * mutWall) * tkeGrad.DotProd(normArea);
+    (*this)[this->TurbulenceIndex() + 1] =
+        (muWall + omgCoeff * mutWall) * omegaGrad.DotProd(normArea);
+  }
 }
-
 
 // non-member functions
 // ----------------------------------------------------------------------------
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, viscousFlux &flux) {
-  os << "0.0" << endl;
-  os << flux.MomX() << endl;
-  os << flux.MomY() << endl;
-  os << flux.MomZ() << endl;
-  os << flux.Engy() << endl;
-  os << flux.MomK() << endl;
-  os << flux.MomO() << endl;
+  for (auto rr = 0; rr < flux.Size(); rr++) {
+    os << flux[rr] << endl;
+  }
   return os;
 }

@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,31 +20,37 @@
 // This header file contains the properties for a given fluid
 
 #include <vector>
+#include <array>
 #include <string>
 #include <fstream>
 #include <iostream>
 
 using std::vector;
+using std::array;
 using std::ifstream;
 using std::string;
 using std::ostream;
 
 // class for fluid properties
 class fluid {
-  double n_ = 2.5;
-  double molarMass_ = 0.02897;  // kg/mol
-  double vibTemp_ = 3056.0;    // K
+  double n_;
+  double molarMass_;  // kg/mol
+  vector<double> vibTemp_;    // K
   double universalGasConst_ = 8.3144598;  // J / mol-K
+  array<double, 2> transportViscosity_;
+  array<double, 2> transportConductivity_;
+  double massFracRef_ = 1.0;
   string name_ = "air";
   bool nondimensional_ = false;
 
   // private member functions
   void SetNondimensional(const bool &nd) { nondimensional_ = nd; }
+  void GetDatabaseProperties(const string &);
 
  public:
   // Constructor
-  fluid() {}
-  fluid(string& str, const string = "fluid");
+  fluid() { this->GetDatabaseProperties(name_); }
+  fluid(string &str, const string = "fluid");
 
   // move constructor and assignment operator
   fluid(fluid&&) noexcept = default;
@@ -57,9 +63,12 @@ class fluid {
   // Member functions for abstract base class
   double N() const { return n_; }
   double MolarMass() const { return molarMass_; }
-  double VibrationalTemperature() const { return vibTemp_; }
+  vector<double> VibrationalTemperature() const { return vibTemp_; }
   double GasConstant() const { return universalGasConst_ / molarMass_; }
   double UniversalGasConstant() const { return universalGasConst_; }
+  auto ViscosityCoeffs() const { return transportViscosity_; }
+  auto ConductivityCoeffs() const { return transportConductivity_; }
+  double MassFractionRef() const { return massFracRef_; }
   string Name() const { return name_; }
   bool IsNondimensional() const { return nondimensional_; }
 

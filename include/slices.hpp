@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 
 #include <iostream>
 #include "mpi.h"
-#include "primVars.hpp"
+#include "primitive.hpp"
 #include "vector3d.hpp"
 #include "multiArray3d.hpp"
 

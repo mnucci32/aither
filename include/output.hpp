@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,8 +29,8 @@ It also writes out a master file in Ensight format to name the Plot3D functions.
 #include <iostream>
 #include <vector>        // vector
 #include <string>        // string
-#include <memory>        // unique_ptr
 #include "multiArray3d.hpp"
+#include "blkMultiArray3d.hpp"
 
 using std::vector;
 using std::string;
@@ -40,20 +40,17 @@ using std::ifstream;
 using std::cout;
 using std::endl;
 using std::cerr;
-using std::unique_ptr;
 using std::ostream;
 
 // forward class declarations
 class procBlock;
-class genArray;
+class conserved;
 class decomposition;
-class eos;
-class transport;
-class thermodynamic;
+class physics;
 class resid;
 class input;
-class turbModel;
-class primVars;
+class primitive;
+class residual;
 
 // function definitions
 template<typename T>
@@ -63,45 +60,64 @@ void WriteCellCenter(const string &, const vector<procBlock> &,
                      const decomposition &, const input &);
 void WriteWallFaceCenter(const string &, const vector<procBlock> &,
                          const double &);
-void WriteFun(const vector<procBlock> &, const unique_ptr<eos> &,
-              const unique_ptr<thermodynamic> &thermo,
-              const unique_ptr<transport> &, const int &, const decomposition &,
-              const input &, const unique_ptr<turbModel> &);
-void WriteWallFun(const vector<procBlock> &, const unique_ptr<eos> &,
-                  const unique_ptr<transport> &, const int &, const input &,
-                  const unique_ptr<turbModel> &);
+void WriteFun(const vector<procBlock> &, const physics &phys, const int &,
+              const decomposition &, const input &);
+void WriteWallFun(const vector<procBlock> &, const physics &phys, const int &,
+                  const input &);
 void WriteMeta(const input &, const int &);
 void WriteWallMeta(const input &, const int &);
 
-void WriteRestart(const vector<procBlock> &, const unique_ptr<eos> &,
-                  const unique_ptr<transport> &, const int &,
-                  const decomposition &, const input &, const genArray &);
+void WriteRestart(const vector<procBlock> &, const physics &, const int &,
+                  const decomposition &, const input &, const residual &);
 void ReadRestart(vector<procBlock> &, const string &, const decomposition &,
-                 input &, const unique_ptr<eos> &,
-                 const unique_ptr<thermodynamic> &,
-                 const unique_ptr<transport> &, const unique_ptr<turbModel> &,
-                 genArray &, const vector<vector3d<int>> &);
+                 input &, const physics &, residual &,
+                 const vector<vector3d<int>> &);
 
-multiArray3d<primVars> ReadSolFromRestart(ifstream &, const input &,
-                                          const unique_ptr<eos> &,
-                                          const unique_ptr<thermodynamic> &,
-                                          const unique_ptr<transport> &,
-                                          const unique_ptr<turbModel> &,
-                                          const vector<string> &, const int &,
-                                          const int &, const int &);
-multiArray3d<genArray> ReadSolNm1FromRestart(
-    ifstream &, const input &, const unique_ptr<eos> &,
-    const unique_ptr<transport> &, const unique_ptr<turbModel> &,
-    const vector<string> &, const int &, const int &, const int &);
+blkMultiArray3d<primitive> ReadSolFromRestart(ifstream &, const input &,
+                                              const physics &,
+                                              const vector<string> &,
+                                              const int &, const int &,
+                                              const int &, const int &);
+blkMultiArray3d<conserved> ReadSolNm1FromRestart(ifstream &, const input &,
+                                                 const physics &,
+                                                 const vector<string> &,
+                                                 const int &, const int &,
+                                                 const int &, const int &);
 
-void WriteResiduals(const input &, genArray &, const genArray &, const resid &,
+void WriteResiduals(const input &, residual &, const residual &, const resid &,
                     const double &, const int &, const int &, ostream &);
-void PrintResiduals(const input &, genArray &, const genArray &, const resid &,
+void PrintResiduals(const input &, residual &, const residual &, const resid &,
                     const double &, const int &, const int &, ostream &);
 void PrintHeaders(const input &, ostream &);
 
 vector<procBlock> Recombine(const vector<procBlock> &, const decomposition &);
 int SplitBlockNumber(const vector<procBlock> &, const decomposition &,
                      const int &, const int &, const int &, const int &);
+
+// ---------------------------------------------------------------------------
+// function definitions
+template<typename T>
+void WriteBlockDims(ofstream &outFile, const vector<T> &vars,
+                    int numVars) {
+  // write number of blocks to file
+  auto numBlks = static_cast<int>(vars.size());
+  outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
+
+  // loop over all blocks and write out imax, jmax, kmax, numVars
+  for (auto &blk : vars) {
+    auto dumInt = blk.NumI();
+    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
+    dumInt = blk.NumJ();
+    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
+    dumInt = blk.NumK();
+    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
+    
+    if (numVars > 0) {
+      outFile.write(reinterpret_cast<char *>(&numVars), sizeof(numVars));
+    }
+  }
+}
+
+
 
 #endif

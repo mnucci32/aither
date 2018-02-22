@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,10 +20,15 @@
 // This header file contains the thermodynamic model classes
 #include <iostream>
 #include <cmath>
+#include <vector>
 
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::vector;
+
+// forward class declarations
+class fluid;
 
 // abstract base class for thermodynamic model
 class thermodynamic {
@@ -41,13 +46,30 @@ class thermodynamic {
   thermodynamic& operator=(const thermodynamic&) = default;
 
   // Member functions for abstract base class
-  virtual double Gamma(const double &t) const = 0;
-  virtual double Prandtl(const double &t) const = 0;
-  virtual double Cp(const double &t) const = 0;
-  virtual double Cv(const double &t) const = 0;
-  virtual double SpecEnergy(const double& t) const = 0;
-  virtual double SpecEnthalpy(const double& t) const = 0;
-  virtual double TemperatureFromSpecEnergy(const double& e) const = 0;
+  virtual int NumSpecies() const = 0;
+  double SpeciesGamma(const double& t, const int& ss) const {
+    return this->SpeciesCp(t, ss) / this->SpeciesCv(t, ss);
+  }
+  double Gamma(const double& t, const vector<double>& mf) const {
+    return this->Cp(t, mf) / this->Cv(t, mf);
+  }
+  double Prandtl(const double& t, const vector<double>& mf) const {
+    const auto gamma = this->Gamma(t, mf);
+    return (4.0 * gamma) / (9.0 * gamma - 5.0);
+  }
+  double Cp(const double& t, const vector<double>& mf) const;
+  double Cv(const double& t, const vector<double>& mf) const;
+  
+  virtual double SpeciesSpecEnergy(const double& t, const int& ss) const = 0;
+  virtual double SpecEnergy(const double& t,
+                            const vector<double>& mf) const = 0;
+  virtual double SpeciesSpecEnthalpy(const double& t, const int& ss) const = 0;
+  virtual double SpecEnthalpy(const double& t,
+                              const vector<double>& mf) const = 0;
+  virtual double TemperatureFromSpecEnergy(const double& e,
+                                           const vector<double>& mf) const = 0;
+  virtual double SpeciesCp(const double& t, const int& ss) const = 0;
+  virtual double SpeciesCv(const double& t, const int& ss) const = 0;
 
   // Destructor
   virtual ~thermodynamic() noexcept {}
@@ -56,34 +78,38 @@ class thermodynamic {
 // thermodynamic model for calorically perfect gas.
 // Cp and Cv are constants
 class caloricallyPerfect : public thermodynamic {
-  const double gamma_;
+  vector<double> n_;
+  vector<double> gasConst_;
 
  public:
   // Constructor
-  explicit caloricallyPerfect(const double &n) : gamma_(1.0 / n + 1.0) {}
-  caloricallyPerfect() : caloricallyPerfect(1.4) {}
-
-  // move constructor and assignment operator
-  caloricallyPerfect(caloricallyPerfect&&) noexcept = default;
-  caloricallyPerfect& operator=(caloricallyPerfect&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  caloricallyPerfect(const caloricallyPerfect&) = default;
-  caloricallyPerfect& operator=(const caloricallyPerfect&) = default;
+  caloricallyPerfect(const vector<fluid>&, const double&, const double&);
 
   // Member functions
-  double Gamma(const double &t) const override {return gamma_;}
-  double Prandtl(const double& t) const override {
-    return (4.0 * gamma_) / (9.0 * gamma_ - 5.0);
+  int NumSpecies() const override { return n_.size(); }
+  const double& N(const int &ss) const { return n_[ss]; }
+  const double& R(const int &ss) const { return gasConst_[ss]; }
+  double SpeciesSpecEnergy(const double& t, const int& ss) const override {
+    return this->SpeciesCv(t, ss) * t;
   }
-  double Cp(const double& t) const override { return 1.0 / (gamma_ - 1.0); }
-  double Cv(const double& t) const override {
-    return 1.0 / (gamma_ * (gamma_ - 1.0));
+  double SpecEnergy(const double& t, const vector<double>& mf) const override {
+    return this->Cv(t, mf) * t;
   }
-
-  double SpecEnergy(const double& t) const override {return this->Cv(t) * t;}
-  double SpecEnthalpy(const double& t) const override {return this->Cp(t) * t;}
-  double TemperatureFromSpecEnergy(const double& e) const override;
+  double SpeciesSpecEnthalpy(const double& t, const int& ss) const override {
+    return this->SpeciesCp(t, ss) * t;
+  }
+  double SpecEnthalpy(const double& t,
+                      const vector<double>& mf) const override {
+    return this->Cp(t, mf) * t;
+  }
+  double TemperatureFromSpecEnergy(const double& e,
+                                   const vector<double>& mf) const override;
+  double SpeciesCp(const double& t, const int& ss) const override {
+    return this->R(ss) * ((this->N(ss) + 1.0));
+  }
+  double SpeciesCv(const double& t, const int& ss) const override {
+    return this->R(ss) * this->N(ss);
+  }
 
   // Destructor
   ~caloricallyPerfect() noexcept {}
@@ -91,52 +117,49 @@ class caloricallyPerfect : public thermodynamic {
 
 // thermodynamic model for thermally perfect gas
 // Cp and Cv are functions of T
-class thermallyPerfect : public thermodynamic {
-  const double n_;
-  const double vibTemp_;
-  const double nonDimR_;
+class thermallyPerfect : public caloricallyPerfect {
+  vector<vector<double>> vibTemp_;
 
   // private member functions
-  double ThetaV(const double& t) const { return vibTemp_ / (2.0 * t); }
+  double ThetaV(const double& t, const int &ss, const int& ii) const {
+    return vibTemp_[ss][ii] / (2.0 * t);
+  }
+
+  double VibEqCpCvTerm(const double &t, const int &ss) const {
+    auto vibEq = 0.0;
+    for (auto ii = 0U; ii < vibTemp_[ss].size(); ++ii) {
+      const auto tv = this->ThetaV(t, ss, ii);
+      vibEq += pow(tv / sinh(tv), 2.0);
+    }
+    return vibEq;
+  }
+
+  double VibEqTerm(const double &t, const int &ss) const {
+    auto vibEq = 0.0;
+    for (auto &vt : vibTemp_[ss]) {
+      vibEq += vt / (exp(vt / t) - 1.0);
+    }
+    return vibEq;
+  }
 
  public:
   // Constructor
-  thermallyPerfect(const double& n, const double& vt)
-      : n_(n), vibTemp_(vt), nonDimR_(n / (n + 1.0)) {}
-  thermallyPerfect() : thermallyPerfect(1.4, 3056.0) {}
-
-  // move constructor and assignment operator
-  thermallyPerfect(thermallyPerfect&&) noexcept = default;
-  thermallyPerfect& operator=(thermallyPerfect&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  thermallyPerfect(const thermallyPerfect&) = default;
-  thermallyPerfect& operator=(const thermallyPerfect&) = default;
+  thermallyPerfect(const vector<fluid>& fl, const double& tRef,
+                   const double& aRef);
 
   // Member functions
-  double Gamma(const double& t) const override {
-    return this->Cp(t) / this->Cv(t);
+  double SpeciesSpecEnergy(const double& t, const int& ss) const override;
+  double SpecEnergy(const double& t, const vector<double>& mf) const override;
+  double SpeciesSpecEnthalpy(const double& t, const int& ss) const override;
+  double SpecEnthalpy(const double& t, const vector<double>& mf) const override;
+  double TemperatureFromSpecEnergy(const double& e,
+                                   const vector<double>& mf) const override;
+  double SpeciesCp(const double& t, const int& ss) const override {
+    return this->R(ss) * ((this->N(ss) + 1.0) + this->VibEqCpCvTerm(t, ss));
   }
-  double Prandtl(const double& t) const override {
-    return (4.0 * this->Gamma(t)) / (9.0 * this->Gamma(t) - 5.0);
+  double SpeciesCv(const double& t, const int& ss) const override {
+    return this->R(ss) * (this->N(ss) + this->VibEqCpCvTerm(t, ss));
   }
-  double Cp(const double& t) const override {
-    const auto tv = this->ThetaV(t);
-    return nonDimR_ * ((n_ + 1.0) + pow(tv / sinh(tv), 2.0));
-  }
-  double Cv(const double& t) const override {
-    const auto tv = this->ThetaV(t);
-    return nonDimR_ * (n_ + pow(tv / sinh(tv), 2.0));
-  }
-
-  double SpecEnergy(const double& t) const override {
-    return nonDimR_ * (n_ * t + vibTemp_ / (exp(vibTemp_ / t) - 1.0));
-  }
-  double SpecEnthalpy(const double& t) const override {
-    return nonDimR_ * ((n_ + 1) * t + vibTemp_ / (exp(vibTemp_ / t) - 1.0));
-  }
-  
-  double TemperatureFromSpecEnergy(const double& e) const override;
 
   // Destructor
   ~thermallyPerfect() noexcept {}

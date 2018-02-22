@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #include <memory>
 #include "source.hpp"
 #include "turbulence.hpp"
-#include "primVars.hpp"
 #include "transport.hpp"
 #include "vector3d.hpp"
 #include "tensor.hpp"
@@ -30,27 +29,23 @@ using std::endl;
 using std::cerr;
 using std::unique_ptr;
 
-// operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const source &src) {
-  os << src.SrcMass() << endl;
-  os << src.SrcMomX() << endl;
-  os << src.SrcMomY() << endl;
-  os << src.SrcMomZ() << endl;
-  os << src.SrcEngy() << endl;
-  os << src.SrcTke() << endl;
-  os << src.SrcOmg() << endl;
+// operation overload for << - allows use of cout, cerr, etc.
+ostream &operator<<(ostream &os, const source &m) {
+  for (auto rr = 0; rr < m.Size(); rr++) {
+    os << m[rr] << endl;
+  }
   return os;
 }
 
 // Member function to calculate the source terms for the turbulence equations
 squareMatrix source::CalcTurbSrc(
-    const unique_ptr<turbModel> &turb, const primVars &state,
+    const unique_ptr<turbModel> &turb, const primitiveView &state,
     const tensor<double> &velGrad, const vector3d<double> &tGrad,
     const vector3d<double> &tkeGrad, const vector3d<double> &omegaGrad,
     const unique_ptr<transport> &trans, const double &vol, const double &mut,
     const double &f1, const double &f2, const double &phi) {
   // turb -- turbulence model
-  // state -- primative variables
+  // state -- primitive variables
   // velGrad -- velocity gradient
   // tGrad -- temperature gradient
   // tkeGrad -- tke gradient
@@ -63,15 +58,15 @@ squareMatrix source::CalcTurbSrc(
   // phi -- factor to reduce tke destruction by for des
 
   // calculate turbulent source terms
-  auto ksrc = 0.0;
-  auto wsrc = 0.0;
+  vector<double> turbSrc(this->NumTurbulence(), 0.0);
   const auto srcJac =
       turb->CalcTurbSrc(state, velGrad, tkeGrad, omegaGrad, trans, vol, mut, f1,
-                        f2, phi, ksrc, wsrc);
+                        f2, phi, turbSrc);
 
   // assign turbulent source terms
-  data_[5] = ksrc;
-  data_[6] = wsrc;
+  for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
+    (*this)[this->TurbulenceIndex() + ii] = turbSrc[ii];
+  }
 
   // return source jacobian
   return srcJac;

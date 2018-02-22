@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,16 +18,25 @@
                          // execute these lines of code
 #define MACROSHEADERDEF  // define the macro
 
-#define NUMVARS 7
-#define NUMFLOWVARS 5
 #define EPS 1.0e-30
 #define ROOTP 0
-#define DEFAULTWALLDIST 1.0e10
+#define DEFAULT_WALL_DIST 1.0e10
+#define WALL_DIST_NEG_TOL -1.0e-10
 #define MAJORVERSION @aither_VERSION_MAJOR@
 #define MINORVERSION @aither_VERSION_MINOR@
 #define PATCHNUMBER @aither_VERSION_PATCH@
 #ifdef _WIN32
 #define MPI_CXX_BOOL MPI_C_BOOL
 #endif
+
+#ifndef NDEBUG
+#  define MSG_ASSERT(expr, msg) \
+   AssertWithMessage(#expr, expr, __FILE__, __LINE__, msg)
+#else
+#  define MSG_ASSERT(expr, msg) ;
+#endif
+
+void AssertWithMessage(const char *exprStr, bool expr, const char *file, 
+                       int line, const char *msg);
 
 #endif

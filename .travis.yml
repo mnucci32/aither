@@ -27,6 +27,7 @@ matrix:
         - CXX_COMPILER=g++-5
         - C_COMPILER=gcc-5
         - BUILD_TYPE=release
+        - AITHER_FLUID_DATABASE=$TRAVIS_BUILD_DIR/build/install/fluidDatabase
     - os: linux
       dist: trusty
       sudo: required
@@ -41,6 +42,22 @@ matrix:
         - CXX_COMPILER=g++-6
         - C_COMPILER=gcc-6
         - BUILD_TYPE=debug
+        - AITHER_FLUID_DATABASE=$TRAVIS_BUILD_DIR/build/install/fluidDatabase
+    - os: linux
+      dist: trusty
+      sudo: required
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7 gcc-7 libstdc++-7-dev
+      env:
+        - CXX_COMPILER=g++-7
+        - C_COMPILER=gcc-7
+        - BUILD_TYPE=release
+        - AITHER_FLUID_DATABASE=$TRAVIS_BUILD_DIR/build/install/fluidDatabase
     - os: linux
       dist: trusty
       sudo: required
@@ -56,6 +73,7 @@ matrix:
         - CXX_COMPILER=clang++-3.8
         - C_COMPILER=clang-3.8
         - BUILD_TYPE=release
+        - AITHER_FLUID_DATABASE=$TRAVIS_BUILD_DIR/build/install/fluidDatabase
     - os: osx
       osx_image: xcode8
       compiler: gcc
@@ -65,6 +83,7 @@ matrix:
         - HOMEBREW_CC=gcc-7
         - HOMEBREW_CXX=g++-7
         - BUILD_TYPE=release
+        - AITHER_FLUID_DATABASE=$TRAVIS_BUILD_DIR/build/install/fluidDatabase
     - os: osx
       osx_image: xcode8
       compiler: clang
@@ -74,6 +93,7 @@ matrix:
         - HOMEBREW_CC=clang
         - HOMEBREW_CXX=clang++
         - BUILD_TYPE=release
+        - AITHER_FLUID_DATABASE=$TRAVIS_BUILD_DIR/build/install/fluidDatabase
 
 # upgrade packages
 before_install:
@@ -100,10 +120,10 @@ before_script:
 # build instructions
 script:
   - cmake -G "Unix Makefiles" -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_C_COMPILER=$C_COMPILER -DMPI_DIR=$TRAVIS_BUILD_DIR/openmpi -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=install ..
-  - make -j2
+  - make -j 4
   - make install
   - cd ../testCases
-  - python3 regressionTests.py --aitherPath=$TRAVIS_BUILD_DIR/build/install/bin/aither --operatingSystem=$TRAVIS_OS_NAME --mpirunPath=$TRAVIS_BUILD_DIR/openmpi/bin/mpirun
+  - python3 regressionTests.py --aitherPath=$TRAVIS_BUILD_DIR/build/install/bin/aither --operatingSystem=$TRAVIS_OS_NAME --mpirunPath=$TRAVIS_BUILD_DIR/openmpi/bin/mpirun --build $BUILD_TYPE
   - cd $TRAVIS_BUILD_DIR/build
 
 after_success:

@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,16 +23,16 @@
 #include "utility.hpp"
 #include "procBlock.hpp"
 #include "eos.hpp"                 // equation of state
-#include "transport.hpp"           // transport model
-#include "thermodynamic.hpp"       // thermodynamic model
+#include "physicsModels.hpp"       // physics models
 #include "input.hpp"               // inputVars
-#include "genArray.hpp"
+#include "varArray.hpp"
 #include "turbulence.hpp"
 #include "slices.hpp"
-#include "fluxJacobian.hpp"
+#include "matMultiArray3d.hpp"
 #include "kdtree.hpp"
 #include "resid.hpp"
-#include "primVars.hpp"
+#include "primitive.hpp"
+#include "macros.hpp"
 
 using std::cout;
 using std::endl;
@@ -261,24 +261,17 @@ calculation. This function operates on the entire grid and uses connection
 boundaries to pass the correct data between grid blocks.
 */
 void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
-                           const unique_ptr<eos> &eqnState,
-                           const unique_ptr<thermodynamic> &thermo,
-                           const unique_ptr<transport> &trans,
-                           const unique_ptr<turbModel> &turb,
-                           vector<connection> &connections, const int &rank,
-                           const MPI_Datatype &MPI_cellData) {
+                           const physics &phys, vector<connection> &connections,
+                           const int &rank) {
   // states -- vector of all procBlocks in the solution domain
   // inp -- all input variables
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // trans -- viscous transport model
+  // phys -- physics models
   // connections -- vector of connection boundary types
   // rank -- processor rank
-  // MPI_cellData -- data type to pass primVars, genArray
 
   // loop over all blocks and assign inviscid ghost cells
   for (auto &state : states) {
-    state.AssignInviscidGhostCells(inp, eqnState, thermo, trans, turb);
+    state.AssignInviscidGhostCells(inp, phys);
   }
 
   // loop over connections and swap ghost cells where needed
@@ -289,10 +282,10 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
           conn, states[conn.LocalBlockSecond()]);
     } else if (conn.RankFirst() == rank) {
       // rank matches rank of first side of connection, swap over mpi
-      states[conn.LocalBlockFirst()].SwapStateSliceMPI(conn, rank, MPI_cellData);
+      states[conn.LocalBlockFirst()].SwapStateSliceMPI(conn, rank);
     } else if (conn.RankSecond() == rank) {
       // rank matches rank of second side of connection, swap over mpi
-      states[conn.LocalBlockSecond()].SwapStateSliceMPI(conn, rank, MPI_cellData);
+      states[conn.LocalBlockSecond()].SwapStateSliceMPI(conn, rank);
     }
     // if rank doesn't match either side of connection, then do nothing and
     // move on to the next connection
@@ -300,7 +293,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
 
   // loop over all blocks and get ghost cell edge data
   for (auto &state : states) {
-    state.AssignInviscidGhostCellsEdge(inp, eqnState, thermo, trans, turb);
+    state.AssignInviscidGhostCellsEdge(inp, phys);
   }
 }
 
@@ -374,11 +367,9 @@ void CalcWallDistance(vector<procBlock> &localBlocks, const kdtree &tree) {
   }
 }
 
-void AssignSolToTimeN(vector<procBlock> &blocks,
-                      const unique_ptr<eos> &eqnState,
-                      const unique_ptr<thermodynamic> &thermo) {
+void AssignSolToTimeN(vector<procBlock> &blocks, const physics &phys) {
   for (auto &block : blocks) {
-    block.AssignSolToTimeN(eqnState, thermo);
+    block.AssignSolToTimeN(phys);
   }
 }
 
@@ -389,36 +380,25 @@ void AssignSolToTimeNm1(vector<procBlock> &blocks) {
 }
 
 void ExplicitUpdate(vector<procBlock> &blocks, const input &inp,
-                    const unique_ptr<eos> &eqnState,
-                    const unique_ptr<thermodynamic> &thermo,
-                    const unique_ptr<transport> &trans,
-                    const unique_ptr<turbModel> &turb, const int &mm,
-                    genArray &residL2, resid &residLinf) {
+                    const physics &phys, const int &mm, residual &residL2,
+                    resid &residLinf) {
   // create dummy update (not used in explicit update)
-  multiArray3d<genArray> du(1, 1, 1, 0);
+  blkMultiArray3d<varArray> du;
   // loop over all blocks and update
   for (auto &block : blocks) {
-    block.UpdateBlock(inp, eqnState, thermo, trans, du, turb, mm, residL2,
-                      residLinf);
+    block.UpdateBlock(inp, phys, du, mm, residL2, residLinf);
   }
 }
 
 double ImplicitUpdate(vector<procBlock> &blocks,
-                      vector<multiArray3d<fluxJacobian>> &mainDiagonal,
-                      const input &inp, const unique_ptr<eos> &eqnState,
-                      const unique_ptr<thermodynamic> &thermo,
-                      const unique_ptr<transport> &trans,
-                      const unique_ptr<turbModel> &turb, const int &mm,
-                      genArray &residL2, resid &residLinf,
-                      const vector<connection> &connections, const int &rank,
-                      const MPI_Datatype &MPI_cellData) {
+                      vector<matMultiArray3d> &mainDiagonal, const input &inp,
+                      const physics &phys, const int &mm, residual &residL2,
+                      resid &residLinf, const vector<connection> &connections,
+                      const int &rank) {
   // blocks -- vector of procBlocks on current processor
   // mainDiagonal -- main diagonal of A matrix for all blocks on processor
   // inp -- input variables
-  // eqnState -- equation of state
-  // thermo -- thermodynamic model
-  // trans -- viscous transport model
-  // turb -- turbulence model
+  // phys -- physics models
   // mm -- nonlinear iteration
   // residL2 -- L2 residual
   // residLinf -- L infinity residual
@@ -434,10 +414,9 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   }
 
   // initialize matrix update
-  vector<multiArray3d<genArray>> du(blocks.size());
+  vector<blkMultiArray3d<varArray>> du(blocks.size());
   for (auto bb = 0U; bb < blocks.size(); bb++) {
-    du[bb] = blocks[bb].InitializeMatrixUpdate(inp, eqnState, thermo,
-                                               mainDiagonal[bb]);
+    du[bb] = blocks[bb].InitializeMatrixUpdate(inp, phys, mainDiagonal[bb]);
   }
 
   // Solve Ax=b with supported solver
@@ -452,33 +431,31 @@ double ImplicitUpdate(vector<procBlock> &blocks,
     // start sweeps through domain
     for (auto ii = 0; ii < inp.MatrixSweeps(); ii++) {
       // swap updates for ghost cells
-      SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
+      SwapImplicitUpdate(du, connections, rank, numG);
 
       // forward lu-sgs sweep
       for (auto bb = 0U; bb < blocks.size(); bb++) {
-        blocks[bb].LUSGS_Forward(reorder[bb], du[bb], eqnState, inp, thermo,
-                                 trans, turb, mainDiagonal[bb], ii);
+        blocks[bb].LUSGS_Forward(reorder[bb], du[bb], phys, inp,
+                                 mainDiagonal[bb], ii);
       }
 
       // swap updates for ghost cells
-      SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
+      SwapImplicitUpdate(du, connections, rank, numG);
 
       // backward lu-sgs sweep
       for (auto bb = 0U; bb < blocks.size(); bb++) {
-        matrixError += blocks[bb].LUSGS_Backward(reorder[bb], du[bb], eqnState,
-                                                 inp, thermo, trans, turb,
+        matrixError += blocks[bb].LUSGS_Backward(reorder[bb], du[bb], phys, inp,
                                                  mainDiagonal[bb], ii);
       }
     }
   } else if (inp.MatrixSolver() == "dplur" || inp.MatrixSolver() == "bdplur") {
     for (auto ii = 0; ii < inp.MatrixSweeps(); ii++) {
       // swap updates for ghost cells
-      SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
+      SwapImplicitUpdate(du, connections, rank, numG);
 
       for (auto bb = 0U; bb < blocks.size(); bb++) {
         // Calculate correction (du)
-        matrixError += blocks[bb].DPLUR(du[bb], eqnState, inp, thermo, trans,
-                                        turb, mainDiagonal[bb]);
+        matrixError += blocks[bb].DPLUR(du[bb], phys, inp, mainDiagonal[bb]);
       }
     }
   } else {
@@ -491,8 +468,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   // Update blocks and reset main diagonal
   for (auto bb = 0U; bb < blocks.size(); bb++) {
     // Update solution
-    blocks[bb].UpdateBlock(inp, eqnState, thermo, trans, du[bb], turb, mm,
-                           residL2, residLinf);
+    blocks[bb].UpdateBlock(inp, phys, du[bb], mm, residL2, residLinf);
 
     // Assign time n to time n-1 at end of nonlinear iterations
     if (inp.IsMultilevelInTime() && mm == inp.NonlinearIterations() - 1) {
@@ -506,14 +482,12 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   return matrixError;
 }
 
-void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
+void SwapImplicitUpdate(vector<blkMultiArray3d<varArray>> &du,
                         const vector<connection> &connections, const int &rank,
-                        const MPI_Datatype &MPI_cellData,
                         const int &numGhosts) {
   // du -- implicit update in conservative variables
   // conn -- connection boundary conditions
   // rank -- processor rank
-  // MPI_cellData -- datatype to pass primVars or genArray
   // numGhosts -- number of ghost cells
 
   // loop over all connections and swap connection updates when necessary
@@ -523,10 +497,10 @@ void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
       du[conn.LocalBlockFirst()].SwapSlice(conn, du[conn.LocalBlockSecond()]);
     } else if (conn.RankFirst() == rank) {
       // rank matches rank of first side of connection, swap over mpi
-      du[conn.LocalBlockFirst()].SwapSliceMPI(conn, rank, MPI_cellData);
+      du[conn.LocalBlockFirst()].SwapSliceMPI(conn, rank, MPI_DOUBLE);
     } else if (conn.RankSecond() == rank) {
       // rank matches rank of second side of connection, swap over mpi
-      du[conn.LocalBlockSecond()].SwapSliceMPI(conn, rank, MPI_cellData);
+      du[conn.LocalBlockSecond()].SwapSliceMPI(conn, rank, MPI_DOUBLE);
     }
     // if rank doesn't match either side of connection, then do nothing and
     // move on to the next connection
@@ -620,21 +594,14 @@ void SwapWallDist(vector<procBlock> &states,
 }
 
 void CalcResidual(vector<procBlock> &states,
-                  vector<multiArray3d<fluxJacobian>> &mainDiagonal,
-                  const unique_ptr<transport> &trans,
-                  const unique_ptr<thermodynamic> &thermo,
-                  const unique_ptr<eos> &eqnState, const input &inp,
-                  const unique_ptr<turbModel> &turb,
-                  const vector<connection> &connections, const int &rank,
-                  const MPI_Datatype &MPI_tensorDouble,
+                  vector<matMultiArray3d> &mainDiagonal, const physics &phys,
+                  const input &inp, const vector<connection> &connections,
+                  const int &rank, const MPI_Datatype &MPI_tensorDouble,
                   const MPI_Datatype &MPI_vec3d) {
   // states -- vector of all procBlocks on processor
   // mainDiagonal -- main diagonal of A matrix for implicit solve
-  // trans -- viscous transport model
-  // thermo -- thermodynamic model
-  // eqnState -- equation of state
+  // phys -- physics models
   // inp -- input variables
-  // turb -- turbulence model
   // connections -- connection boundary conditions
   // rank -- processor rank
   // MPI_tensorDouble -- MPI datatype for tensor<double>
@@ -642,8 +609,7 @@ void CalcResidual(vector<procBlock> &states,
 
   for (auto bb = 0U; bb < states.size(); bb++) {
     // calculate residual
-    states[bb].CalcResidualNoSource(trans, thermo, eqnState, inp, turb,
-                                    mainDiagonal[bb]);
+    states[bb].CalcResidualNoSource(phys, inp, mainDiagonal[bb]);
   }
   // swap mut & gradients calculated during residual calculation
   SwapEddyViscAndGradients(states, connections, rank, MPI_tensorDouble,
@@ -655,7 +621,7 @@ void CalcResidual(vector<procBlock> &states,
 
     for (auto bb = 0U; bb < states.size(); bb++) {
       // calculate source terms for residual
-      states[bb].CalcSrcTerms(trans, turb, inp, mainDiagonal[bb]);
+      states[bb].CalcSrcTerms(phys, inp, mainDiagonal[bb]);
     }
   }
 }
@@ -690,7 +656,7 @@ vector<vector3d<int>> HyperplaneReorder(const int &imax, const int &jmax,
         for (auto ii = 0; ii < imax; ii++) {
           if (ii + jj + kk == pp) {  // if sum of ii, jj, and kk equals pp than
                                      // point is on hyperplane pp
-            reorder.push_back(vector3d<int>(ii, jj, kk));
+            reorder.emplace_back(ii, jj, kk);
           }
         }
       }
@@ -701,14 +667,14 @@ vector<vector3d<int>> HyperplaneReorder(const int &imax, const int &jmax,
 }
 
 void ResizeArrays(const vector<procBlock> &states, const input &inp,
-                  vector<multiArray3d<fluxJacobian>> &jac) {
+                  vector<matMultiArray3d> &jac) {
   // states -- all states on processor
   // sol -- vector of solutions to be resized
   // jac -- vector of flux jacobians to be resized
 
   const auto fluxJac = inp.IsBlockMatrix() ?
       fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations()) :
-      fluxJacobian(1, 1);
+      fluxJacobian(1, std::min(1, inp.NumTurbEquations()));
 
   for (auto bb = 0U; bb < states.size(); bb++) {
     jac[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(), states[bb].NumK(),
@@ -775,63 +741,13 @@ vector<double> LagrangeCoeff(const vector<double> &cellWidth,
   return coeffs;
 }
 
-template <typename T>
-double StencilWidth(const T &cellWidth, const int &start, const int &end) {
-  auto width = 0.0;
-  if (end > start) {
-    width = std::accumulate(std::begin(cellWidth) + start,
-                            std::begin(cellWidth) + end, 0.0);
-  } else if (start > end) {  // width is negative
-    width = -1.0 * std::accumulate(std::begin(cellWidth) + end,
-                                   std::begin(cellWidth) + start, 0.0);
-  }
-  return width;
-}
-
-primVars BetaIntegral(const primVars &deriv1, const primVars &deriv2,
-                      const double &dx, const double &x) {
-  return (deriv1.Squared() * x + deriv1 * deriv2 * x * x +
-          deriv2.Squared() * pow(x, 3.0) / 3.0) * dx +
-      deriv2.Squared() * x * pow(dx, 3.0);
-}
-
-primVars BetaIntegral(const primVars &deriv1, const primVars &deriv2,
-                      const double &dx, const double &xl, const double &xh) {
-  return BetaIntegral(deriv1, deriv2, dx, xh) -
-      BetaIntegral(deriv1, deriv2, dx, xl);
-}
-
-primVars Beta0(const double &x_0, const double &x_1, const double &x_2,
-               const primVars &y_0, const primVars &y_1, const primVars &y_2) {
-  const auto deriv2nd = Derivative2nd(x_0, x_1, x_2, y_0, y_1, y_2);
-  const auto deriv1st = (y_2 - y_1) / (0.5 * (x_2 + x_1)) + 0.5 * x_2 * deriv2nd;
-
-  return BetaIntegral(deriv1st, deriv2nd, x_2, -0.5 * x_2, 0.5 * x_2);
-}
-
-primVars Beta1(const double &x_0, const double &x_1, const double &x_2,
-               const primVars &y_0, const primVars &y_1, const primVars &y_2) {
-  const auto deriv2nd = Derivative2nd(x_0, x_1, x_2, y_0, y_1, y_2);
-  const auto deriv1st = (y_2 - y_1) / (0.5 * (x_2 + x_1)) - 0.5 * x_1 * deriv2nd;
-
-  return BetaIntegral(deriv1st, deriv2nd, x_1, -0.5 * x_1, 0.5 * x_1);
-}
-
-primVars Beta2(const double &x_0, const double &x_1, const double &x_2,
-               const primVars &y_0, const primVars &y_1, const primVars &y_2) {
-  const auto deriv2nd = Derivative2nd(x_0, x_1, x_2, y_0, y_1, y_2);
-  const auto deriv1st = (y_1 - y_0) / (0.5 * (x_1 + x_0)) - 0.5 * x_0 * deriv2nd;
-
-  return BetaIntegral(deriv1st, deriv2nd, x_0, -0.5 * x_0, 0.5 * x_0);
-}
-
 // function to calculate the velocity gradients at a cell face using the Thin
 // Shear Layer approximation
-tensor<double> CalcVelGradTSL(const primVars &left, const primVars &right,
+tensor<double> CalcVelGradTSL(const primitive &left, const primitive &right,
                               const vector3d<double> &normArea,
                               const double &dist) {
-  // left -- left state (primative)
-  // right -- right state (primative)
+  // left -- left state (primitive)
+  // right -- right state (primitive)
   // normArea -- unit area vector of face
   // dist -- distance between centroid of left cell and right cell
 
@@ -863,11 +779,12 @@ tensor<double> CalcVelGradTSL(const primVars &left, const primVars &right,
 //
 kdtree CalcTreeFromCloud(const string &fname, const input &inp,
                          const unique_ptr<transport> &trans,
-                         vector<primVars> &states) {
+                         vector<primitive> &states, vector<string> &species) {
   // fname -- name of file to open
   // inp -- input variables
   // trans -- transport model
   // states -- vector of states read from file
+  // species -- species present in file
 
   // open file
   ifstream inFile(fname, ios::in);
@@ -878,8 +795,8 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
   }
 
   vector<vector3d<double>> points;
-  vector<string> species;
   auto count = 0;
+  std::map<int, int> speciesMap;
   string line = "";
   while (getline(inFile, line)) {
     // remove leading and trailing whitespace and ignore comments
@@ -891,14 +808,14 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
       if (count == 0) {  // first line has number of points
         auto numPts = std::stoi(tokens[0]);
         points.resize(numPts);
-        states.resize(numPts);
+        states.resize(numPts, {inp.NumEquations(), inp.NumSpecies()});
       } else if (count == 1) {  // second line has species
         species = tokens;
-        if (species.size() != 1) {
-          cerr << "ERROR in CalcTreeFromCloud(), only single species currently "
-                  "supported"
-               << endl;
-          exit(EXIT_FAILURE);
+        // check that species are defined
+        inp.CheckSpecies(species);
+        // create map from species order in file to order in simulation
+        for (auto ii = 0U; ii < species.size(); ++ii) {
+          speciesMap.insert(std::make_pair(ii, inp.SpeciesIndex(species[ii])));
         }
       } else if (tokens.size() != 10 + species.size()) {
         cerr << "ERROR in CalcTreeFromCloud(). Expecting "
@@ -921,10 +838,21 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
         auto omega = std::stod(tokens[9]) * trans->MuRef() /
                      (inp.RRef() * inp.ARef() * inp.ARef());
         vector<double> massFractions(species.size(), 0.0);
-        for (auto ii = 0; ii < massFractions.size(); ++ii) {
+        for (auto ii = 0U; ii < massFractions.size(); ++ii) {
           massFractions[ii] = std::stod(tokens[ii + 10]);
         }
-        primVars state(rho, uVel, vVel, wVel, pressure, tke, omega);
+        primitive state(inp.NumEquations(), species.size());
+        for (auto ii = 0U; ii < massFractions.size(); ++ii) {
+          state[speciesMap[ii]] = rho * massFractions[ii];
+        }
+        state[state.MomentumXIndex()] = uVel;
+        state[state.MomentumYIndex()] = vVel;
+        state[state.MomentumZIndex()] = wVel;
+        state[state.EnergyIndex()] = pressure;
+        if (state.HasTurbulenceData()) {
+          state[state.TurbulenceIndex()] = tke;
+          state[state.TurbulenceIndex() + 1] = omega;
+        }
         states[count - 2] = state;
       }
     }
@@ -933,4 +861,23 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
 
   // create kd tree
   return kdtree(points);
+}
+
+void AssertWithMessage(const char *exprStr, bool expr, const char *file, 
+                       int line, const char *msg) {
+  if (!expr) {
+    cerr << "Assert failed: " << msg << endl;
+    cerr << "Condition: " << exprStr << endl;
+    cerr << "At: " << file << ":" << line << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+string GetEnvironmentVariable(const string &var) {
+  auto val = getenv(var.c_str());
+  return val == NULL ? "" : string(val);
+}
+
+double Kronecker(const int &ii, const int &jj) {
+  return (ii == jj) ? 1.0 : 0.0;
 }

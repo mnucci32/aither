@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,115 +19,19 @@
 #include <iostream>  // cout
 #include <algorithm>  // swap
 #include "matrix.hpp"
-#include "genArray.hpp"
+#include "varArray.hpp"
 
 using std::cout;
 using std::endl;
 using std::cerr;
-using std::copy;
-using std::swap_ranges;
-
-// member function to swap rows of matrix
-void squareMatrix::SwapRows(const int &r1, const int &r2) {
-  if (r1 != r2) {
-    for (auto cc = 0; cc < size_; cc++) {
-      std::swap((*this)(r1, cc), (*this)(r2, cc));
-    }
-  }
-}
-
-// member function to invert matrix using Gauss-Jordan elimination
-void squareMatrix::Inverse() {
-  squareMatrix I(size_);
-  I.Identity();
-
-  for (auto cPivot = 0, r = 0; r < size_; r++, cPivot++) {
-    // find pivot row
-    auto rPivot = this->FindMaxInCol(r, cPivot, size_ - 1);
-
-    // swap rows
-    this->SwapRows(r, rPivot);
-    I.SwapRows(r, rPivot);
-
-    if (r != 0) {  // if not on first row, need to get rid entries ahead of
-                   // pivot
-      for (auto ii = 0; ii < cPivot; ii++) {
-        auto factor = (*this)(r, ii) / (*this)(ii, ii);
-        this->LinCombRow(ii, factor, r);
-        I.LinCombRow(ii, factor, r);
-      }
-    }
-
-    // normalize row by pivot
-    if ((*this)(r, cPivot) == 0.0) {
-      cerr << "ERROR: Singular matrix in Gauss-Jordan elimination! Matrix (mid "
-              "inversion) is" << endl << *this << endl;
-      exit(EXIT_FAILURE);
-    }
-    auto normFactor = 1.0 / (*this)(r, cPivot);
-    this->RowMultiply(r, cPivot, normFactor);  // only multiply entries from
-                                                 // pivot and to the right
-    I.RowMultiply(r, 0, normFactor);  // multiply all entries
-  }
-
-  // matrix is now upper triangular, work way back up to identity matrix
-  // start with second to last row
-  for (auto cPivot = size_ - 2, r = size_ - 2; r >= 0; r--, cPivot--) {
-    for (auto ii = size_ - 1; ii > cPivot; ii--) {
-      auto factor = (*this)(r, ii);
-      this->LinCombRow(ii, factor, r);
-      I.LinCombRow(ii, factor, r);
-    }
-  }
-
-  // set this matrix equal to its inverse
-  (*this) = I;
-}
-
-// member function to add a linear combination of one row to another
-void squareMatrix::LinCombRow(const int &r1, const double &factor,
-                              const int &r2) {
-  for (auto ii = 0; ii < size_; ii++) {
-    (*this)(r2, ii) = (*this)(r2, ii) - (*this)(r1, ii) * factor;
-  }
-}
-
-// member function to multiply a row by a given factor
-void squareMatrix::RowMultiply(const int &r, const int &c,
-                               const double &factor) {
-  for (auto ii = c; ii < size_; ii++) {
-    (*this)(r, ii) = (*this)(r, ii) * factor;
-  }
-}
-
-// member function to find maximum absolute value in a given column and range
-// within that column and return the corresponding row indice
-int squareMatrix::FindMaxInCol(const int &c, const int &start,
-                               const int &end) const {
-  auto maxVal = 0.0;
-  auto maxRow = 0;
-  for (auto ii = start; ii <= end; ii++) {
-    if (fabs((*this)(ii, c)) > maxVal) {
-      maxVal = fabs((*this)(ii, c));
-      maxRow = ii;
-    }
-  }
-  return maxRow;
-}
-
 
 // operator overload for multiplication
 // using cache efficient implimentation
 squareMatrix squareMatrix::MatMult(const squareMatrix &s2) const {
-  squareMatrix s1(s2.Size());
-  for (auto cc = 0; cc < s2.Size(); cc++) {
-    for (auto rr = 0; rr < s2.Size(); rr++) {
-      for (auto ii = 0; ii < s2.Size(); ii++) {
-        s1(rr, ii) += (*this)(rr, cc) * s2(cc, ii);
-      }
-    }
-  }
-  return s1;
+  MSG_ASSERT(this->Size() == s2.Size(), "matrix size mismatch");
+  squareMatrix result(s2.Size());
+  MatrixMultiply(this->begin(), s2.begin(), result.begin(), this->Size());
+  return result;
 }
 
 // operation overload for << - allows use of cout, cerr, etc.
@@ -145,57 +49,189 @@ ostream &operator<<(ostream &os, const squareMatrix &m) {
   return os;
 }
 
-// member function to zero the matrix
-void squareMatrix::Zero() {
-  for (auto &val : data_) {
-    val = 0.0;
+
+// ---------------------------------------------------------------------------
+// generic matrix functions
+
+// function to invert matrix using Gauss-Jordan elimination
+void MatrixInverse(const vector<double>::iterator &mat, const int &size) {
+  auto GetVal = [&size](const auto &mat, const int &r,
+                        const int &c) -> decltype(auto) {
+    return *(mat + r * size + c);
+  };
+
+  squareMatrix I(size);
+  I.Identity();
+
+  for (auto cPivot = 0, r = 0; r < size; ++r, ++cPivot) {
+    // find pivot row
+    auto rPivot = FindMaxInColumn(mat, size, r, cPivot, size - 1);
+
+    // swap rows
+    SwapMatRows(mat, size, r, rPivot);
+    I.SwapRows(r, rPivot);
+
+    if (r != 0) {  // if not first row, need to get rid entries ahead of pivot
+      for (auto ii = 0; ii < cPivot; ++ii) {
+        auto factor = GetVal(mat, r, ii) / GetVal(mat, ii, ii);
+        LinearCombRow(mat, size, ii, factor, r);
+        I.LinCombRow(ii, factor, r);
+      }
+    }
+
+    // normalize row by pivot
+    if (GetVal(mat, r, cPivot) == 0.0) {
+      cerr << "ERROR: Singular matrix in Gauss-Jordan elimination!" << endl;
+      exit(EXIT_FAILURE);
+    }
+    // only normalize entries from pivot and to the right
+    auto normFactor = 1.0 / GetVal(mat, r, cPivot);
+    RowMultiplyFactor(mat, size, r, cPivot, normFactor);
+    I.RowMultiply(r, 0, normFactor);  // multiply all entries
+  }
+
+  // matrix is now upper triangular, work way back up to identity matrix
+  // start with second to last row
+  for (auto cPivot = size - 2, r = size - 2; r >= 0; --r, --cPivot) {
+    for (auto ii = size - 1; ii > cPivot; --ii) {
+      auto factor = GetVal(mat, r, ii);
+      LinearCombRow(mat, size, ii, factor, r);
+      I.LinCombRow(ii, factor, r);
+    }
+  }
+
+  // set matrix equal to its inverse
+  std::copy(I.begin(), I.end(), mat);
+}
+
+// member function to swap rows of matrix
+void SwapMatRows(const vector<double>::iterator &mat, const int &size,
+                 const int &r1, const int &r2) {
+  MSG_ASSERT(r1 < size && r2 < size, "index outside of range");
+  if (r1 != r2) {
+    auto GetLoc = [&size](const int &r, const int &c) -> decltype(auto) {
+      return r * size + c;
+    };
+    std::swap_ranges(mat + GetLoc(r1, 0),
+                     mat + GetLoc(r1, size),
+                     mat + GetLoc(r2, 0));
   }
 }
 
+// function to add a linear combination of one row to another
+void LinearCombRow(const vector<double>::iterator &mat, const int &size,
+                   const int &r1, const double &factor, const int &r2) {
+  MSG_ASSERT(r1 < size && r2 < size, "index outside of range");
+  auto GetLoc = [&size](const int &r, const int &c) -> decltype(auto) {
+    return r * size + c;
+  };
+  std::transform(
+      mat + GetLoc(r2, 0), mat + GetLoc(r2, size), mat + GetLoc(r1, 0),
+      mat + GetLoc(r2, 0),
+      [&factor](const auto &v1, const auto &v2) { return v1 - factor * v2; });
+}
+
+// function to multiply a row by a given factor
+void RowMultiplyFactor(const vector<double>::iterator &mat, const int &size,
+                       const int &r, const int &c, const double &factor) {
+  MSG_ASSERT(r < size && c < size, "index outside of range");
+  auto GetLoc = [&size](const int &r, const int &c) -> decltype(auto) {
+    return r * size + c;
+  };
+  for_each(mat + GetLoc(r, c), mat + GetLoc(r, size),
+           [&factor](auto &val) { val *= factor; });
+}
+
+// function to find maximum absolute value in a given column and range
+// within that column and return the corresponding row indice
+int FindMaxInColumn(const vector<double>::const_iterator &mat, const int &size,
+                    const int &c, const int &start, const int &end) {
+  MSG_ASSERT(start < size && end < size && c < size,
+             "index outside of range");
+  auto GetVal = [&size](const auto &mat, const int &r,
+                        const int &c) -> decltype(auto) {
+    return *(mat + r * size + c);
+  };
+
+  auto maxVal = 0.0;
+  auto maxRow = 0;
+  for (auto ii = start; ii <= end; ++ii) {
+    if (fabs(GetVal(mat, ii, c)) > maxVal) {
+      maxVal = fabs(GetVal(mat, ii, c));
+      maxRow = ii;
+    }
+  }
+  return maxRow;
+}
+
 // member function to set matrix to Identity
-void squareMatrix::Identity() {
-  for (auto rr = 0; rr < this->Size(); rr++) {
-    for (auto cc = 0; cc < this->Size(); cc++) {
-      if (rr == cc) {
-        (*this)(rr, cc) = 1.0;
-      } else {
-        (*this)(rr, cc) = 0.0;
+void IdentityMatrix(const vector<double>::iterator &mat, const int &size) {
+  auto GetVal = [&size](const auto &mat, const int &r,
+                        const int &c) -> decltype(auto) {
+    return *(mat + r * size + c);
+  };
+  for (auto rr = 0; rr < size; ++rr) {
+    for (auto cc = 0; cc < size; ++cc) {
+      GetVal(mat, rr, cc) = (rr == cc) ? 1.0 : 0.0;
+    }
+  }
+}
+
+// function to find maximum absolute value on diagonal
+// this can be used to find the spectral radius of a diagoanl matrix
+double MaximumAbsValOnDiagonal(const vector<double>::const_iterator &mat,
+                               const int &size) {
+  auto GetVal = [&size](const auto &mat, const int &r,
+                        const int &c) -> decltype(auto) {
+    return *(mat + r * size + c);
+  };
+
+  auto maxVal = 0.0;
+  for (auto ii = 0; ii < size; ++ii) {
+    maxVal = std::max(fabs(GetVal(mat, ii, ii)), maxVal);
+  }
+  return maxVal;
+}
+
+// function to multiply two matrices
+void MatrixMultiply(const vector<double>::const_iterator &matL,
+                    const vector<double>::const_iterator &matR,
+                    const vector<double>::iterator &result, const int &size) {
+  auto GetVal = [&size](const auto &mat, const int &r,
+                        const int &c) -> decltype(auto) {
+    return *(mat + r * size + c);
+  };
+
+  for (auto cc = 0; cc < size; ++cc) {
+    for (auto rr = 0; rr < size; ++rr) {
+      for (auto ii = 0; ii < size; ++ii) {
+        GetVal(result, rr, ii) += GetVal(matL, rr, cc) * GetVal(matR, cc, ii);
       }
     }
   }
 }
 
-// member function to do matrix/vector multplication
-genArray squareMatrix::ArrayMult(const genArray &vec, const int pos) const {
-  // vec -- vector to multiply with
-
-  auto product = vec;
-
-  // zero out portion of genArray that will be written over
-  if (pos == 0) {
-    for (auto ii = 0; ii < NUMFLOWVARS; ii++) {
-      product[ii] = 0.0;
-    }
-  } else {
-    for (auto ii = pos; ii < NUMVARS; ii++) {
-      product[ii] = 0.0;
-    }
+void MultiplyFacOnDiagonal(const vector<double>::iterator &mat, const int &size,
+                           const double &val) {
+  // val -- value to multiply along diagonal
+  auto GetVal = [&size](const auto &mat, const int &r,
+                        const int &c) -> decltype(auto) {
+    return *(mat + r * size + c);
+  };
+  for (auto ii = 0; ii < size; ++ii) {
+    GetVal(mat, ii, ii) *= val;
   }
-
-  for (auto rr = 0; rr < size_; rr++) {
-    for (auto cc = 0; cc < size_; cc++) {
-      product[pos + rr] += (*this)(rr, cc) * vec[pos + cc];
-    }
-  }
-  return product;
 }
 
-// member function to find maximum absolute value on diagonal
-// this can be used to find the spectral radius of a diagoanl matrix
-double squareMatrix::MaxAbsValOnDiagonal() const {
-  auto maxVal = 0.0;
-  for (auto ii = 0; ii < size_; ii++) {
-    maxVal = std::max(fabs((*this)(ii, ii)), maxVal);
+void AddFacOnDiagonal(const vector<double>::iterator &mat, const int &size,
+                      const double &val) {
+  // val -- value to multiply along diagonal
+  auto GetVal = [&size](const auto &mat, const int &r,
+                        const int &c) -> decltype(auto) {
+    return *(mat + r * size + c);
+  };
+  for (auto ii = 0; ii < size; ++ii) {
+    GetVal(mat, ii, ii) += val;
   }
-  return maxVal;
 }
+

@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,7 +18,8 @@
 #include <iostream>   // cout
 #include <algorithm>  // max
 #include "turbulence.hpp"
-#include "primVars.hpp"   // primVars
+#include "primitive.hpp"   // primitive
+#include "arrayView.hpp"   // primitiveView
 #include "transport.hpp"  // transport model
 #include "matrix.hpp"     // squareMatrix
 
@@ -34,8 +35,7 @@ using std::min;
 
 // member function to return the eddy viscosity calculated without the stress
 // limiter
-double turbModel::EddyViscNoLim(const primVars &state) const {
-  // state -- primative variables
+double turbModel::EddyViscosityNoLim(const primitiveView &state) const {
   return state.Rho() * state.Tke() / state.Omega();
 }
 
@@ -55,15 +55,14 @@ tensor<double> turbModel::MeanStrainRate(const tensor<double> &vGrad) const {
    operators on a tensor that take the trace and transpose respectively.
 */
 tensor<double> turbModel::BoussinesqReynoldsStress(
-    const primVars &state, const tensor<double> &velGrad,
+    const primitiveView &state, const tensor<double> &velGrad,
     const unique_ptr<transport> &trans, const double &mut) const {
-  // state -- primative variables
+  // state -- primitive variables
   // velGrad -- velocity gradient tensor
   // trans -- viscous transport model
   // mut -- turbulent eddy viscosity
 
   const auto lambda = trans->Lambda(mut);  // 2nd eddy viscosity
-
   tensor<double> I;
   I.Identity();
   return lambda * velGrad.Trace() * I + mut * (velGrad + velGrad.Transpose())
@@ -72,102 +71,53 @@ tensor<double> turbModel::BoussinesqReynoldsStress(
 
 // Member function for calculation of tke production
 // P = tau_ij * velGrad_ij
-double turbModel::ReynoldsStressDDotVelGrad(const primVars &state,
+double turbModel::ReynoldsStressDDotVelGrad(const primitiveView &state,
                                             const tensor<double> &velGrad,
                                             const unique_ptr<transport> &trans,
                                             const double &mut) const {
-  // state -- primative variables
+  // state -- primitive variables
   // velGrad -- velocity gradient
   // trans -- viscous transport model
   // mut -- turbulent eddy viscosity
-
   const auto tau = this->BoussinesqReynoldsStress(state, velGrad, trans, mut);
   return tau.DoubleDotTrans(velGrad);
 }
 
 // member function for destruction of tke
 // Dk = rho * k * w
-double turbModel::TkeDestruction(const primVars &state,
+double turbModel::TkeDestruction(const primitiveView &state,
                                  const double &phi) const {
-  // state -- primative variables
+  // state -- primitive variables
   return state.Rho() * state.Tke() * state.Omega() * phi;
 }
 
 // member function for destruction of omega
 // Dw = rho * w * w
-double turbModel::OmegaDestruction(const primVars &state) const {
-  // state -- primative variables
+double turbModel::OmegaDestruction(const primitiveView &state) const {
+  // state -- primitive variables
   return state.Rho() * state.Omega() * state.Omega();
 }
 
 // member function for cross diffusion term without coefficient
 // CD = rho / w * kGrad (dot) wGrad
 // In the above equation kGrad and wGrad are the tke and omega gradients.
-double turbModel::CrossDiffusion(const primVars &state,
+double turbModel::CrossDiffusion(const primitiveView &state,
                                  const vector3d<double> &kGrad,
                                  const vector3d<double> &wGrad) const {
-  // state -- primative variables
+  // state -- primitive variables
   // kGrad -- tke gradient
   // wGrad -- omega gradient
   return state.Rho() / state.Omega() * kGrad.DotProd(wGrad);
 }
 
-// member function to calculate the spectral radius of the turbulence equations
-double turbModel::CellSpectralRadius(
-    const primVars &state, const unitVec3dMag<double> &fAreaL,
-    const unitVec3dMag<double> &fAreaR, const double &mu,
-    const unique_ptr<transport> &trans, const double &vol, const double &mut,
-    const double &f1, const bool &addSrc) const {
-  // state -- primative variables
-  // fAreaL -- area at left face
-  // fAreaR -- area at right face
-  // mu -- laminar viscosity
-  // trans -- viscous transport model
-  // vol -- cell volume
-  // mut -- turbulent viscosity
-  // f1 -- first blending coefficient
-  // addSrc -- flag to determine if source jacobian spectral radius should be
-  //           included
-
-  auto specRad = this->InviscidCellSpecRad(state, fAreaL, fAreaR);
-  // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
-  specRad += 2.0 * this->ViscCellSpecRad(state, fAreaL, fAreaR, mu, trans, vol,
-                                         mut, f1);
-  if (addSrc) {
-    // minus sign because source terms are on RHS
-    specRad -= this->SrcSpecRad(state, trans, vol);
-  }
-
-  return specRad;
-}
-
-double turbModel::FaceSpectralRadius(
-    const primVars &state, const unitVec3dMag<double> &fArea, const double &mu,
-    const unique_ptr<transport> &trans, const double &dist, const double &mut,
-    const double &f1, const bool &positive) const {
-  // state -- primative variables
-  // fArea -- face area
-  // mu -- laminar viscosity
-  // trans -- viscous transport model
-  // dist -- distance from cell center to cell center
-  // mut -- turbulent viscosity
-  // f1 -- first blending coefficient
-  // positive -- flag to add or subtract inviscid dissipation
-
-  auto specRad = this->InviscidFaceSpecRad(state, fArea, positive);
-  specRad += this->ViscFaceSpecRad(state, fArea, mu, trans, dist, mut, f1);
-  return specRad;
-}
-
-
 // member function to calculate inviscid flux jacobian
 // v = vel (dot) area
 // df_dq = [v +/- |v|     0     ]
 //         [   0       v +/- |v|]
-squareMatrix turbModel::InviscidJacobian(const primVars &state,
-                                         const unitVec3dMag<double> &fArea,
-                                         const bool &positive) const {
-  // state -- primative variables at face
+squareMatrix turbModel::InvJac(const primitiveView &state,
+                               const unitVec3dMag<double> &fArea,
+                               const bool &positive) const {
+  // state -- primitive variables at face
   // fArea -- face area
   // positive -- flag to determine whether to add/subtract dissipation
 
@@ -177,9 +127,10 @@ squareMatrix turbModel::InviscidJacobian(const primVars &state,
              this->InviscidDissJacobian(state, fArea));
 }
 
-squareMatrix turbModel::InviscidConvJacobian(
-    const primVars &state, const unitVec3dMag<double> &fArea) const {
-  // state -- primative variables at face
+// function to calculate convective portion of inviscid flux jacobian
+squareMatrix turbModel::InviscidConvectiveJacobian(
+    const primitiveView &state, const unitVec3dMag<double> &fArea) const {
+  // state -- primitive variables at face
   // fArea -- face area
 
   const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
@@ -190,9 +141,10 @@ squareMatrix turbModel::InviscidConvJacobian(
   return jacobian;
 }
 
-squareMatrix turbModel::InviscidDissJacobian(
-    const primVars &state, const unitVec3dMag<double> &fArea) const {
-  // state -- primative variables at face
+// function to calculate dissipative portion of inviscid flux jacobian
+squareMatrix turbModel::InviscidDissipationJacobian(
+    const primitiveView &state, const unitVec3dMag<double> &fArea) const {
+  // state -- primitive variables at face
   // fArea -- face area
 
   const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
@@ -207,43 +159,41 @@ squareMatrix turbModel::InviscidDissJacobian(
 // member function to calculate inviscid spectral radius
 // df_dq = [vel (dot) area   0
 //                0          vel (dot) area]
-double turbModel::InviscidCellSpecRad(const primVars &state,
-                                      const unitVec3dMag<double> &fAreaL,
-                                      const unitVec3dMag<double> &fAreaR) const {
-  // state -- primative variables
+double turbModel::InviscidCellSpectralRadius(
+    const primitiveView &state, const unitVec3dMag<double> &fAreaL,
+    const unitVec3dMag<double> &fAreaR) const {
+  // state -- primitive variables
   // fAreaL -- face area for left face
   // fAreaR -- face area for right face
-
-  auto normAvg = (0.5 * (fAreaL.UnitVector() +
-                         fAreaR.UnitVector())).Normalize();
+  auto normAvg =
+      (0.5 * (fAreaL.UnitVector() + fAreaR.UnitVector())).Normalize();
   auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
   return fabs(state.Velocity().DotProd(normAvg)) * fMag;
 }
 
-double turbModel::InviscidFaceSpecRad(const primVars &state,
-                                      const unitVec3dMag<double> &fArea,
-                                      const bool &positive) const {
-  // state -- primative variables
+double turbModel::InviscidFaceSpectralRadius(const primitiveView &state,
+                                             const unitVec3dMag<double> &fArea,
+                                             const bool &positive) const {
+  // state -- primitive variables
   // fArea -- face area
   // positive -- add or subtract dissipation term
 
   const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
-  // returning absolute value because it is expected that spectral radius is
-  // positive
+  // returning absolute value because it is expected that spec rad is positive
   return positive ? 0.5 * fArea.Mag() * fabs(velNorm + fabs(velNorm)) :
       0.5 * fArea.Mag() * fabs(velNorm - fabs(velNorm));
+  return InviscidFaceSpectralRadius(state, fArea, positive);
 }
 
 // member function to calculate viscous flux jacobian for models with no
 // viscous contribution
-squareMatrix turbModel::ViscousJacobian(const primVars &state,
-                                           const unitVec3dMag<double> &fArea,
-                                           const double &mu,
-                                           const unique_ptr<transport> &trans,
-                                           const double &dist,
-                                           const double &mut,
-                                           const double &f1) const {
-  // state -- primative variables
+squareMatrix turbModel::ViscJac(const primitiveView &state,
+                                const unitVec3dMag<double> &fArea,
+                                const double &mu,
+                                const unique_ptr<transport> &trans,
+                                const double &dist, const double &mut,
+                                const double &f1) const {
+  // state -- primitive variables
   // fAreaL -- face area for left face
   // mu -- laminar viscosity
   // trans -- unique_ptr<transport>'s law for viscosity
@@ -256,20 +206,22 @@ squareMatrix turbModel::ViscousJacobian(const primVars &state,
 
 // member function to calculate turbulence source terms
 squareMatrix turbModel::CalcTurbSrc(
-    const primVars &state, const tensor<double> &velGrad,
+    const primitiveView &state, const tensor<double> &velGrad,
     const vector3d<double> &kGrad, const vector3d<double> &wGrad,
     const unique_ptr<transport> &trans, const double &vol,
     const double &turbVisc, const double &f1, const double &f2,
-    const double &width, double &ksrc, double &wsrc) const {
-  // set k and omega source terms to zero
-  ksrc = 0.0;
-  wsrc = 0.0;
+    const double &width, vector<double> &turbSrc) const {
+  // set source terms to zero
+  for (auto &val : turbSrc) {
+    val = 0.0;
+  }
 
   // return source jacobian spectral radius
   return this->TurbSrcJac(state, 0.0, trans, vol);
 }
 
-squareMatrix turbModel::TurbSrcJac(const primVars &state, const double &beta,
+squareMatrix turbModel::TurbSrcJac(const primitiveView &state, 
+                                   const double &beta,
                                    const unique_ptr<transport> &trans,
                                    const double &vol,
                                    const double &phi) const {
@@ -284,27 +236,27 @@ void turbNone::Print() const {
   cout << "No Turbulence Model" << endl;
 }
 
-squareMatrix turbNone::InviscidJacobian(const primVars &state,
-                                        const unitVec3dMag<double> &fArea,
-                                        const bool &positive) const {
-  // state -- primative variables at face
+squareMatrix turbNone::InvJac(const primitiveView &state,
+                              const unitVec3dMag<double> &fArea,
+                              const bool &positive) const {
+  // state -- primitive variables at face
   // fArea -- face area
   // positive -- flag to determine whether to add/subtract spectral radius
 
   return squareMatrix();
 }
 
-squareMatrix turbNone::InviscidConvJacobian(
-    const primVars &state, const unitVec3dMag<double> &fArea) const {
-  // state -- primative variables at face
+squareMatrix turbNone::InviscidConvectiveJacobian(
+    const primitiveView &state, const unitVec3dMag<double> &fArea) const {
+  // state -- primitive variables at face
   // fArea -- face area
 
   return squareMatrix();
 }
 
-squareMatrix turbNone::InviscidDissJacobian(
-    const primVars &state, const unitVec3dMag<double> &fArea) const {
-  // state -- primative variables at face
+squareMatrix turbNone::InviscidDissipationJacobian(
+    const primitiveView &state, const unitVec3dMag<double> &fArea) const {
+  // state -- primitive variables at face
   // fArea -- face area
 
   return squareMatrix();
@@ -315,11 +267,11 @@ squareMatrix turbNone::InviscidDissJacobian(
 
 // member function to return the eddy viscosity calculated with the stress
 // limiter
-double turbKWWilcox::EddyVisc(const primVars &state,
+double turbKWWilcox::EddyVisc(const primitive &state,
                               const tensor<double> &vGrad,
                               const unique_ptr<transport> &trans,
                               const double &f2, const double &length) const {
-  // state -- primative variables
+  // state -- primitive variables
   // vGrad -- velocity gradient
   // trans -- viscous transport model
   // f2 -- SST blending coefficient (not used in Wilcox K-W)
@@ -332,29 +284,24 @@ double turbKWWilcox::SigmaD(const vector3d<double> &kGrad,
                             const vector3d<double> &wGrad) const {
   // kGrad -- tke gradient
   // wGrad -- omega gradient
-
-  if (kGrad.DotProd(wGrad) <= 0.0) {
-    return 0.0;
-  } else {
-    return sigmaD0_;
-  }
+  return kGrad.DotProd(wGrad) <= 0.0 ? 0.0 : sigmaD0_;
 }
 
 // member function to calculate coefficient for omega destruction
-double turbKWWilcox::Beta(const primVars &state,
+double turbKWWilcox::Beta(const primitiveView &state,
                           const tensor<double> &velGrad,
                           const unique_ptr<transport> &trans) const {
-  // state -- primative variables
+  // state -- primitive variables
   // velGrad -- velocity gradient
   // trans -- viscous transport model
   return beta0_ * this->FBeta(state, velGrad, trans);
 }
 
 // member function to calculate coefficient used in beta calculation
-double turbKWWilcox::FBeta(const primVars &state,
+double turbKWWilcox::FBeta(const primitiveView &state,
                            const tensor<double> &velGrad,
                            const unique_ptr<transport> &trans) const {
-  // state -- primative variables
+  // state -- primitive variables
   // velGrad -- velocity gradient
   // trans -- viscous transport model
   auto xw = this->Xw(state, velGrad, trans);
@@ -363,13 +310,12 @@ double turbKWWilcox::FBeta(const primVars &state,
 
 // member function to calculate vortex stretching coefficient
 // used in fbeta calculation
-double turbKWWilcox::Xw(const primVars &state,
+double turbKWWilcox::Xw(const primitiveView &state,
                         const tensor<double> &velGrad,
                         const unique_ptr<transport> &trans) const {
-  // state -- primative variables
+  // state -- primitive variables
   // velGrad -- velocity gradient
   // trans -- viscous transport model
-
   const auto vorticity = 0.5 * (velGrad - velGrad.Transpose());
 
   // using DoubleDotTrans for speed
@@ -390,10 +336,10 @@ tensor<double> turbKWWilcox::StrainKI(const tensor<double> &velGrad) const {
 }
 
 // member function to calculate adjusted omega used in eddy viscosity limiter
-double turbKWWilcox::OmegaTilda(const primVars &state,
+double turbKWWilcox::OmegaTilda(const primitive &state,
                                 const tensor<double> &velGrad,
                                 const unique_ptr<transport> &trans) const {
-  // state -- primative variables
+  // state -- primitive variables
   // velGrad -- velocity gradient
   // trans -- viscous transport model
 
@@ -410,7 +356,7 @@ double turbKWWilcox::OmegaTilda(const primVars &state,
 
 // member function to calculate turbulence source terms and return source
 // jacobian
-squareMatrix turbKWWilcox::CalcTurbSrc(const primVars &state,
+squareMatrix turbKWWilcox::CalcTurbSrc(const primitiveView &state,
                                        const tensor<double> &velGrad,
                                        const vector3d<double> &kGrad,
                                        const vector3d<double> &wGrad,
@@ -418,8 +364,8 @@ squareMatrix turbKWWilcox::CalcTurbSrc(const primVars &state,
                                        const double &vol,
                                        const double &mut, const double &f1,
                                        const double &f2, const double &width,
-                                       double &ksrc, double &wsrc) const {
-  // state -- primative variables
+                                       vector<double> &turbSrc) const {
+  // state -- primitive variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
   // wGrad -- omega gradient
@@ -427,8 +373,9 @@ squareMatrix turbKWWilcox::CalcTurbSrc(const primVars &state,
   // vol -- cell volume
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
-  // ksrc -- source term for tke equation
-  // wsrc -- source term for omega equation
+  // turbSrc -- source terms
+
+  MSG_ASSERT(turbSrc.size() == 2, "turbulence source vector is wrong size");
 
   // calculate tke destruction
   const auto tkeDest = trans->InvNondimScaling() * betaStar_ *
@@ -453,8 +400,8 @@ squareMatrix turbKWWilcox::CalcTurbSrc(const primVars &state,
       this->CrossDiffusion(state, kGrad, wGrad);
 
   // assign source term values
-  ksrc = tkeProd - tkeDest;
-  wsrc = omgProd - omgDest + omgCd;
+  turbSrc[0] = tkeProd - tkeDest;
+  turbSrc[1] = omgProd - omgDest + omgCd;
 
   // return source jacobian
   return this->TurbSrcJac(state, beta, trans, vol);
@@ -462,7 +409,7 @@ squareMatrix turbKWWilcox::CalcTurbSrc(const primVars &state,
 
 // member function to calculate the eddy viscosity, and the blending
 // coefficients.
-void turbKWWilcox::EddyViscAndBlending(const primVars &state,
+void turbKWWilcox::EddyViscAndBlending(const primitive &state,
                                        const tensor<double> &velGrad,
                                        const vector3d<double> &kGrad,
                                        const vector3d<double> &wGrad,
@@ -472,7 +419,7 @@ void turbKWWilcox::EddyViscAndBlending(const primVars &state,
                                        const double &length,
                                        double &mut, double &f1,
                                        double &f2) const {
-  // state -- primative variables
+  // state -- primitive variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
   // wGrad -- omega gradient
@@ -501,10 +448,10 @@ void turbKWWilcox::EddyViscAndBlending(const primVars &state,
    This is a diagonal matrix so eigenvalues are trivial. Since betaStar is
    always larger than beta, this eigenvalue is used
 */
-double turbKWWilcox::SrcSpecRad(const primVars &state,
+double turbKWWilcox::SrcSpecRad(const primitiveView &state,
                                 const unique_ptr<transport> &trans,
                                 const double &vol, const double &phi) const {
-  // state -- primative variables
+  // state -- primitive variables
   // trans -- viscous transport model
   // vol -- cell volume
 
@@ -512,12 +459,12 @@ double turbKWWilcox::SrcSpecRad(const primVars &state,
   return -2.0 * betaStar_ * state.Omega() * vol * trans->InvNondimScaling();
 }
 
-squareMatrix turbKWWilcox::TurbSrcJac(const primVars &state,
+squareMatrix turbKWWilcox::TurbSrcJac(const primitiveView &state,
                                       const double &beta,
                                       const unique_ptr<transport> &trans,
                                       const double &vol,
                                       const double &phi) const {
-  // state -- primative variables
+  // state -- primitive variables
   // beta -- destruction coefficient for omega equation
   // trans -- viscous transport model
   // vol -- cell volume
@@ -535,42 +482,38 @@ squareMatrix turbKWWilcox::TurbSrcJac(const primVars &state,
 // member function to calculate viscous flux jacobian
 // dfv_dq = [ (nu + sigmaStar * nut) / dist           0               ]
 //          [             0                  (nu + sigma * nut) / dist]
-squareMatrix turbKWWilcox::ViscousJacobian(const primVars &state,
-                                           const unitVec3dMag<double> &fArea,
-                                           const double &mu,
-                                           const unique_ptr<transport> &trans,
-                                           const double &dist,
-                                           const double &mut,
-                                           const double &f1) const {
-  // state -- primative variables
+squareMatrix turbKWWilcox::ViscJac(const primitiveView &state,
+                                   const unitVec3dMag<double> &fArea,
+                                   const double &mu,
+                                   const unique_ptr<transport> &trans,
+                                   const double &dist, const double &mut,
+                                   const double &f1) const {
+  // state -- primitive variables
   // fAreaL -- face area for left face
   // mu -- laminar viscosity
   // trans -- viscous transport model
   // dist -- distance from cell center to cell center across face
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
-
+  auto length = fArea.Mag() / dist;
   squareMatrix jacobian(2);
   // Wilcox method uses unlimited eddy viscosity
-  jacobian(0, 0) = fArea.Mag() * trans->NondimScaling() / (dist * state.Rho()) *
-      (mu + this->SigmaK(f1) * this->EddyViscNoLim(state));
-  jacobian(1, 1) = fArea.Mag() * trans->NondimScaling() / (dist * state.Rho()) *
-      (mu + this->SigmaW(f1) * this->EddyViscNoLim(state));
-
+  jacobian(0, 0) = trans->NondimScaling() * length / state.Rho() *
+                   (mu + this->SigmaK(f1) * this->EddyViscosityNoLim(state));
+  jacobian(1, 1) = trans->NondimScaling() * length / state.Rho() *
+                   (mu + this->SigmaW(f1) * this->EddyViscosityNoLim(state));
   return jacobian;
 }
 
 // member function to calculate viscous spectral radius
 // dfv_dq = [ (area / vol) * (nu + sigmaStar * nut)    0
 //                           0                (area / vol) * (nu + sigma * nut)]
-double turbKWWilcox::ViscCellSpecRad(const primVars &state,
-                                     const unitVec3dMag<double> &fAreaL,
-                                     const unitVec3dMag<double> &fAreaR,
-                                     const double &mu,
-                                     const unique_ptr<transport> &trans,
-                                     const double &vol, const double &mut,
-                                     const double &f1) const {
-  // state -- primative variables
+double turbKWWilcox::ViscousCellSpectralRadius(
+    const primitiveView &state, const unitVec3dMag<double> &fAreaL,
+    const unitVec3dMag<double> &fAreaR, const double &mu,
+    const unique_ptr<transport> &trans, const double &vol, const double &mut,
+    const double &f1) const {
+  // state -- primitive variables
   // fAreaL -- face area for left face
   // fAreaR -- face area for right face
   // mu -- laminar viscosity
@@ -580,19 +523,17 @@ double turbKWWilcox::ViscCellSpecRad(const primVars &state,
   // f1 -- first blending coefficient
 
   const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
-
+  const auto length = fMag * fMag / vol;
   // Wilcox method uses unlimited eddy viscosity
-  return trans->NondimScaling() * fMag * fMag / (vol * state.Rho()) *
-      (mu + this->SigmaK(f1) * this->EddyViscNoLim(state));
+  return trans->NondimScaling() * length / state.Rho() *
+         (mu + this->SigmaK(f1) * this->EddyViscosityNoLim(state));
 }
 
-double turbKWWilcox::ViscFaceSpecRad(const primVars &state,
-                                     const unitVec3dMag<double> &fArea,
-                                     const double &mu,
-                                     const unique_ptr<transport> &trans,
-                                     const double &dist, const double &mut,
-                                     const double &f1) const {
-  // state -- primative variables
+double turbKWWilcox::ViscousFaceSpectralRadius(
+    const primitiveView &state, const unitVec3dMag<double> &fArea,
+    const double &mu, const unique_ptr<transport> &trans, const double &dist,
+    const double &mut, const double &f1) const {
+  // state -- primitive variables
   // fArea -- face area
   // mu -- laminar viscosity
   // trans -- viscous transport model
@@ -600,12 +541,13 @@ double turbKWWilcox::ViscFaceSpecRad(const primVars &state,
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
 
+  const auto length = fArea.Mag() / dist;
   // Wilcox method uses unlimited eddy viscosity
-  return trans->NondimScaling() * fArea.Mag() / (dist * state.Rho()) *
-      (mu + this->SigmaK(f1) * this->EddyViscNoLim(state));
+  return trans->NondimScaling() * length / state.Rho() *
+         (mu + this->SigmaK(f1) * this->EddyViscosityNoLim(state));
 }
 
-double turbKWWilcox::TurbLengthScale(const primVars &state,
+double turbKWWilcox::TurbLengthScale(const primitiveView &state,
                                      const unique_ptr<transport> &trans) const {
   return sqrt(state.Tke()) / (betaStar_ * state.Omega()) *
          trans->NondimScaling();
@@ -628,10 +570,10 @@ void turbKWWilcox::Print() const {
 // K-Omega SST member functions
 
 // member function for eddy viscosity with limiter
-double turbKWSst::EddyVisc(const primVars &state, const tensor<double> &vGrad,
+double turbKWSst::EddyVisc(const primitive &state, const tensor<double> &vGrad,
                            const unique_ptr<transport> &trans, const double &f2,
                            const double &length) const {
-  // state -- primative variables
+  // state -- primitive variables
   // vGrad -- velocity gradient
   // trans -- viscous transport model
   // f2 -- SST blending coefficient
@@ -644,13 +586,6 @@ double turbKWSst::EddyVisc(const primVars &state, const tensor<double> &vGrad,
   const auto meanStrainRate = sqrt(2.0 * strainRate.DoubleDotTrans(strainRate));
   return state.Rho() * a1_ * state.Tke() /
       max(a1_ * state.Omega(), trans->NondimScaling() * meanStrainRate * f2);
-}
-
-// member function to calculate cross diffusion term
-double turbKWSst::CDkw(const primVars &state, const vector3d<double> &kGrad,
-                       const vector3d<double> &wGrad) const {
-  return max(2.0 * state.Rho() * sigmaW2_ / state.Omega() *
-             kGrad.DotProd(wGrad), 1.0e-10);
 }
 
 // member function to calculate blending function
@@ -672,12 +607,11 @@ double turbKWSst::BlendedCoeff(const double &coeff1, const double &coeff2,
   // coeff1 -- coefficient from set 1
   // coeff2 -- coefficient from set 2
   // f1 -- blending term
-
   return f1 * coeff1 + (1.0 - f1) * coeff2;
 }
 
 // member function to calculate blending term
-double turbKWSst::Alpha1(const primVars &state,
+double turbKWSst::Alpha1(const primitive &state,
                          const unique_ptr<transport> &trans,
                          const double &wallDist) const {
   return trans->NondimScaling() * sqrt(state.Tke()) /
@@ -685,7 +619,7 @@ double turbKWSst::Alpha1(const primVars &state,
 }
 
 // member function to calculate blending term
-double turbKWSst::Alpha2(const primVars &state,
+double turbKWSst::Alpha2(const primitive &state,
                          const unique_ptr<transport> &trans, const double &mu,
                          const double &wallDist) const {
   return trans->NondimScaling() * trans->NondimScaling() * 500.0 * mu /
@@ -693,20 +627,20 @@ double turbKWSst::Alpha2(const primVars &state,
 }
 
 // member function to calculate blending term
-double turbKWSst::Alpha3(const primVars &state, const double &wallDist,
+double turbKWSst::Alpha3(const primitive &state, const double &wallDist,
                          const double &cdkw) const {
   return 4.0 * state.Rho() * sigmaW2_ * state.Tke() /
-      (cdkw * (wallDist + EPS) * (wallDist + EPS));
+         (cdkw * (wallDist + EPS) * (wallDist + EPS));
 }
 
 // member function to calculate turbulence source terms and source jacobian
 squareMatrix turbKWSst::CalcTurbSrc(
-    const primVars &state, const tensor<double> &velGrad,
+    const primitiveView &state, const tensor<double> &velGrad,
     const vector3d<double> &kGrad, const vector3d<double> &wGrad,
     const unique_ptr<transport> &trans, const double &vol, const double &mut,
-    const double &f1, const double &f2, const double &width, double &ksrc,
-    double &wsrc) const {
-  // state -- primative variables
+    const double &f1, const double &f2, const double &width, 
+    vector<double> &turbSrc) const {
+  // state -- primitive variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
   // wGrad -- omega gradient
@@ -714,8 +648,9 @@ squareMatrix turbKWSst::CalcTurbSrc(
   // vol -- cell volume
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
-  // ksrc -- source term for tke equation
-  // wsrc -- source term for omega equation
+  // turbSrc -- source terms
+
+  MSG_ASSERT(turbSrc.size() == 2, "turbulence source vector is wrong size");
 
   // calculate cross diffusion coefficient
   const auto cdkw = this->CDkw(state, kGrad, wGrad);
@@ -748,8 +683,8 @@ squareMatrix turbKWSst::CalcTurbSrc(
   const auto omgCd = trans->NondimScaling() * (1.0 - f1) * cdkw;
 
   // assign source term values
-  ksrc = tkeProd - tkeDest;
-  wsrc = omgProd - omgDest + omgCd;
+  turbSrc[0] = tkeProd - tkeDest;
+  turbSrc[1] = omgProd - omgDest + omgCd;
 
   // return spectral radius of source jacobian
   return this->TurbSrcJac(state, beta, trans, vol);
@@ -757,7 +692,7 @@ squareMatrix turbKWSst::CalcTurbSrc(
 
 // member function to calculate the eddy viscosity, and the blending
 // coefficients.
-void turbKWSst::EddyViscAndBlending(const primVars &state,
+void turbKWSst::EddyViscAndBlending(const primitive &state,
                                     const tensor<double> &velGrad,
                                     const vector3d<double> &kGrad,
                                     const vector3d<double> &wGrad,
@@ -767,7 +702,7 @@ void turbKWSst::EddyViscAndBlending(const primVars &state,
                                     const double &length,
                                     double &mut, double &f1,
                                     double &f2) const {
-  // state -- primative variables
+  // state -- primitive variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
   // wGrad -- omega gradient
@@ -801,22 +736,22 @@ void turbKWSst::EddyViscAndBlending(const primVars &state,
    This is a diagonal matrix so eigenvalues are trivial. Since betaStar is
    always larger than beta, this eigenvalue is used
 */
-double turbKWSst::SrcSpecRad(const primVars &state,
+double turbKWSst::SrcSpecRad(const primitiveView &state,
                              const unique_ptr<transport> &trans,
                              const double &vol, const double &phi) const {
-  // state -- primative variables
+  // state -- primitive variables
   // trans -- unique_ptr<transport>'s law for viscosity
 
   // return spectral radius scaled for nondimensional equations
   return -2.0 * betaStar_ * state.Omega() * vol * trans->InvNondimScaling();
 }
 
-squareMatrix turbKWSst::TurbSrcJac(const primVars &state,
+squareMatrix turbKWSst::TurbSrcJac(const primitiveView &state,
                                    const double &beta,
                                    const unique_ptr<transport> &trans,
                                    const double &vol,
                                    const double &phi) const {
-  // state -- primative variables
+  // state -- primitive variables
   // beta -- destruction coefficient for omega equation
   // trans -- viscous transport model
   // vol -- cell volume
@@ -834,40 +769,37 @@ squareMatrix turbKWSst::TurbSrcJac(const primVars &state,
 // member function to calculate viscous flux jacobian
 // dfv_dq = [ (nu + sigmaStar * nut) / dist           0               ]
 //          [             0                  (nu + sigma * nut) / dist]
-squareMatrix turbKWSst::ViscousJacobian(const primVars &state,
-                                        const unitVec3dMag<double> &fArea,
-                                        const double &mu,
-                                        const unique_ptr<transport> &trans,
-                                        const double &dist, const double &mut,
-                                        const double &f1) const {
-  // state -- primative variables
+squareMatrix turbKWSst::ViscJac(const primitiveView &state,
+                                const unitVec3dMag<double> &fArea,
+                                const double &mu,
+                                const unique_ptr<transport> &trans,
+                                const double &dist, const double &mut,
+                                const double &f1) const {
+  // state -- primitive variables
   // fArea -- face area
   // mu -- laminar viscosity
   // trans -- viscous transport model
   // dist -- distance from cell center to cell center across face
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
-
+  auto length = fArea.Mag() / dist;
   squareMatrix jacobian(2);
-  jacobian(0, 0) = fArea.Mag() * trans->NondimScaling() / (dist * state.Rho()) *
-      (mu + this->SigmaK(f1) * mut);
-  jacobian(1, 1) = fArea.Mag() * trans->NondimScaling() / (dist * state.Rho()) *
-      (mu + this->SigmaW(f1) * mut);
-
+  jacobian(0, 0) = trans->NondimScaling() * length / state.Rho() *
+                   (mu + this->SigmaK(f1) * mut);
+  jacobian(1, 1) = trans->NondimScaling() * length / state.Rho() *
+                   (mu + this->SigmaW(f1) * mut);
   return jacobian;
 }
 
 // member function to calculate viscous spectral radius
 // dfv_dq = [ (area / vol) * (nu + sigmaStar * nut)    0
 //                           0                (area / vol) * (nu + sigma * nut)]
-double turbKWSst::ViscCellSpecRad(const primVars &state,
-                                  const unitVec3dMag<double> &fAreaL,
-                                  const unitVec3dMag<double> &fAreaR,
-                                  const double &mu,
-                                  const unique_ptr<transport> &trans,
-                                  const double &vol, const double &mut,
-                                  const double &f1) const {
-  // state -- primative variables
+double turbKWSst::ViscousCellSpectralRadius(
+    const primitiveView &state, const unitVec3dMag<double> &fAreaL,
+    const unitVec3dMag<double> &fAreaR, const double &mu,
+    const unique_ptr<transport> &trans, const double &vol, const double &mut,
+    const double &f1) const {
+  // state -- primitive variables
   // fAreaL -- face area for left face
   // fAreaR -- face area for right face
   // mu -- laminar viscosity
@@ -877,30 +809,28 @@ double turbKWSst::ViscCellSpecRad(const primVars &state,
   // f1 -- first blending coefficient
 
   const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
-
-  return trans->NondimScaling() * fMag * fMag / (vol * state.Rho()) *
-      (mu + this->SigmaK(f1) * mut);
+  const auto length = fMag * fMag / vol;
+  return trans->NondimScaling() * length / state.Rho() *
+         (mu + this->SigmaK(f1) * mut);
 }
 
-double turbKWSst::ViscFaceSpecRad(const primVars &state,
-                                  const unitVec3dMag<double> &fArea,
-                                  const double &mu,
-                                  const unique_ptr<transport> &trans,
-                                  const double &dist, const double &mut,
-                                  const double &f1) const {
-  // state -- primative variables
+double turbKWSst::ViscousFaceSpectralRadius(
+    const primitiveView &state, const unitVec3dMag<double> &fArea,
+    const double &mu, const unique_ptr<transport> &trans, const double &dist,
+    const double &mut, const double &f1) const {
+  // state -- primitive variables
   // fArea -- face area
   // mu -- laminar viscosity
   // trans -- viscous transport model
   // dist -- distance from cell center to cell center
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
-
-  return trans->NondimScaling() * fArea.Mag() / (dist * state.Rho()) *
-      (mu + this->SigmaK(f1) * mut);
+  const auto length = fArea.Mag() / dist;
+  return trans->NondimScaling() * length / state.Rho() *
+         (mu + this->SigmaK(f1) * mut);
 }
 
-double turbKWSst::TurbLengthScale(const primVars &state,
+double turbKWSst::TurbLengthScale(const primitiveView &state,
                                   const unique_ptr<transport> &trans) const {
   return sqrt(state.Tke()) / (betaStar_ * state.Omega()) *
          trans->NondimScaling();
@@ -925,21 +855,21 @@ void turbKWSst::Print() const {
   cout << "Gamma2: " << gamma2_ << endl;
 }
 
-double turbSstDes::Phi(const primVars &state, const double &cdes,
+double turbSstDes::Phi(const primitiveView &state, const double &cdes,
                        const double &width, const double &f2,
                        const unique_ptr<transport> &trans) const {
-  return std::max((1.0 - f2) * this->TurbLengthScale(state, trans) /
-                  (cdes * width), 1.0);
+  return std::max(
+      (1.0 - f2) * this->TurbLengthScale(state, trans) / (cdes * width), 1.0);
 }
 
 // member function to calculate turbulence source terms and source jacobian
 squareMatrix turbSstDes::CalcTurbSrc(
-    const primVars &state, const tensor<double> &velGrad,
+    const primitiveView &state, const tensor<double> &velGrad,
     const vector3d<double> &kGrad, const vector3d<double> &wGrad,
     const unique_ptr<transport> &trans, const double &vol, const double &mut,
-    const double &f1, const double &f2, const double &width, double &ksrc,
-    double &wsrc) const {
-  // state -- primative variables
+    const double &f1, const double &f2, const double &width, 
+    vector<double> &turbSrc) const {
+  // state -- primitive variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
   // wGrad -- omega gradient
@@ -947,8 +877,9 @@ squareMatrix turbSstDes::CalcTurbSrc(
   // vol -- cell volume
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
-  // ksrc -- source term for tke equation
-  // wsrc -- source term for omega equation
+  // turbSrc -- source terms
+
+  MSG_ASSERT(turbSrc.size() == 2, "turbulence source vector is wrong size");
 
   // calculate cross diffusion coefficient
   const auto cdkw = this->CDkw(state, kGrad, wGrad);
@@ -983,18 +914,18 @@ squareMatrix turbSstDes::CalcTurbSrc(
   const auto omgCd = trans->NondimScaling() * (1.0 - f1) * cdkw;
 
   // assign source term values
-  ksrc = tkeProd - tkeDest;
-  wsrc = omgProd - omgDest + omgCd;
+  turbSrc[0] = tkeProd - tkeDest;
+  turbSrc[1] = omgProd - omgDest + omgCd;
 
   // return spectral radius of source jacobian
   return this->TurbSrcJac(state, beta, trans, vol, phi);
 }
 
 
-double turbSstDes::SrcSpecRad(const primVars &state,
+double turbSstDes::SrcSpecRad(const primitiveView &state,
                               const unique_ptr<transport> &trans,
                               const double &vol, const double &phi) const {
-  // state -- primative variables
+  // state -- primitive variables
   // trans -- viscous transport model
 
   // return spectral radius scaled for nondimensional equations
@@ -1033,10 +964,10 @@ void turbWale::Print() const {
 }
 
 // member function to determine eddy viscosity
-double turbWale::EddyVisc(const primVars &state, const tensor<double> &vGrad,
+double turbWale::EddyVisc(const primitive &state, const tensor<double> &vGrad,
                           const unique_ptr<transport> &trans, const double &f2,
                           const double &length) const {
-  // state -- primative variables
+  // state -- primitive variables
   // vGrad -- velocity gradient
   // trans -- viscous transport model
   // f2 -- SST blending coefficient (not used in WALE)

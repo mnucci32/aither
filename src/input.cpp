@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,9 +28,7 @@
 #include "input.hpp"
 #include "turbulence.hpp"
 #include "inputStates.hpp"
-#include "eos.hpp"
-#include "transport.hpp"
-#include "thermodynamic.hpp"
+#include "physicsModels.hpp"
 #include "fluid.hpp"
 #include "macros.hpp"
 
@@ -57,6 +55,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   tRef_ = -1.0;
   lRef_ = 1.0;
   aRef_ = 0.0;
+  mixtureRef_ = vector<double>(1, 1.0);
   fluids_ = vector<fluid>(1);
   bc_ = vector<boundaryConditions>(1);
   timeIntegration_ = "explicitEuler";
@@ -88,10 +87,12 @@ input::input(const string &name, const string &resName) : simName_(name),
   thermodynamicModel_ = "caloricallyPerfect";  // default to cpg
   equationOfState_ = "idealGas";  // default to ideal gas
   transportModel_ = "sutherland";  // default to sutherland
+  diffusionModel_ = "none";  // default to no diffusion
   restartFrequency_ = 0;  // default to not write restarts
   iterationStart_ = 0;  // default to start from iteration zero
+  schmidtNumber_ = 0.9;
 
-  // default to primative variables
+  // default to primitive variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
   wallOutputVariables_ = {};
 
@@ -124,11 +125,13 @@ input::input(const string &name, const string &resName) : simName_(name),
            "decompositionMethod",
            "turbulenceModel",
            "thermodynamicModel",
+           "diffusionModel",
            "equationOfState",
            "transportModel",
            "outputVariables",
            "wallOutputVariables",
            "initialConditions",
+           "schmidtNumber",
            "boundaryStates",
            "boundaryConditions"};
 }
@@ -228,7 +231,7 @@ void input::ReadInput(const int &rank) {
               if (ii == fluids_.size() - 1) {
                 cout << ">" << endl;
               } else {
-                cout << "," << endl << "                    ";
+                cout << "," << endl << "         ";
               }
             }
           }
@@ -388,6 +391,16 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->TransportModel() << endl;
           }
+        } else if (key == "diffusionModel") {
+          diffusionModel_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->DiffusionModel() << endl;
+          }
+        } else if (key == "schmidtNumber") {
+          schmidtNumber_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << ": " << this->SchmidtNumber() << endl;
+          }
         } else if (key == "outputVariables") {
           // clear default variables from set
           outputVariables_.clear();
@@ -497,7 +510,6 @@ void input::ReadInput(const int &rank) {
             // boundary conditions are space delimited
             tokens = Tokenize(line, " ");
             tempBC[blk].AssignFromInput(surfCounter, tokens);
-
             surfCounter++;
             if (surfCounter == numSurf) {  // at end of block data, increment
               // block index, reset surface
@@ -512,6 +524,9 @@ void input::ReadInput(const int &rank) {
           // if block counter reaches number of blocks, BCs are finished (b/c
           // counter starts at 0), so assign BCs and write them out
           if (blk == numBCBlks) {
+            for (auto &bc : tempBC) {
+              bc.Sort();
+            }
             bc_ = tempBC;
             if (rank == ROOTP) {
               cout << "boundaryConditions: " << this->NumBC() << endl;
@@ -526,6 +541,26 @@ void input::ReadInput(const int &rank) {
     }
   }
 
+  // get mixture reference mass fractions
+  if (this->NumSpecies() > 1) {
+    mixtureRef_.resize(this->NumSpecies());
+    for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
+      mixtureRef_[ii] = fluids_[ii].MassFractionRef();
+    }
+    // normalize mass fractions so that sum is 1
+    auto mfSum = std::accumulate(mixtureRef_.begin(), mixtureRef_.end(), 0.0);
+    std::for_each(mixtureRef_.begin(), mixtureRef_.end(),
+                  [&mfSum](auto &val) { val /= mfSum; });
+  } else {
+    mixtureRef_[0] = 1.0;
+  }
+
+  // assign reference speed of sound (assume cpg for gamma)
+  for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
+    auto gamma = (fluids_[ii].N() + 1) / fluids_[ii].N();
+    aRef_ += mixtureRef_[ii] * gamma * fluids_[ii].GasConstant() * tRef_;
+  }
+  aRef_ = sqrt(aRef_);
 
   // input file sanity checks
   this->CheckNonlinearIterations();
@@ -533,6 +568,7 @@ void input::ReadInput(const int &rank) {
   this->CheckWallOutputVariables();
   this->CheckTurbulenceModel();
   this->CheckSpecies();
+  this->CheckNonreflecting();
 
   if (rank == ROOTP) {
     cout << endl;
@@ -541,6 +577,7 @@ void input::ReadInput(const int &rank) {
             "#########################################################" << endl
          << endl;
   }
+  inFile.close();
 }
 
 // member function to calculate the cfl value for the step from the starting,
@@ -660,24 +697,17 @@ unique_ptr<turbModel> input::AssignTurbulenceModel() const {
 }
 
 // member function to get equation of state
-unique_ptr<eos> input::AssignEquationOfState(
-    const unique_ptr<thermodynamic> &thermo) {
-  // get fluid
-  auto fl = this->Fluid();
+unique_ptr<eos> input::AssignEquationOfState() const {
   // define equation of state
   unique_ptr<eos> eqnState(nullptr);
   if (equationOfState_ == "idealGas") {
-    // nondimensional temperature is 1.0 (tRef_ / tRef_)
-    eqnState = unique_ptr<eos>{
-        std::make_unique<idealGas>(thermo, fl.GasConstant(), 1.0)};
+    eqnState =
+        unique_ptr<eos>{std::make_unique<idealGas>(fluids_, tRef_, aRef_)};
   } else {
     cerr << "ERROR: Error in input::AssignEquationOfState(). Equation of state "
          << equationOfState_ << " is not recognized!" << endl;
     exit(EXIT_FAILURE);
   }
-  // use equation of state to assign additional reference values
-  const auto pRef = eqnState->PressureDim(rRef_, tRef_);
-  aRef_ = eqnState->SoS(pRef, rRef_);
   return eqnState;
 }
 
@@ -687,7 +717,7 @@ unique_ptr<transport> input::AssignTransportModel() const {
   unique_ptr<transport> trans(nullptr);
   if (transportModel_ == "sutherland") {
     trans = unique_ptr<transport>{std::make_unique<sutherland>(
-        tRef_, rRef_, lRef_, aRef_)};
+        fluids_, tRef_, rRef_, lRef_, aRef_, mixtureRef_)};
   } else {
     cerr << "ERROR: Error in input::AssignTransportModel(). Transport model "
          << transportModel_ << " is not recognized!" << endl;
@@ -698,16 +728,14 @@ unique_ptr<transport> input::AssignTransportModel() const {
 
 // member function to get thermodynamic model
 unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
-  // get fluid
-  auto fl = this->Fluid();
-  // define equation of state
+  // define thermodynamic model
   unique_ptr<thermodynamic> thermo(nullptr);
   if (thermodynamicModel_ == "caloricallyPerfect") {
-    thermo =
-        unique_ptr<thermodynamic>{std::make_unique<caloricallyPerfect>(fl.N())};
+    thermo = unique_ptr<thermodynamic>{
+        std::make_unique<caloricallyPerfect>(fluids_, tRef_, aRef_)};
   } else if (thermodynamicModel_ == "thermallyPerfect") {
-    thermo = unique_ptr<thermodynamic>{std::make_unique<thermallyPerfect>(
-        fl.N(), fl.VibrationalTemperature())};
+    thermo = unique_ptr<thermodynamic>{
+        std::make_unique<thermallyPerfect>(fluids_, tRef_, aRef_)};
   } else {
     cerr << "ERROR: Error in input::AssignThermodynamicModel(). Thermodynamic "
          << "model " << thermodynamicModel_ << " is not recognized!" << endl;
@@ -716,6 +744,31 @@ unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
   return thermo;
 }
 
+// member function to get diffusion model
+unique_ptr<diffusion> input::AssignDiffusionModel(const double &sct) const {
+  // define diffusion model
+  unique_ptr<diffusion> diff(nullptr);
+  if (diffusionModel_ == "none") {
+    diff = unique_ptr<diffusion>{std::make_unique<diffNone>()};
+  } else if (diffusionModel_ == "schmidt") {
+    diff = unique_ptr<diffusion>{
+        std::make_unique<schmidt>(schmidtNumber_, sct)};
+  } else {
+    cerr << "ERROR: Error in input::AssignDiffusionModel(). Diffusion "
+         << "model " << diffusionModel_ << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return diff;
+}
+
+physics input::AssignPhysicsModels() const {
+  auto eqnState = this->AssignEquationOfState();
+  auto trans = this->AssignTransportModel();
+  auto thermo = this->AssignThermodynamicModel();
+  auto turb = this->AssignTurbulenceModel();
+  auto diff = this->AssignDiffusionModel(turb->TurbSchmidtNumber());
+  return {eqnState, trans, thermo, diff, turb};
+}
 
 // member function to return the name of the simulation without the file
 // extension i.e. "myInput.inp" would return "myInput"
@@ -732,7 +785,7 @@ void input::CheckNonlinearIterations() {
     nonlinearIterations_ = 4;
   }
 
-  if (timeIntegration_ == "euler" && nonlinearIterations_ != 1) {
+  if (timeIntegration_ == "explicitEuler" && nonlinearIterations_ != 1) {
     cerr << "WARNING: For euler method, nonlinear iterations should be set to "
          << 1 << " changing value from " << nonlinearIterations_ << " to " << 1
          << endl;
@@ -763,12 +816,19 @@ void input::CheckOutputVariables() {
     }
 
     if (!this->IsViscous()) {  // can't have viscous variables output
-      if (var.find("velGrad_") != string::npos
-          || var.find("tempGrad_") != string::npos || var == "viscosity") {
+      if (var == "viscosity") {
         cerr << "WARNING: Variable " << var <<
             " is not available for inviscid simulations." << endl;
         outputVariables_.erase(var);
       }
+    }
+
+    // check species
+    if (var.substr(0, 3) == "mf_" &&
+        !this->HaveSpecies(var.substr(3, string::npos))) {
+      cerr << "WARNING: Species " << var.substr(3, string::npos)
+           << " is not present. Removing mass fraction output request" << endl;
+      outputVariables_.erase(var);
     }
   }
 }
@@ -829,15 +889,17 @@ void input::CheckTurbulenceModel() const {
 void input::CheckSpecies() const {
   // check all species in ICs are defined
   for (auto &ic : ics_) {
-    auto fracs = ic.MassFractions();  // get mass fractions for ICs
-    // loop over all species and find if that species has been defined
-    for (auto &species : fracs) {
-      auto name = species.first;
-      if (find_if(std::begin(fluids_), std::end(fluids_),
-                  [&name](const fluid &fl) { return fl.Name() == name; }) ==
-          std::end(fluids_)) {
-        cerr << "ERROR: Species " << name << " is not defined!" << endl;
-        exit(EXIT_FAILURE);
+    if (!ic.IsFromFile()) {
+      auto fracs = ic.MassFractions();  // get mass fractions for ICs
+      // loop over all species and find if that species has been defined
+      for (auto &species : fracs) {
+        auto name = species.first;
+        if (find_if(std::begin(fluids_), std::end(fluids_),
+                    [&name](const fluid &fl) { return fl.Name() == name; }) ==
+            std::end(fluids_)) {
+          cerr << "ERROR: Species " << name << " is not defined!" << endl;
+          exit(EXIT_FAILURE);
+        }
       }
     }
   }
@@ -861,7 +923,64 @@ void input::CheckSpecies() const {
   // check that there is at least one species defined
   if (fluids_.size() < 1) {
     cerr << "ERROR: At least one fluid species must be defined!" << endl;
+    exit(EXIT_FAILURE);
   }
+}
+
+// check that nonreflecting BCs aren't used with explicit euler because
+// solution at time N is not stored
+void input::CheckNonreflecting() const {
+  if (timeIntegration_ == "explicitEuler") {
+    for (auto &bc : bcStates_) {
+      if (bc->IsNonreflecting()) {
+        cerr << "ERROR: Nonreflecting BCs cannot be used with explicitEuler "
+                "time integration!"
+             << endl;
+        exit(EXIT_FAILURE);
+      }
+    }
+  }
+}
+
+// member function to check that all species specified are defined
+// vector of species comes from prescribed ic file
+void input::CheckSpecies(const vector<string> &species) const {
+  for (auto &name : species) {
+    if (find_if(std::begin(fluids_), std::end(fluids_),
+                [&name](const fluid &fl) { return fl.Name() == name; }) ==
+        std::end(fluids_)) {
+      cerr << "ERROR: Species " << name << " is not defined!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  // check that there is at least one species from ic file
+  if (species.size() < 1) {
+    cerr << "ERROR: At least one fluid species must be defined in ic file!"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// member function to check that species specified is defined
+bool input::HaveSpecies(const string &species) const {
+  return !(find_if(std::begin(fluids_), std::end(fluids_),
+                   [&species](const fluid &fl) {
+                     return fl.Name() == species;
+                   }) == std::end(fluids_));
+}
+
+// member function to get index of species
+int input::SpeciesIndex(const string &species) const {
+  auto ind = -1;
+  find_if(std::begin(fluids_), std::end(fluids_),
+          [&species, &ind](const fluid &fl) {
+            ind++;
+            return fl.Name() == species;
+          });
+  MSG_ASSERT(ind < this->NumSpecies() && ind >= 0,
+             "species index out of range");
+  return ind;
 }
 
 // member function to calculate the coefficient used to scale the viscous
@@ -915,6 +1034,7 @@ icState input::ICStateForBlock(const int &block) const {
     } else if (ic.Tag() == block) {
       blockIC = ic;
       foundExactMatch = true;
+      break;
     }
   }
 
@@ -956,6 +1076,3 @@ void input::NondimensionalizeFluid() {
     fl.Nondimensionalize(tRef_);
   }
 }
-
-// default value is 0; code currently only supports single fluid flows
-fluid input::Fluid(const int ind) const { return fluids_[ind]; }

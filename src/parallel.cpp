@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,12 +24,11 @@
 #include "output.hpp"
 #include "vector3d.hpp"            // vector3d
 #include "plot3d.hpp"              // plot3d
-#include "primVars.hpp"            // primVars
+#include "primitive.hpp"            // primitive
 #include "procBlock.hpp"           // procBlock
 #include "boundaryConditions.hpp"  // connection
 #include "resid.hpp"               // resid
 #include "macros.hpp"
-#include "genArray.hpp"
 
 using std::max_element;
 using std::min_element;
@@ -123,18 +122,25 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
       decomp.SendToProc(blk, ol, ul);
     } else {  // split/send
       auto newBlk = static_cast<int>(grid.size());
+      // find all interblocks that could be altered by this split along with
+      // their partners and orientation
+      auto affectedConnections = GetBlockInterConnBCs(bcs, grid, blk);
 
+      // split grid
       plot3dBlock lBlk, uBlk;
       grid[blk].Split(dir, ind, lBlk, uBlk);
       grid.push_back(uBlk);
+      // split bcs
       vector<boundarySurface> altSurf;
       auto newBcs = bcs[blk].Split(dir, ind, blk, newBlk, altSurf);
       bcs.push_back(newBcs);
 
-      for (auto ii = 0U; ii < altSurf.size(); ii++) {
-        bcs[altSurf[ii].PartnerBlock()].DependentSplit(
-            altSurf[ii], grid[blk], grid[altSurf[ii].PartnerBlock()],
-            altSurf[ii].PartnerBlock(), dir, ind, blk, newBlk);
+      // update interblock partners affected by split
+      for (auto &alt : altSurf) {
+        bcs[alt.PartnerBlock()].DependentSplit(
+            alt, affectedConnections.at(alt).first,
+            affectedConnections.at(alt).second, alt.PartnerBlock(), dir, ind,
+            blk, newBlk);
       }
 
       // reassign split grid
@@ -196,16 +202,14 @@ void SendConnections(vector<connection> &connections,
 }
 
 /* Function to set custom MPI datatypes to allow for easier data transmission */
-void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
+void SetDataTypesMPI(MPI_Datatype &MPI_vec3d,
                      MPI_Datatype &MPI_procBlockInts,
                      MPI_Datatype &MPI_connection,
                      MPI_Datatype &MPI_DOUBLE_5INT,
                      MPI_Datatype &MPI_vec3dMag,
                      MPI_Datatype &MPI_uncoupledScalar,
-                     MPI_Datatype &MPI_tensorDouble,
-                     MPI_Datatype &MPI_wallData) {
+                     MPI_Datatype &MPI_tensorDouble) {
   // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
-  // MPI_cellData -- output MPI_Datatype for primVars or genArray
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock
   //                      class)
   // MPI_connection -- output MPI_Datatype to send connection class
@@ -213,7 +217,6 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   // MPI_vec3dMag -- output MPI_Datatype for a unitVect3dMag<double>
   // MPI_uncoupledScalar -- output MPI_Datatype for a uncoupledScalar
   // MPI_tensorDouble -- output MPI_Datatype for a tensor<double>
-  // MPI_wallData -- output MPI_Datatype for wallData class
 
   // create vector3d<double> MPI datatype
   MPI_Type_contiguous(3, MPI_DOUBLE, &MPI_vec3d);
@@ -230,30 +233,6 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   // create tensor<double> MPI datatype
   MPI_Type_contiguous(9, MPI_DOUBLE, &MPI_tensorDouble);
   MPI_Type_commit(&MPI_tensorDouble);
-
-  // create wallData MPI datatype
-  MPI_Type_contiguous(12, MPI_DOUBLE, &MPI_wallData);
-  MPI_Type_commit(&MPI_wallData);
-
-  // create MPI datatype for states (primVars), residuals (genArray), etc
-  MPI_Type_contiguous(NUMVARS, MPI_DOUBLE, &MPI_cellData);
-
-  // faster to just send the whole array
-  // if ( numEqn != NUMVARS ){ //adjust extent if not using all equations
-  //   MPI_Aint lb, ext, lbdoub, extdoub;
-  //   MPI_Type_get_extent(MPI_cellData, &lb, &ext); //get lower bound and
-  // extent of current cellData datatype
-  //   MPI_Type_get_extent(MPI_DOUBLE, &lbdoub, &extdoub); //get lower bound and
-  // extent of double
-  //   //increase extent of cellData by the number of doubles that are unused
-  // equations
-  //   //this allows this datatype to behave properly in vectors and arrays
-  // because the extent/stride is now correct
-  //   MPI_Type_create_resized(MPI_cellData, lb, ext + (extdoub - lbdoub) *
-  // (NUMVARS - numEqn), &MPI_cellData);
-  // }
-
-  MPI_Type_commit(&MPI_cellData);
 
   // create MPI datatype for all the integers in the procBlock class
   MPI_Type_contiguous(15, MPI_INT, &MPI_procBlockInts);
@@ -315,32 +294,26 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
 }
 
 /* Function to free custom MPI datatypesn */
-void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
+void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d,
                       MPI_Datatype &MPI_procBlockInts,
                       MPI_Datatype &MPI_connection,
                       MPI_Datatype &MPI_DOUBLE_5INT,
                       MPI_Datatype &MPI_vec3dMag,
                       MPI_Datatype &MPI_uncoupledScalar,
-                      MPI_Datatype &MPI_tensorDouble,
-                      MPI_Datatype &MPI_wallData) {
+                      MPI_Datatype &MPI_tensorDouble) {
   // MPI_vec3d -- MPI_Datatype for a vector3d<double>
-  // MPI_cellData -- MPI_Datatype for primVars or genArray
   // MPI_procBlockInts -- MPI_Datatype for 14 INTs (14 INTs in procBlock class)
   // MPI_connection -- MPI_Datatype to send connection class
   // MPI_DOUBLE_5INT -- MPI_Datatype for a double followed by 5 ints
   // MPI_vec3dMag -- MPI_Datatype for a unitVect3dMag<double>
   // MPI_uncoupledScalar -- MPI_Datatype for a uncoupledScalar
   // MPI_tensorDouble -- MPI_Datatype for a tensor<double>
-  // MPI_wallData -- MPI_Datatype for a wallData
 
   // free vector3d<double> MPI datatype
   MPI_Type_free(&MPI_vec3d);
 
   // free unitVect3dMag<double> MPI datatype
   MPI_Type_free(&MPI_vec3dMag);
-
-  // free MPI datatype for states (primVars), residuals (genArray), etc
-  MPI_Type_free(&MPI_cellData);
 
   // free MPI datatype for uncoupledScalar
   MPI_Type_free(&MPI_uncoupledScalar);
@@ -356,9 +329,6 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
 
   // free MPI datatype for tensor<double> class
   MPI_Type_free(&MPI_tensorDouble);
-
-  // free MPI datatype for wallData class
-  MPI_Type_free(&MPI_wallData);
 }
 
 /* Function to send procBlocks to their appropriate processor. This function is
@@ -371,10 +341,8 @@ simulation.
 */
 vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
                                  const int &rank, const int &numProcBlock,
-                                 const MPI_Datatype &MPI_cellData,
                                  const MPI_Datatype &MPI_vec3d,
                                  const MPI_Datatype &MPI_vec3dMag,
-                                 const MPI_Datatype &MPI_wallData,
                                  const input &inp) {
   // blocks -- full vector of all procBlocks. This is only used on ROOT
   //           processor, all other processors just need a dummy variable to
@@ -383,10 +351,8 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
   //         receive
   // numProcBlock -- number of procBlocks that the processor should have. (All
   //                 processors may give different values).
-  // MPI_cellData -- MPI_Datatype used for primVars and genArray transmission
   // MPI_vec3d -- MPI_Datatype used for vector3d<double>  transmission
   // MPI_vec3dMag -- MPI_Datatype used for unitVec3dMag<double>  transmission
-  // MPI_wallData -- MPI_Datatype used for wallData transmission
   // input -- input variables
 
   // vector of procBlocks for each processor
@@ -397,25 +363,23 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
   //------------------------------------------------------------------------
   if (rank == ROOTP) {  // may have to pack and send data
     // loop over ALL blocks
-    for (auto ii = 0U; ii < blocks.size(); ii++) {
+    for (auto &blk : blocks) {
       // no need to send data because it is already on root processor
-      if (blocks[ii].Rank() == ROOTP) {
-        localBlocks[blocks[ii].LocalPosition()] = blocks[ii];
+      if (blk.Rank() == ROOTP) {
+        localBlocks[blk.LocalPosition()] = blk;
       } else {  // send data to receiving processors
         // pack and send procBlock
-        blocks[ii].PackSendGeomMPI(MPI_cellData, MPI_vec3d, MPI_vec3dMag,
-                                   MPI_wallData);
+        blk.PackSendGeomMPI(MPI_vec3d, MPI_vec3dMag);
       }
     }
     //--------------------------------------------------------------------------
     //                                NON - ROOT
     //--------------------------------------------------------------------------
   } else {  // receive and unpack data (non-root)
-    for (auto ii = 0; ii < numProcBlock; ii++) {
+    for (auto ii = 0; ii < numProcBlock; ++ii) {
       // recv and unpack procBlock
       procBlock tempBlock;
-      tempBlock.RecvUnpackGeomMPI(MPI_cellData, MPI_vec3d, MPI_vec3dMag,
-                                  MPI_wallData, inp);
+      tempBlock.RecvUnpackGeomMPI(MPI_vec3d, MPI_vec3dMag, inp);
 
       // add procBlock to output vector
       localBlocks[tempBlock.LocalPosition()] = tempBlock;
@@ -432,67 +396,56 @@ This is used to get all the data on the ROOT processor to write out results.
 */
 void GetProcBlocks(vector<procBlock> &blocks,
                    const vector<procBlock> &localBlocks, const int &rank,
-                   const MPI_Datatype &MPI_cellData,
                    const MPI_Datatype &MPI_uncoupledScalar,
                    const MPI_Datatype &MPI_vec3d,
-                   const MPI_Datatype &MPI_tensorDouble,
-                   const MPI_Datatype &MPI_wallData, const input &inp) {
+                   const MPI_Datatype &MPI_tensorDouble, const input &inp) {
   // blocks -- full vector of all procBlocks. This is only used on ROOT
   //           processor, all other processors just need a dummy variable to
   //           call the function
   // localBlocks -- procBlocks local to each processor. These are sent to ROOT
   // rank -- processor rank. Used to determine if process should send or
   //         receive
-  // MPI_cellData -- MPI_Datatype used for primVars and genArray transmission
   // MPI_uncoupledScalar -- MPI_Datatype used for uncoupledScalar transmission
   // MPI_vec3d -- MPI_Datatype used for vector3d<double> transmission
   // MPI_tensorDouble -- MPI_Datatype used for tensor<double> transmission
-  // MPI_wallData -- MPI_Datatype used for wallData transmission
   // input -- input variables
 
   //--------------------------------------------------------------------------
   //                                      ROOT
   //--------------------------------------------------------------------------
   if (rank == ROOTP) {  // may have to recv and unpack data
-    for (auto ii = 0U; ii < blocks.size(); ii++) {  // loop over ALL blocks
-      if (blocks[ii].Rank() == ROOTP) {  // no need to recv data because it is
-                                        // already on ROOT processor
-        // assign local state block to global state block in order of local
-        // state vector
-        blocks[ii] = localBlocks[blocks[ii].LocalPosition()];
+    // loop over ALL blocks
+    auto count = 0;
+    for (auto &blk : blocks) {
+      if (blk.Rank() == ROOTP) {  // data already on ROOT processor
+        // assign local block to global block in order of local vector
+        blk = localBlocks[blk.LocalPosition()];
       } else {  // recv data from sending processors
-        blocks[ii].RecvUnpackSolMPI(MPI_cellData, MPI_uncoupledScalar,
-                                    MPI_vec3d, MPI_tensorDouble, MPI_wallData,
-                                    inp);
+        blk.RecvUnpackSolMPI(MPI_uncoupledScalar, MPI_vec3d, MPI_tensorDouble,
+                             inp);
       }
+      count++;
     }
     //-------------------------------------------------------------------------
     //                                   NON - ROOT
     //-------------------------------------------------------------------------
   } else {  // pack and send data (non-root)
     // get vector of local positions
-    vector<int> localPos(localBlocks.size());
-    for (auto ii = 0U; ii < localPos.size(); ii++) {
-      localPos[ii] = localBlocks[ii].LocalPosition();
+    vector<std::pair<int, int>> localPos;
+    localPos.reserve(localBlocks.size());
+    for (auto &lb : localBlocks) {
+      localPos.push_back(std::make_pair(lb.LocalPosition(), lb.GlobalPos()));
     }
+    // sort by global position
+    // need to send data in order of global position, not local position to
+    // prevent deadlock
+    std::sort(
+        std::begin(localPos), std::end(localPos),
+        [](const auto &d1, const auto &d2) { return d1.second < d2.second; });
 
-    for (auto ii = 0U; ii < localBlocks.size(); ii++) {
-      // need to send data in order of global position, not local position to
-      // prevent deadlock
-      auto minGlobal = 0;
-      for (auto jj = 0U; jj < localPos.size(); jj++) {
-        if (localBlocks[localPos[jj]].GlobalPos() <
-            localBlocks[minGlobal].GlobalPos()) {
-          minGlobal = jj;
-        }
-      }
-
-      localBlocks[localPos[minGlobal]].PackSendSolMPI(MPI_cellData,
-                                                      MPI_uncoupledScalar,
-                                                      MPI_vec3d,
-                                                      MPI_tensorDouble,
-                                                      MPI_wallData);
-      localPos.erase(localPos.begin() + minGlobal);
+    for (auto &lp : localPos) {
+      localBlocks[lp.first].PackSendSolMPI(MPI_uncoupledScalar, MPI_vec3d,
+                                           MPI_tensorDouble);
     }
   }
 }

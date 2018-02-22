@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,15 +22,13 @@
 
 #include "vector3d.hpp"
 #include "tensor.hpp"
-#include "primVars.hpp"
+#include "primitive.hpp"
+#include "arrayView.hpp"
 
 using std::unique_ptr;
 
 // forward class declaration
-class eos;
-class transport;
-class thermodynamic;
-class turbModel;
+class physics;
 struct wallVars;
 
 class wallLaw {
@@ -38,7 +36,7 @@ class wallLaw {
   const double vonKarmen_;
   const double wallConst_;
   const double wallDist_;
-  const primVars state_;
+  const primitive state_;
 
   double yplus0_;
   double beta_;
@@ -60,29 +58,25 @@ class wallLaw {
   void UpdateGamma(const unique_ptr<thermodynamic> &, const double &);
   void CalcYplusWhite();
   double CalcHeatFlux(const unique_ptr<eos> &) const;
-  void SetWallVars(const double &, const unique_ptr<eos> &,
-                   const unique_ptr<thermodynamic> &,
-                   const unique_ptr<transport> &);
-  void EddyVisc(const unique_ptr<eos> &, const unique_ptr<transport> &);
+  void SetWallVars(const double &, const physics &);
+  void EddyVisc(const physics &);
   void CalcVelocities(const double &, const double &);
-  void CalcTurbVars(const unique_ptr<turbModel> &, const unique_ptr<eos> &,
-                    const unique_ptr<transport> &, double &, double &);
+  void CalcTurbVars(const physics &, double &, double &);
   double CalcYplusRoot(const double &) const;
   double ShearStressMag() const {return uStar_ * uStar_ * rhoW_;};
   void CalcRecoveryFactor(const unique_ptr<thermodynamic> &, const double &);
-  double CalcWallTemperature(const unique_ptr<eos> &,
-                             const unique_ptr<thermodynamic> &,
-                             const double &) const;
+  double CalcWallTemperature(const physics &, const double &) const;
 
  public:
   // constructor
-  wallLaw(const double &k, const double &c, const primVars &s, const double &d,
+  template <typename T>
+  wallLaw(const double &k, const double &c, const T &s, const double &d,
           const bool &isRANS)
       : isRANS_(isRANS),
         vonKarmen_(k),
         wallConst_(c),
         wallDist_(d),
-        state_(s),
+        state_(s.begin(), s.end(), s.NumSpecies()),
         yplus0_(std::exp(-k * c)),
         beta_(0.0),
         gamma_(0.0),
@@ -96,7 +90,11 @@ class wallLaw {
         muW_(0.0),
         mutW_(0.0),
         kW_(0.0),
-        recoveryFactor_(0.0) {}
+        recoveryFactor_(0.0) {
+    static_assert(std::is_same<primitive, T>::value ||
+                      std::is_same<primitiveView, T>::value,
+                  "T requires primitive or primativeView type");
+  }
 
   // move constructor and assignment operator
   wallLaw(wallLaw&&) = default;
@@ -110,22 +108,13 @@ class wallLaw {
   double VonKarmen() const { return vonKarmen_; }
   double WallConstant() const { return wallConst_; }
   wallVars AdiabaticBCs(const vector3d<double> &, const vector3d<double> &,
-                        const unique_ptr<eos> &,
-                        const unique_ptr<thermodynamic> &,
-                        const unique_ptr<transport> &,
-                        const unique_ptr<turbModel> &, const bool &);
+                        const vector<double> &, const physics &, const bool &);
   wallVars HeatFluxBCs(const vector3d<double> &, const vector3d<double> &,
-                       const unique_ptr<eos> &,
-                       const unique_ptr<thermodynamic> &,
-                       const unique_ptr<transport> &,
-                       const unique_ptr<turbModel> &, const double &,
+                       const vector<double> &, const physics &, const double &,
                        const bool &);
   wallVars IsothermalBCs(const vector3d<double> &, const vector3d<double> &,
-                         const unique_ptr<eos> &,
-                         const unique_ptr<thermodynamic> &,
-                         const unique_ptr<transport> &,
-                         const unique_ptr<turbModel> &, const double &,
-                         const bool &);
+                         const vector<double> &, const physics &,
+                         const double &, const bool &);
 
   // destructor
   ~wallLaw() noexcept {}
