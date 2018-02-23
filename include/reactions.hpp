@@ -19,21 +19,29 @@
 
 #include <vector>
 #include <cmath>
+#include <string>
+#include <iostream>
 
 using std::vector;
+using std::string;
+
+// forward class declarations
+class input;
 
 // class to hold reaction data
 class reaction {
   vector<double> stoichReactants_;
   vector<double> stoichProducts_;
+  vector<double> modifyReactants_;
+  vector<string> species_;
   double arrheniusC_;
   double arrheniusEta_;
   double arrheniusTheta_;
+  bool isForwardOnly_;
 
  public:
   // Constructor
-  reaction(const int& ns)
-      : stoichReactants_(ns, 0.0), stoichProducts_(ns, 0.0) {}
+  reaction(const string &str, const input &inp);
 
   // move constructor and assignment operator
   reaction(reaction&&) noexcept = default;
@@ -43,7 +51,9 @@ class reaction {
   reaction(const reaction&) = default;
   reaction& operator=(const reaction&) = default;
 
-  // Member functions for abstract base class
+  // Member functions
+  void Print(std::ostream &os) const;
+  bool IsForwardOnly() const { return isForwardOnly_; }
   const double &StoichReactant(const int &ss) const {
     return stoichReactants_[ss];
   }
@@ -54,7 +64,8 @@ class reaction {
     return arrheniusC_ * pow(t, arrheniusEta_) * std::exp(-arrheniusTheta_ / t);
   }
   double BackwardRate(const double &t) const {
-    return this->ForwardRate(t) / this->EquilibriumRate(t);
+    return isForwardOnly_ ? 0.0
+                          : this->ForwardRate(t) / this->EquilibriumRate(t);
   }
   double EquilibriumRate(const double &t) const { return 0.0; }
 
@@ -62,9 +73,10 @@ class reaction {
   ~reaction() noexcept {}
 };
 
+
 // --------------------------------------------------------------------------
 // function declarations
 
-
+std::ostream &operator<<(std::ostream &, const reaction &);
 
 #endif

@@ -84,13 +84,14 @@ class frozen : public chemistry {
 
 // this class models reacting chemistry
 class reacting : public chemistry {
+  double freezingTemperature_;
   vector<reaction> reactions_;
   vector<double> molarMass_;
 
  public:
   // Constructors
-  reacting(const int& nr, const vector<double>& m)
-      : chemistry(nr), molarMass_(m) {
+  reacting(const int& nr, const double &tf, const vector<double>& m)
+      : chemistry(nr), freezingTemperature_(tf), molarMass_(m) {
     reactions_.reserve(nr);
   }
 

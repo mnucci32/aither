@@ -2,7 +2,7 @@ project (aither)
 
 # set version number
 set (aither_VERSION_MAJOR 0)
-set (aither_VERSION_MINOR 8)
+set (aither_VERSION_MINOR 9)
 set (aither_VERSION_PATCH 0)
 
 message (STATUS "Cmake version ${CMAKE_VERSION}")
@@ -48,6 +48,7 @@ set(sources
   primitive.cpp
   procBlock.cpp
   range.cpp
+  reactions.cpp
   resid.cpp
   slices.cpp
   source.cpp
