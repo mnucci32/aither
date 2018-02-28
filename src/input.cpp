@@ -89,6 +89,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   transportModel_ = "sutherland";  // default to sutherland
   diffusionModel_ = "none";  // default to no diffusion
   chemistryModel_ = "frozen";  // default to nonreacting flow
+  chemistryMechanism_ = "none";  // default to no mechanism
   restartFrequency_ = 0;  // default to not write restarts
   iterationStart_ = 0;  // default to start from iteration zero
   schmidtNumber_ = 0.9;
@@ -128,6 +129,7 @@ input::input(const string &name, const string &resName) : simName_(name),
            "thermodynamicModel",
            "diffusionModel",
            "chemistryModel",
+           "chemistryMechanism",
            "equationOfState",
            "transportModel",
            "outputVariables",
@@ -398,6 +400,11 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->ChemistryModel() << endl;
           }
+        } else if (key == "chemistryMechanism") {
+          chemistryMechanism_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->ChemistryMechanism() << endl;
+          }
         } else if (key == "diffusionModel") {
           diffusionModel_ = tokens[1];
           if (rank == ROOTP) {
@@ -576,6 +583,7 @@ void input::ReadInput(const int &rank) {
   this->CheckTurbulenceModel();
   this->CheckSpecies();
   this->CheckNonreflecting();
+  this->CheckChemistryMechanism();
 
   if (rank == ROOTP) {
     cout << endl;
@@ -962,6 +970,16 @@ void input::CheckNonreflecting() const {
         exit(EXIT_FAILURE);
       }
     }
+  }
+}
+
+// check that chemistry mechanism is only used with reacting flow
+void input::CheckChemistryMechanism() const {
+  if (chemistryMechanism_ != "none" && chemistryModel_ == "reacting") {
+    cerr << "ERROR: chemistry mechanism " << chemistryMechanism_
+         << " does not work with " << chemistryModel_ << " chemistry model!"
+         << endl;
+    exit(EXIT_FAILURE);
   }
 }
 

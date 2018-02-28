@@ -1,0 +1,75 @@
+# grid name
+gridName: burner
+
+# solver parameters
+decompositionMethod: cubic
+equationSet: navierStokes
+timeIntegration: implicitEuler
+cflStart: 100
+cflMax: 100
+
+faceReconstruction: thirdOrder
+inviscidFlux: roe
+inviscidFluxJacobian: rusanov
+viscousFaceReconstruction: central
+limiter: minmod
+
+iterations: 1000
+nonlinearIterations: 1
+outputFrequency: 100
+outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, temperature>
+restartFrequency: 100
+
+# reference conditions
+referenceDensity: 1.2256
+referenceTemperature: 300
+referenceLength: 1
+
+fluids: <fluid(name=N2; referenceMassFraction=0.7347);
+         fluid(name=O2; referenceMassFraction=0.2233);
+         fluid(name=CO; referenceMassFraction=0.0);
+         fluid(name=CO2; referenceMassFraction=0.0);
+         fluid(name=H2O; referenceMassFraction=0.0);
+         fluid(name=CH4; referenceMassFraction=0.042)>
+
+initialConditions: <icState(tag=-1; pressure=101325; density=0.2354; velocity=[0, 0, 1.3]; massFractions=[N2=0.7347, O2=0.2233, CH4=0.042])>
+
+matrixSolver: lusgs
+matrixSweeps: 1
+matrixRelaxation: 1
+
+thermodynamicModel: thermallyPerfect
+turbulenceModel: none
+diffusionModel: schmidt
+chemistryModel: reacting
+chemistryMechanism: CH4_5s2r
+
+boundaryStates: <characteristic(tag=5; pressure=101325; density=1.2256; velocity=[0, 0, 1.3]; massFractions=[N2=0.7347, O2=0.2233, CH4=0.042]),
+                 pressureOutlet(tag=6; pressure=101325),
+                 viscousWall(tag=1)>
+
+#-------------------------------------------------------------
+boundaryConditions: 2
+# Block 0 -- Dimensions: 101 x 31 x 2
+2 2 2
+# i-surfaces
+  interblock              0    0    0   30    0    1  2001
+  characteristic        100  100    0   30    0    1     5
+# j-surfaces
+  viscousWall             0  100    0    0    0    1     1
+  slipWall                0  100   30   30    0    1     3
+# k-surfaces
+  slipWall                0  100    0   30    0    0     2
+  slipWall                0  100    0   30    1    1     2
+# Block 1 -- Dimensions: 101 x 61 x 2
+3 2 2
+# i-surfaces
+  interblock            100  100   30   60    0    1  1000
+  characteristic          0    0    0   60    0    1     6
+  viscousWall           100  100    0   30    0    1     1
+# j-surfaces
+  slipWall                0  100    0    0    0    1     4
+  slipWall                0  100   60   60    0    1     3
+# k-surfaces
+  slipWall                0  100    0   60    0    0     2
+  slipWall                0  100    0   60    1    1     2

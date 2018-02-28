@@ -89,6 +89,7 @@ class input {
   string transportModel_;  // model for viscous transport
   string diffusionModel_;  // model for species diffusion
   string chemistryModel_;  // model for chemical reactions
+  string chemistryMechanism_;  // reaction mechanism
   int restartFrequency_;  // how often to output restart data
   int iterationStart_;  // starting number for iterations
   double schmidtNumber_;  // schmidt number for species diffusion
@@ -106,6 +107,7 @@ class input {
   void CheckTurbulenceModel() const;
   void CheckSpecies() const;
   void CheckNonreflecting() const;
+  void CheckChemistryMechanism() const;
   unique_ptr<turbModel> AssignTurbulenceModel() const;
   unique_ptr<eos> AssignEquationOfState() const;
   unique_ptr<transport> AssignTransportModel() const;
@@ -221,6 +223,7 @@ class input {
   string TransportModel() const {return transportModel_;}
   string DiffusionModel() const {return diffusionModel_;}
   string ChemistryModel() const {return chemistryModel_;}
+  string ChemistryMechanism() const {return chemistryMechanism_;}
 
   int NumVars() const {return vars_.size();}
   int NumVarsOutput() const {return outputVariables_.size();}
