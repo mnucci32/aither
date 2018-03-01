@@ -99,8 +99,8 @@ void fluid::GetDatabaseProperties(const string &name) {
   // open database file -- first try run directory, then fluid database
   ifstream datFile(fname, std::ios::in);
   if (datFile.fail()) {
-    auto databaseFile =
-        GetEnvironmentVariable("AITHER_FLUID_DATABASE") + "/" + fname;
+    auto databaseFile = GetEnvironmentVariable("AITHER_INSTALL_DIRECTORY") +
+                        "/fluidDatabase/" + fname;
     datFile.open(databaseFile, std::ios::in);
     if (datFile.fail()) {
       cerr << "ERROR: Error in fluid::GetDatabaseProperties(). File " << fname

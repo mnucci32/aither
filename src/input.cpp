@@ -93,6 +93,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   restartFrequency_ = 0;  // default to not write restarts
   iterationStart_ = 0;  // default to start from iteration zero
   schmidtNumber_ = 0.9;
+  freezingTemperature_ = 0.0;
 
   // default to primitive variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
@@ -136,6 +137,7 @@ input::input(const string &name, const string &resName) : simName_(name),
            "wallOutputVariables",
            "initialConditions",
            "schmidtNumber",
+           "freezingTemperature",
            "boundaryStates",
            "boundaryConditions"};
 }
@@ -187,7 +189,7 @@ void input::ReadInput(const int &rank) {
 
     if (line.length() > 0) {  // only proceed if line has data
       // split line at variable separator
-      auto tokens = Tokenize(line, ":", 2);
+      auto tokens = Tokenize(line, ":", 1);
 
       // search to see if first token corresponds to any keywords
       auto key = tokens[0];
@@ -414,6 +416,11 @@ void input::ReadInput(const int &rank) {
           schmidtNumber_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
             cout << key << ": " << this->SchmidtNumber() << endl;
+          }
+        } else if (key == "freezingTemperature") {
+          freezingTemperature_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << ": " << this->FreezingTemperature() << endl;
           }
         } else if (key == "outputVariables") {
           // clear default variables from set
@@ -782,6 +789,8 @@ unique_ptr<chemistry> input::AssignChemistryModel() const {
   unique_ptr<chemistry> chem(nullptr);
   if (chemistryModel_ == "frozen" || chemistryModel_ == "none") {
     chem = unique_ptr<chemistry>{std::make_unique<frozen>()};
+  } else if (chemistryModel_ == "reacting") {
+    chem = unique_ptr<chemistry>{std::make_unique<reacting>(*this)};
   } else {
     cerr << "ERROR: Error in input::AssignChemistryModel(). Chemistry "
          << "model " << chemistryModel_ << " is not recognized!" << endl;
@@ -975,9 +984,12 @@ void input::CheckNonreflecting() const {
 
 // check that chemistry mechanism is only used with reacting flow
 void input::CheckChemistryMechanism() const {
-  if (chemistryMechanism_ != "none" && chemistryModel_ == "reacting") {
-    cerr << "ERROR: chemistry mechanism " << chemistryMechanism_
-         << " does not work with " << chemistryModel_ << " chemistry model!"
+  if (chemistryMechanism_ == "none" && chemistryModel_ == "reacting") {
+    cerr << "ERROR: chemistry mechanism should be specified with "
+         << chemistryModel_ << " chemistry model!" << endl;
+    exit(EXIT_FAILURE);
+  } else if (chemistryMechanism_ != "none" && chemistryModel_ != "reacting") {
+    cerr << "ERROR: chemistry mechanism requires reacting chemistry model"
          << endl;
     exit(EXIT_FAILURE);
   }

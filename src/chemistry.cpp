@@ -15,8 +15,54 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <algorithm>
+#include <fstream>
+#include <string>
+#include <iostream>
 #include "chemistry.hpp"
 #include "macros.hpp"
+#include "utility.hpp"
+#include "inputStates.hpp"
+#include "input.hpp"
+
+using std::ifstream;
+using std::string;
+using std::cout;
+using std::cerr;
+using std::endl;
+
+void reacting::ReadFromFile(const input &inp) {
+  auto fname = inp.ChemistryMechanism() + ".mch";
+  // open mechanism file -- first try run directory, then mechanism database
+  ifstream mchFile(fname, std::ios::in);
+  if (mchFile.fail()) {
+    auto mechanismFile = GetEnvironmentVariable("AITHER_INSTALL_DIRECTORY") +
+                         "/chemistryMechanisms/" + fname;
+    mchFile.open(mechanismFile, std::ios::in);
+    if (mchFile.fail()) {
+      cerr << "ERROR: Error in reacting::ReadFromFile(). File " << fname
+           << " did not open correctly!!!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  cout << "Reading reactions from " << fname << endl;
+  string line = "";
+  while (getline(mchFile, line)) {
+    // remove leading and trailing whitespace and ignore comments
+    line = Trim(line);
+
+    if (line.length() > 0) {  // only proceed if line has data
+      // read in reaction
+      reaction rx(line, inp);
+      cout << rx << endl;
+      reactions_.push_back(rx);
+    }
+  }
+  cout << endl;
+
+  // close mechanism file
+  mchFile.close();
+}
 
 vector<double> reacting::SourceTerms(const vector<double>& rho,
                                      const double& t) const {

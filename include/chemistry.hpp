@@ -21,17 +21,17 @@
 
 #include <vector>
 #include "reactions.hpp"
+#include "fluid.hpp"
+#include "input.hpp"
 
 using std::vector;
 
 // abstract base class for chemistry models
 class chemistry {
-  int numReactions_;
 
  public:
   // Constructor
-  chemistry(const int &nr) : numReactions_(nr) {}
-  chemistry() : chemistry(0) {}
+  chemistry() {}
 
   // move constructor and assignment operator
   chemistry(chemistry&&) noexcept = default;
@@ -42,10 +42,9 @@ class chemistry {
   chemistry& operator=(const chemistry&) = default;
 
   // Member functions for abstract base class
-  const int& NumReactions() const { return numReactions_; }
+  virtual int NumReactions() const { return 0; }
   virtual vector<double> SourceTerms(const vector<double>& rho,
                                      const double& t) const = 0;
-  virtual void AddReaction(const reaction &r) {}
   virtual bool IsReacting() const { return false; }
   virtual double SrcSpecRad(const vector<double>& rho, const double& t,
                             const double& vol) const {
@@ -61,7 +60,7 @@ class frozen : public chemistry {
 
  public:
   // Constructors
-  frozen() : chemistry(0) {}
+  frozen() : chemistry() {}
 
   // move constructor and assignment operator
   frozen(frozen&&) noexcept = default;
@@ -88,11 +87,18 @@ class reacting : public chemistry {
   vector<reaction> reactions_;
   vector<double> molarMass_;
 
+  // private member functions
+  void ReadFromFile(const input&);
+
  public:
   // Constructors
-  reacting(const int& nr, const double &tf, const vector<double>& m)
-      : chemistry(nr), freezingTemperature_(tf), molarMass_(m) {
-    reactions_.reserve(nr);
+  reacting(const input &inp)
+      : chemistry(), freezingTemperature_(inp.FreezingTemperature()) {
+    molarMass_.reserve(inp.Fluids().size());
+    for (const auto& f : inp.Fluids()) {
+      molarMass_.push_back(f.MolarMass());
+    }
+    this->ReadFromFile(inp);
   }
 
   // move constructor and assignment operator
@@ -104,9 +110,9 @@ class reacting : public chemistry {
   reacting& operator=(const reacting&) = default;
 
   // Member functions
+  int NumReactions() const override { return reactions_.size(); }
   vector<double> SourceTerms(const vector<double>& rho,
                              const double& t) const override;
-  void AddReaction(const reaction& r) override { reactions_.push_back(r); }
   bool IsReacting() const override { return true; }
   double SrcSpecRad(const vector<double>& rho, const double& t,
                     const double& vol) const override {

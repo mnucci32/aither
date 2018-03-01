@@ -93,6 +93,7 @@ class input {
   int restartFrequency_;  // how often to output restart data
   int iterationStart_;  // starting number for iterations
   double schmidtNumber_;  // schmidt number for species diffusion
+  double freezingTemperature_;  // temperature below which reactions cease
 
   set<string> outputVariables_;  // variables to output
   set<string> wallOutputVariables_;  // wall variables to output
@@ -255,6 +256,7 @@ class input {
   icState ICStateForBlock(const int &) const;
   const shared_ptr<inputState> & BCData(const int &) const;
   const fluid &Fluid(const int &ii) const { return fluids_[ii]; }
+  const vector<fluid> &Fluids() const { return fluids_; }
   void CheckSpecies(const vector<string> &) const;
   bool HaveSpecies(const string &) const;
   int SpeciesIndex(const string &) const;
@@ -262,6 +264,7 @@ class input {
   bool IsWenoZ() const {return this->FaceReconstruction() == "wenoZ";}
 
   double SchmidtNumber() const { return schmidtNumber_; }
+  double FreezingTemperature() const { return freezingTemperature_; }
 
   // destructor
   ~input() noexcept {}

@@ -64,8 +64,8 @@ reaction::reaction(const string &str, const input &inp) {
   for (const auto &pr : products) {
     const auto speciesStart = pr.find_first_not_of("0123456789.");
     const auto stoich =
-        speciesStart == 0 ? 1.0 : std::stod(pr.substr(0, speciesStart));
-    const auto species = pr.substr(speciesStart);
+        speciesStart == 0 ? 1.0 : std::stod(Trim(pr.substr(0, speciesStart)));
+    const auto species = Trim(pr.substr(speciesStart));
     if (!inp.HaveSpecies(species)) {
       cerr << "species " << species << " is in reaction, but not in simulation"
            << endl;
@@ -76,8 +76,8 @@ reaction::reaction(const string &str, const input &inp) {
   for (const auto &re : reactants) {
     const auto speciesStart = re.find_first_not_of("0123456789.");
     const auto stoich =
-        speciesStart == 0 ? 1.0 : std::stod(re.substr(0, speciesStart));
-    const auto species = re.substr(speciesStart);
+        speciesStart == 0 ? 1.0 : std::stod(Trim(re.substr(0, speciesStart)));
+    const auto species = Trim(re.substr(speciesStart));
     if (!inp.HaveSpecies(species)) {
       cerr << "species " << species << " is in reaction, but not in simulation"
            << endl;
@@ -90,7 +90,8 @@ reaction::reaction(const string &str, const input &inp) {
   const auto rateTokens = Tokenize(tokens[1], ";");
   MSG_ASSERT(rateTokens.size() >= 1, "missing rate data");
   for (const auto &rt : rateTokens) {
-    const auto rateData = Tokenize(rt, "=", 2);
+    const auto rateData = Tokenize(rt, "=", 1);
+    MSG_ASSERT(rateData.size() == 2U, "rate data is wrong size");
     if (rateData[0] == "forwardRate") {
       if (rateData[1].find("arrhenius") == string::npos) {
         cerr << "ERROR: forwardRate must have arrhenius information" << endl;
@@ -99,7 +100,7 @@ reaction::reaction(const string &str, const input &inp) {
       const auto start = rateData[1].find("(") + 1;
       const auto end = rateData[1].find(")") + 1;
       const auto range = end - start + 1;  // +/-1 to ignore ()
-      auto arrhenius = str.substr(start, range);
+      auto arrhenius = rateData[1].substr(start, range);
       const auto arrTokens = Tokenize(arrhenius, ",");
       MSG_ASSERT(arrTokens.size() == 3U, "arrhenius has wrong data size");
       for (const auto &arr : arrTokens) {
@@ -151,8 +152,8 @@ reaction::reaction(const string &str, const input &inp) {
 }
 
 void reaction::Print(std::ostream &os) const {
+  auto first = true;
   for (auto ii = 0U; ii < species_.size(); ++ii) {
-    auto first = true;
     if (stoichReactants_[ii] > 0.0) {
       if (!first) {
         os << "+ ";
@@ -161,9 +162,9 @@ void reaction::Print(std::ostream &os) const {
       os << stoichReactants_[ii] << " " << species_[ii] << " ";
     }
   }
-  isForwardOnly_ ? os << "=> " : os << "<=>";
+  isForwardOnly_ ? os << "=> " : os << "<=> ";
+  first = true;
   for (auto ii = 0U; ii < species_.size(); ++ii) {
-    auto first = true;
     if (stoichProducts_[ii] > 0.0) {
       if (!first) {
         os << "+ ";
