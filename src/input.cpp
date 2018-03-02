@@ -582,6 +582,8 @@ void input::ReadInput(const int &rank) {
     aRef_ += mixtureRef_[ii] * gamma * fluids_[ii].GasConstant() * tRef_;
   }
   aRef_ = sqrt(aRef_);
+  // nondimensionalize freezing temperature
+  freezingTemperature_ /= tRef_;
 
   // input file sanity checks
   this->CheckNonlinearIterations();
