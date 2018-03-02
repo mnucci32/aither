@@ -23,6 +23,7 @@
 #include "reactions.hpp"
 #include "fluid.hpp"
 #include "input.hpp"
+#include "matrix.hpp"
 
 using std::vector;
 
@@ -49,6 +50,10 @@ class chemistry {
   virtual double SrcSpecRad(const vector<double>& rho, const double& t,
                             const double& vol) const {
     return 0.0;
+  }
+  virtual squareMatrix SourceJac(const vector<double>& rho,
+                                 const double& t) const {
+    return squareMatrix();
   }
 
   // Destructor
@@ -117,6 +122,10 @@ class reacting : public chemistry {
   double SrcSpecRad(const vector<double>& rho, const double& t,
                     const double& vol) const override {
     return 0.0;
+  }
+  squareMatrix SourceJac(const vector<double>& rho,
+                         const double& t) const override {
+    return squareMatrix();
   }
 
   // Destructor

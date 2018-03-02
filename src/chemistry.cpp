@@ -68,6 +68,10 @@ vector<double> reacting::SourceTerms(const vector<double>& rho,
                                      const double& t) const {
   MSG_ASSERT(rho.size() == molarMass_.size(), "species size mismatch");
   vector<double> src(rho.size(), 0.0);
+  if (t < freezingTemperature_) {  // no reactions
+    return src;
+  }
+
   // loop over all species
   for (auto ss = 0U; ss < src.size(); ++ss) {
     // loop over all reactions

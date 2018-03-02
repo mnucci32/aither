@@ -46,7 +46,7 @@ squareMatrix source::CalcChemSrc(const unique_ptr<chemistry> &chem,
   const auto src = chem->SourceTerms(state.RhoVec(), temperature);
   std::copy(std::begin(src), std::end(src), std::begin(*this));
 
-  return squareMatrix();
+  return chem->SourceJac(state.RhoVec(), temperature);
 }
 
 // Member function to calculate the source terms for the turbulence equations
