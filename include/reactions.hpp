@@ -38,6 +38,7 @@ class reaction {
   double arrheniusEta_;
   double arrheniusTheta_;
   bool isForwardOnly_;
+  bool isNondimensional_ = false;
 
  public:
   // Constructor
@@ -67,7 +68,17 @@ class reaction {
     return isForwardOnly_ ? 0.0
                           : this->ForwardRate(t) / this->EquilibriumRate(t);
   }
+  // DEBUG -- fix this
   double EquilibriumRate(const double &t) const { return 0.0; }
+  void Nondimensionalize(const double &tref, const double &lref,
+                         const double &aref) {
+    if (!isNondimensional_) {
+      const auto tauRef = lref / aref;
+      arrheniusTheta_ /= tref;
+      arrheniusC_ *= tauRef;
+    }
+  }
+  bool IsNondimensional() const { return isNondimensional_; }
 
   // Destructor
   ~reaction() noexcept {}

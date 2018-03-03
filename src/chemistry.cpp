@@ -55,6 +55,7 @@ void reacting::ReadFromFile(const input &inp) {
       // read in reaction
       reaction rx(line, inp);
       cout << rx << endl;
+      rx.Nondimensionalize(inp.TRef(), inp.LRef(), inp.ARef());
       reactions_.push_back(rx);
     }
   }
