@@ -69,7 +69,7 @@ void reacting::ReadFromFile(const input &inp) {
 }
 
 vector<double> reacting::SourceTerms(
-    const vector<double> &rho, const double &t,
+    const vector<double> &rho, const double &t, const double &R,
     const unique_ptr<thermodynamic> &thermo) const {
   MSG_ASSERT(rho.size() == molarMass_.size(), "species size mismatch");
   vector<double> src(rho.size(), 0.0);
@@ -88,7 +88,7 @@ vector<double> reacting::SourceTerms(
         fwdTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichReactant(ff));
       }
 
-      const auto kb = rx.BackwardRate(t, thermo);
+      const auto kb = rx.BackwardRate(t, R, refP_, thermo);
       auto bckTerm = 0.0;
       for (auto ff = 0U; ff < src.size(); ++ff) {
         bckTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichProduct(ff));

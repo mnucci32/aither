@@ -75,6 +75,10 @@ class fluid {
   double MassFractionRef() const { return massFracRef_; }
   string Name() const { return name_; }
   bool IsNondimensional() const { return nondimensional_; }
+  double HeatOfFormation() const { return heatOfFormation_; }
+  double ReferenceTemperature() const { return refT_; }
+  double ReferencePressure() const { return refP_; }
+  double ReferenceEntropy() const { return refS_; }
 
   void Nondimensionalize(const double&, const double &, const double &);
 

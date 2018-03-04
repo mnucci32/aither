@@ -201,6 +201,14 @@ std::ostream &operator<<(std::ostream &os, const reaction &rx) {
 
 // member function to calculate equilibrium reaction rate
 double reaction::EquilibriumRate(
-    const double &t, const unique_ptr<thermodynamic> &thermo) const {
-  return 0.0;
+    const double &t, const double &R, const double &refP,
+    const unique_ptr<thermodynamic> &thermo) const {
+  auto prodMinReac = 0.0;
+  auto expTerm = 0.0;
+  for (auto ii = 0U; ii < stoichProducts_.size(); ++ii) {
+    auto specProdMinReac = stoichProducts_[ii] - stoichReactants_[ii];
+    prodMinReac += specProdMinReac;
+    expTerm += thermo->SpeciesOmega(t, ii) * specProdMinReac;
+  }
+  return pow(refP / (R * t), prodMinReac) * exp(-expTerm);
 }

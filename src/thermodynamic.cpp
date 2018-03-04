@@ -30,9 +30,16 @@ caloricallyPerfect::caloricallyPerfect(const vector<fluid>& fl,
   const auto numSpecies = fl.size();
   n_.reserve(numSpecies);
   gasConst_.reserve(numSpecies);
-  for (auto &f : fl) {
+  hf_.reserve(numSpecies);
+  s0_.reserve(numSpecies);
+  for (auto& f : fl) {
     n_.push_back(f.N());
     gasConst_.push_back(f.GasConstant() * tRef / (aRef * aRef));
+    hf_.push_back(f.HeatOfFormation());
+    s0_.push_back(f.ReferenceEntropy() -
+                  f.GasConstant() * (f.N() + 1.0) *
+                      log(f.ReferenceTemperature() * tRef) * tRef /
+                      (aRef * aRef));
   }
 }
 
@@ -42,6 +49,14 @@ thermallyPerfect::thermallyPerfect(const vector<fluid>& fl, const double& tRef,
   vibTemp_.reserve(fl.size());
   for (auto& f : fl) {
     vibTemp_.push_back(f.VibrationalTemperature());
+  }
+  for (auto ss = 0U; ss < vibTemp_.size(); ++ss) {
+    auto s0 = 0.0;
+    for (const auto &thetaV : vibTemp_[ss]) {
+      const auto tr = fl[ss].ReferenceTemperature();
+      s0 += thetaV / (exp(thetaV / tr) * tr) - log(1.0 - exp(thetaV / tr));
+    }
+    this->SubtractS0(ss, s0);
   }
 }
 
@@ -65,6 +80,11 @@ double thermodynamic::Cv(const double& t, const vector<double>& mf) const {
     cv += mf[ss] * this->SpeciesCv(t, ss);
   }
   return cv;
+}
+
+double thermodynamic::OmegaTerm(const double& t, const int &ss) const {
+  return 1.0 + this->N(ss) - (1.0 + this->N(ss)) * log(t) +
+         this->Hf(ss) / this->R(ss) - this->S0(ss) / this->R(ss);
 }
 
 // ---------------------------------------------------------------------------

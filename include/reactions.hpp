@@ -67,13 +67,13 @@ class reaction {
   double ForwardRate(const double &t) const {
     return arrheniusC_ * pow(t, arrheniusEta_) * std::exp(-arrheniusTheta_ / t);
   }
-  double BackwardRate(const double &t,
+  double BackwardRate(const double &t, const double &R, const double &refP,
                       const unique_ptr<thermodynamic> &thermo) const {
-    return isForwardOnly_
-               ? 0.0
-               : this->ForwardRate(t) / this->EquilibriumRate(t, thermo);
+    return isForwardOnly_ ? 0.0
+                          : this->ForwardRate(t) /
+                                this->EquilibriumRate(t, R, refP, thermo);
   }
-  double EquilibriumRate(const double &,
+  double EquilibriumRate(const double &, const double &, const double &,
                          const unique_ptr<thermodynamic> &) const;
   void Nondimensionalize(const double &tref, const double &lref,
                          const double &aref) {

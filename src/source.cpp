@@ -44,12 +44,16 @@ ostream &operator<<(ostream &os, const source &m) {
 squareMatrix source::CalcChemSrc(const physics &phys,
                                  const primitiveView &state,
                                  const double &temperature) {
-  const auto src = phys.Chemistry()->SourceTerms(state.RhoVec(), temperature,
-                                                 phys.Thermodynamic());
+  const auto src = phys.Chemistry()->SourceTerms(
+      state.RhoVec(), temperature,
+      phys.EoS()->MixtureGasConstant(state.MassFractions()),
+      phys.Thermodynamic());
   std::copy(std::begin(src), std::end(src), std::begin(*this));
 
-  return phys.Chemistry()->SourceJac(state.RhoVec(), temperature,
-                                     phys.Thermodynamic());
+  return phys.Chemistry()->SourceJac(
+      state.RhoVec(), temperature,
+      phys.EoS()->MixtureGasConstant(state.MassFractions()),
+      phys.Thermodynamic());
 }
 
 // Member function to calculate the source terms for the turbulence equations

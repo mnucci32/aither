@@ -92,7 +92,7 @@ void fluid::Nondimensionalize(const double &tRef, const double &rRef,
     std::for_each(vibTemp_.begin(), vibTemp_.end(),
                   [&tRef](auto &val) { val /= tRef; });
     // converting hf & s from mol to kg values, then nondimensionalizing
-    heatOfFormation_ /= molarMass_ * tRef / (aRef * aRef);
+    heatOfFormation_ /= molarMass_ / (aRef * aRef);
     refP_ /= rRef * aRef * aRef;
     refT_ /= tRef;
     refS_ /= molarMass_ * tRef / (aRef * aRef);
