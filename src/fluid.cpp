@@ -86,10 +86,16 @@ fluid::fluid(string &str, const string name) {
   this->GetDatabaseProperties(name_);
 }
 
-void fluid::Nondimensionalize(const double &tRef) {
+void fluid::Nondimensionalize(const double &tRef, const double &rRef,
+                              const double &aRef) {
   if (!this->IsNondimensional()) {
     std::for_each(vibTemp_.begin(), vibTemp_.end(),
                   [&tRef](auto &val) { val /= tRef; });
+    // converting hf & s from mol to kg values, then nondimensionalizing
+    heatOfFormation_ /= molarMass_ * tRef / (aRef * aRef);
+    refP_ /= rRef * aRef * aRef;
+    refT_ /= tRef;
+    refS_ /= molarMass_ * tRef / (aRef * aRef);
     this->SetNondimensional(true);
   }
 }
@@ -126,6 +132,14 @@ void fluid::GetDatabaseProperties(const string &name) {
         molarMass_ = std::stod(tokens[1]) / 1000.;  // convert to kg/mol
       } else if (key == "vibrationalTemperature") {
         vibTemp_ = ReadVectorXd(tokens[1]);
+      } else if (key == "heatOfFormation") {
+        heatOfFormation_ = std::stod(tokens[1]);
+      } else if (key == "referencePressure") {
+        refP_ = std::stod(tokens[1]);
+      } else if (key == "referenceTemperature") {
+        refT_ = std::stod(tokens[1]);
+      } else if (key == "referenceEntropy") {
+        refS_ = std::stod(tokens[1]);
       } else if (key == "sutherlandViscosityC1") {
         transportViscosity_[0] = std::stod(tokens[1]);
       } else if (key == "sutherlandViscosityS") {
@@ -134,6 +148,10 @@ void fluid::GetDatabaseProperties(const string &name) {
         transportConductivity_[0] = std::stod(tokens[1]);
       } else if (key == "sutherlandConductivityS") {
         transportConductivity_[1] = std::stod(tokens[1]);
+      } else {
+        cerr << "ERROR: Error in fluid::GetDatabaseProperties(). Property "
+             << key << " is not recognized" << endl;
+        exit(EXIT_FAILURE);
       }
     }
   }

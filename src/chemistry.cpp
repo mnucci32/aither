@@ -18,17 +18,20 @@
 #include <fstream>
 #include <string>
 #include <iostream>
+#include <memory>
 #include "chemistry.hpp"
 #include "macros.hpp"
 #include "utility.hpp"
 #include "inputStates.hpp"
 #include "input.hpp"
+#include "thermodynamic.hpp"
 
 using std::ifstream;
 using std::string;
 using std::cout;
 using std::cerr;
 using std::endl;
+using std::unique_ptr;
 
 void reacting::ReadFromFile(const input &inp) {
   auto fname = inp.ChemistryMechanism() + ".mch";
@@ -65,8 +68,9 @@ void reacting::ReadFromFile(const input &inp) {
   mchFile.close();
 }
 
-vector<double> reacting::SourceTerms(const vector<double>& rho,
-                                     const double& t) const {
+vector<double> reacting::SourceTerms(
+    const vector<double> &rho, const double &t,
+    const unique_ptr<thermodynamic> &thermo) const {
   MSG_ASSERT(rho.size() == molarMass_.size(), "species size mismatch");
   vector<double> src(rho.size(), 0.0);
   if (t < freezingTemperature_) {  // no reactions
@@ -84,7 +88,7 @@ vector<double> reacting::SourceTerms(const vector<double>& rho,
         fwdTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichReactant(ff));
       }
 
-      const auto kb = rx.BackwardRate(t);
+      const auto kb = rx.BackwardRate(t, thermo);
       auto bckTerm = 0.0;
       for (auto ff = 0U; ff < src.size(); ++ff) {
         bckTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichProduct(ff));

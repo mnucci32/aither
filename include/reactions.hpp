@@ -21,12 +21,15 @@
 #include <cmath>
 #include <string>
 #include <iostream>
+#include <memory>
 
 using std::vector;
 using std::string;
+using std::unique_ptr;
 
 // forward class declarations
 class input;
+class thermodynamic;
 
 // class to hold reaction data
 class reaction {
@@ -64,12 +67,14 @@ class reaction {
   double ForwardRate(const double &t) const {
     return arrheniusC_ * pow(t, arrheniusEta_) * std::exp(-arrheniusTheta_ / t);
   }
-  double BackwardRate(const double &t) const {
-    return isForwardOnly_ ? 0.0
-                          : this->ForwardRate(t) / this->EquilibriumRate(t);
+  double BackwardRate(const double &t,
+                      const unique_ptr<thermodynamic> &thermo) const {
+    return isForwardOnly_
+               ? 0.0
+               : this->ForwardRate(t) / this->EquilibriumRate(t, thermo);
   }
-  // DEBUG -- fix this
-  double EquilibriumRate(const double &t) const { return 0.0; }
+  double EquilibriumRate(const double &,
+                         const unique_ptr<thermodynamic> &) const;
   void Nondimensionalize(const double &tref, const double &lref,
                          const double &aref) {
     if (!isNondimensional_) {
@@ -77,6 +82,7 @@ class reaction {
       arrheniusTheta_ /= tref;
       arrheniusC_ *= tauRef;
     }
+    isNondimensional_ = true;
   }
   bool IsNondimensional() const { return isNondimensional_; }
 

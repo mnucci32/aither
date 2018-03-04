@@ -16,15 +16,18 @@
 
 #include <string>
 #include <iostream>
+#include <memory>
 #include "reactions.hpp"
 #include "inputStates.hpp"
 #include "input.hpp"
 #include "macros.hpp"
+#include "thermodynamic.hpp"
 
 using std::string;
 using std::cerr;
 using std::cout;
 using std::endl;
+using std::unique_ptr;
 
 // constructor
 reaction::reaction(const string &str, const input &inp) {
@@ -194,4 +197,10 @@ void reaction::Print(std::ostream &os) const {
 std::ostream &operator<<(std::ostream &os, const reaction &rx) {
   rx.Print(os);
   return os;
+}
+
+// member function to calculate equilibrium reaction rate
+double reaction::EquilibriumRate(
+    const double &t, const unique_ptr<thermodynamic> &thermo) const {
+  return 0.0;
 }

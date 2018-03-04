@@ -20,12 +20,17 @@
 // This header file contains the classes for chemistry models
 
 #include <vector>
+#include <memory>
 #include "reactions.hpp"
 #include "fluid.hpp"
 #include "input.hpp"
 #include "matrix.hpp"
 
 using std::vector;
+using std::unique_ptr;
+
+// forward declarations
+class thermodynamic;
 
 // abstract base class for chemistry models
 class chemistry {
@@ -44,15 +49,17 @@ class chemistry {
 
   // Member functions for abstract base class
   virtual int NumReactions() const { return 0; }
-  virtual vector<double> SourceTerms(const vector<double>& rho,
-                                     const double& t) const = 0;
+  virtual vector<double> SourceTerms(
+      const vector<double>& rho, const double& t,
+      const unique_ptr<thermodynamic>& thermo) const = 0;
   virtual bool IsReacting() const { return false; }
   virtual double SrcSpecRad(const vector<double>& rho, const double& t,
                             const double& vol) const {
     return 0.0;
   }
-  virtual squareMatrix SourceJac(const vector<double>& rho,
-                                 const double& t) const {
+  virtual squareMatrix SourceJac(
+      const vector<double>& rho, const double& t,
+      const unique_ptr<thermodynamic>& thermo) const {
     return squareMatrix();
   }
 
@@ -76,8 +83,9 @@ class frozen : public chemistry {
   frozen& operator=(const frozen&) = default;
 
   // Member functions
-  vector<double> SourceTerms(const vector<double>& rho,
-                             const double& t) const override {
+  vector<double> SourceTerms(
+      const vector<double>& rho, const double& t,
+      const unique_ptr<thermodynamic>& thermo) const override {
     return vector<double>(rho.size(), 0.0);
   }
 
@@ -116,15 +124,17 @@ class reacting : public chemistry {
 
   // Member functions
   int NumReactions() const override { return reactions_.size(); }
-  vector<double> SourceTerms(const vector<double>& rho,
-                             const double& t) const override;
+  vector<double> SourceTerms(
+      const vector<double>& rho, const double& t,
+      const unique_ptr<thermodynamic>& thermo) const override;
   bool IsReacting() const override { return true; }
   double SrcSpecRad(const vector<double>& rho, const double& t,
                     const double& vol) const override {
     return 0.0;
   }
-  squareMatrix SourceJac(const vector<double>& rho,
-                         const double& t) const override {
+  squareMatrix SourceJac(
+      const vector<double>& rho, const double& t,
+      const unique_ptr<thermodynamic>& thermo) const override {
     return squareMatrix();
   }
 

@@ -25,6 +25,7 @@
 #include "matrix.hpp"
 #include "arrayView.hpp"
 #include "primitive.hpp"
+#include "physicsModels.hpp"
 
 using std::cout;
 using std::endl;
@@ -40,13 +41,15 @@ ostream &operator<<(ostream &os, const source &m) {
 }
 
 // Member function to calculate the source terms for the species equations
-squareMatrix source::CalcChemSrc(const unique_ptr<chemistry> &chem,
+squareMatrix source::CalcChemSrc(const physics &phys,
                                  const primitiveView &state,
                                  const double &temperature) {
-  const auto src = chem->SourceTerms(state.RhoVec(), temperature);
+  const auto src = phys.Chemistry()->SourceTerms(state.RhoVec(), temperature,
+                                                 phys.Thermodynamic());
   std::copy(std::begin(src), std::end(src), std::begin(*this));
 
-  return chem->SourceJac(state.RhoVec(), temperature);
+  return phys.Chemistry()->SourceJac(state.RhoVec(), temperature,
+                                     phys.Thermodynamic());
 }
 
 // Member function to calculate the source terms for the turbulence equations

@@ -35,7 +35,11 @@ using std::ostream;
 class fluid {
   double n_;
   double molarMass_;  // kg/mol
-  vector<double> vibTemp_;    // K
+  vector<double> vibTemp_;  // K
+  double refP_ = 101325.0;  // Pa
+  double refT_ = 298.0;  // K
+  double refS_ = 0.0;  // J / mol-K
+  double heatOfFormation_ = 0.0;          // J / mol
   double universalGasConst_ = 8.3144598;  // J / mol-K
   array<double, 2> transportViscosity_;
   array<double, 2> transportConductivity_;
@@ -72,7 +76,7 @@ class fluid {
   string Name() const { return name_; }
   bool IsNondimensional() const { return nondimensional_; }
 
-  void Nondimensionalize(const double&);
+  void Nondimensionalize(const double&, const double &, const double &);
 
   // Destructor
   ~fluid() noexcept {}

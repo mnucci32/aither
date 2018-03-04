@@ -1128,6 +1128,6 @@ void input::NondimensionalizeStateData(const unique_ptr<eos> &eqnState) {
 
 void input::NondimensionalizeFluid() {
   for (auto &fl : fluids_) {
-    fl.Nondimensionalize(tRef_);
+    fl.Nondimensionalize(tRef_, rRef_, aRef_);
   }
 }
