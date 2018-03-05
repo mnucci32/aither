@@ -54,7 +54,7 @@ thermallyPerfect::thermallyPerfect(const vector<fluid>& fl, const double& tRef,
     auto s0 = 0.0;
     for (const auto &thetaV : vibTemp_[ss]) {
       const auto tr = fl[ss].ReferenceTemperature();
-      s0 += thetaV / (exp(thetaV / tr) * tr) - log(1.0 - exp(thetaV / tr));
+      s0 += thetaV / (exp(thetaV / tr) * tr) - log(1.0 - exp(-thetaV / tr));
     }
     this->SubtractS0(ss, s0);
   }
