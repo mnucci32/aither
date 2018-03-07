@@ -105,13 +105,13 @@ class caloricallyPerfect : public thermodynamic {
     return this->OmegaTerm(ss, t);
   }
   double SpeciesSpecEnergy(const double& t, const int& ss) const override {
-    return this->SpeciesCv(t, ss) * t;
+    return hf_[ss] + this->SpeciesCv(t, ss) * t;
   }
   double SpecEnergy(const double& t, const vector<double>& mf) const override {
     return this->Cv(t, mf) * t;
   }
   double SpeciesSpecEnthalpy(const double& t, const int& ss) const override {
-    return this->SpeciesCp(t, ss) * t;
+    return hf_[ss] + this->SpeciesCp(t, ss) * t;
   }
   double SpecEnthalpy(const double& t,
                       const vector<double>& mf) const override {
@@ -120,10 +120,10 @@ class caloricallyPerfect : public thermodynamic {
   double TemperatureFromSpecEnergy(const double& e,
                                    const vector<double>& mf) const override;
   double SpeciesCp(const double& t, const int& ss) const override {
-    return hf_[ss] + this->R(ss) * ((this->N(ss) + 1.0));
+    return this->R(ss) * ((this->N(ss) + 1.0));
   }
   double SpeciesCv(const double& t, const int& ss) const override {
-    return hf_[ss] + this->R(ss) * this->N(ss);
+    return this->R(ss) * this->N(ss);
   }
 
   // Destructor
@@ -178,12 +178,10 @@ class thermallyPerfect : public caloricallyPerfect {
   double TemperatureFromSpecEnergy(const double& e,
                                    const vector<double>& mf) const override;
   double SpeciesCp(const double& t, const int& ss) const override {
-    return this->Hf(ss) +
-           this->R(ss) * ((this->N(ss) + 1.0) + this->VibEqCpCvTerm(t, ss));
+    return this->R(ss) * ((this->N(ss) + 1.0) + this->VibEqCpCvTerm(t, ss));
   }
   double SpeciesCv(const double& t, const int& ss) const override {
-    return this->Hf(ss) +
-           this->R(ss) * (this->N(ss) + this->VibEqCpCvTerm(t, ss));
+    return this->R(ss) * (this->N(ss) + this->VibEqCpCvTerm(t, ss));
   }
   double SpeciesOmega(const double& t, const int &ss) const override {
     return this->OmegaTerm(t, ss) + this->OmegaVibTerm(t, ss);

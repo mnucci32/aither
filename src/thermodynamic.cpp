@@ -100,7 +100,8 @@ double caloricallyPerfect::TemperatureFromSpecEnergy(
 double thermallyPerfect::SpeciesSpecEnergy(const double& t,
                                            const int& ss) const {
   MSG_ASSERT(ss <= this->NumSpecies(), "species out of range");
-  return this->R(ss) * (this->N(ss) * t + this->VibEqTerm(t, ss));
+  return this->Hf(ss) +
+         this->R(ss) * (this->N(ss) * t + this->VibEqTerm(t, ss));
 }
 
 double thermallyPerfect::SpecEnergy(const double& t,
@@ -117,7 +118,8 @@ double thermallyPerfect::SpecEnergy(const double& t,
 double thermallyPerfect::SpeciesSpecEnthalpy(const double& t,
                                              const int& ss) const {
   MSG_ASSERT(ss <= this->NumSpecies(), "species out of range");
-  return this->R(ss) * ((this->N(ss) + 1) * t + this->VibEqTerm(t, ss));
+  return this->Hf(ss) +
+         this->R(ss) * ((this->N(ss) + 1) * t + this->VibEqTerm(t, ss));
 }
 
 double thermallyPerfect::SpecEnthalpy(const double& t,
