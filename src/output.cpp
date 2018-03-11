@@ -224,6 +224,12 @@ void WriteFun(const vector<procBlock> &vars, const physics &phys,
             } else if (var == "temperature") {
               value = blk.Temperature(ii, jj, kk);
               value *= inp.TRef();
+            } else if (var == "energy") {
+              value = blk.State(ii, jj, kk).Energy(phys);
+              value *= inp.ARef() * inp.ARef();
+            } else if (var == "enthalpy") {
+              value = blk.State(ii, jj, kk).Enthalpy(phys);
+              value *= inp.ARef() * inp.ARef();
             } else if (var == "rank") {
               value = vars[SplitBlockNumber(recombVars, decomp,
                                             ll, ii, jj, kk)].Rank();
@@ -297,7 +303,7 @@ void WriteFun(const vector<procBlock> &vars, const physics &phys,
             } else if (var == "densityGrad_y") {
               value = blk.DensityGrad(ii, jj, kk).Y();
               value *= inp.RRef() / inp.LRef();
-            } else if (var == "denistyGrad_z") {
+            } else if (var == "densityGrad_z") {
               value = blk.DensityGrad(ii, jj, kk).Z();
               value *= inp.RRef() / inp.LRef();
             } else if (var == "pressGrad_x") {

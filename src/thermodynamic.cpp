@@ -92,7 +92,9 @@ double thermodynamic::OmegaTerm(const double& t, const int &ss) const {
 double caloricallyPerfect::TemperatureFromSpecEnergy(
     const double& e, const vector<double>& mf) const {
   const auto t = 1.0;  // cpg has constant Cv, so value of t is meaningless
-  return e / this->Cv(t, mf);
+  const auto hf =
+      std::inner_product(std::begin(hf_), std::end(hf_), std::begin(mf), 0.0);
+  return (e - hf) / this->Cv(t, mf);
 }
 
 // ---------------------------------------------------------------------------
