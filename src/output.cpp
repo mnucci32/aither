@@ -230,6 +230,16 @@ void WriteFun(const vector<procBlock> &vars, const physics &phys,
             } else if (var == "enthalpy") {
               value = blk.State(ii, jj, kk).Enthalpy(phys);
               value *= inp.ARef() * inp.ARef();
+            } else if (var == "cp") {
+              value = phys.Thermodynamic()->Cp(
+                  blk.Temperature(ii, jj, kk),
+                  blk.State(ii, jj, kk).MassFractions());
+              value *= inp.ARef() * inp.ARef() / inp.TRef();
+            } else if (var == "cv") {
+              value = phys.Thermodynamic()->Cv(
+                  blk.Temperature(ii, jj, kk),
+                  blk.State(ii, jj, kk).MassFractions());
+              value *= inp.ARef() * inp.ARef() / inp.TRef();
             } else if (var == "rank") {
               value = vars[SplitBlockNumber(recombVars, decomp,
                                             ll, ii, jj, kk)].Rank();
