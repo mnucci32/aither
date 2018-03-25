@@ -1631,7 +1631,7 @@ blkMultiArray3d<varArray> procBlock::InitializeMatrixUpdate(
           x.InsertBlock(
               ii, jj, kk,
               aInv.ArrayMult(ii, jj, kk,
-                             -thetaInv * residual_(ii, jj, kk) -
+                             -thetaInv * residual_(ii, jj, kk) +
                                  this->SolDeltaNm1(ii, jj, kk, inp) -
                                  this->SolDeltaMmN(ii, jj, kk, inp, phys)));
         }
