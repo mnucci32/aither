@@ -68,11 +68,9 @@ class thermodynamic {
   virtual double SpeciesOmega(const double& t, const int &ss) const = 0;
 
   virtual double SpeciesSpecEnergy(const double& t, const int& ss) const = 0;
-  virtual double SpecEnergy(const double& t,
-                            const vector<double>& mf) const = 0;
+  double SpecEnergy(const double& t, const vector<double>& mf) const;
   virtual double SpeciesSpecEnthalpy(const double& t, const int& ss) const = 0;
-  virtual double SpecEnthalpy(const double& t,
-                              const vector<double>& mf) const = 0;
+  double SpecEnthalpy(const double& t, const vector<double>& mf) const;
   virtual double TemperatureFromSpecEnergy(const double& e,
                                            const vector<double>& mf) const = 0;
   virtual double SpeciesCp(const double& t, const int& ss) const = 0;
@@ -107,15 +105,8 @@ class caloricallyPerfect : public thermodynamic {
   double SpeciesSpecEnergy(const double& t, const int& ss) const override {
     return hf_[ss] + this->SpeciesCv(t, ss) * t;
   }
-  double SpecEnergy(const double& t, const vector<double>& mf) const override {
-    return this->Cv(t, mf) * t;
-  }
   double SpeciesSpecEnthalpy(const double& t, const int& ss) const override {
     return hf_[ss] + this->SpeciesCp(t, ss) * t;
-  }
-  double SpecEnthalpy(const double& t,
-                      const vector<double>& mf) const override {
-    return this->Cp(t, mf) * t;
   }
   double TemperatureFromSpecEnergy(const double& e,
                                    const vector<double>& mf) const override;
@@ -172,9 +163,7 @@ class thermallyPerfect : public caloricallyPerfect {
 
   // Member functions
   double SpeciesSpecEnergy(const double& t, const int& ss) const override;
-  double SpecEnergy(const double& t, const vector<double>& mf) const override;
   double SpeciesSpecEnthalpy(const double& t, const int& ss) const override;
-  double SpecEnthalpy(const double& t, const vector<double>& mf) const override;
   double TemperatureFromSpecEnergy(const double& e,
                                    const vector<double>& mf) const override;
   double SpeciesCp(const double& t, const int& ss) const override {

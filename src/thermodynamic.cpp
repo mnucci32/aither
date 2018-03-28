@@ -82,6 +82,29 @@ double thermodynamic::Cv(const double& t, const vector<double>& mf) const {
   return cv;
 }
 
+double thermodynamic::SpecEnergy(const double& t,
+                                 const vector<double>& mf) const {
+  MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
+             "species size mismatch");
+  auto e = 0.0;
+  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+    e += mf[ss] * this->SpeciesSpecEnergy(t, ss);
+  }
+  return e;
+}
+
+double thermodynamic::SpecEnthalpy(const double& t,
+                                   const vector<double>& mf) const {
+  MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
+             "species size mismatch");
+  auto h = 0.0;
+  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+    h += mf[ss] * this->SpeciesSpecEnthalpy(t, ss);
+  }
+  return h;
+}
+
+
 double thermodynamic::OmegaTerm(const double& t, const int &ss) const {
   return 1.0 + this->N(ss) - (1.0 + this->N(ss)) * log(t) +
          this->Hf(ss) / this->R(ss) - this->S0(ss) / this->R(ss);
@@ -106,33 +129,11 @@ double thermallyPerfect::SpeciesSpecEnergy(const double& t,
          this->R(ss) * (this->N(ss) * t + this->VibEqTerm(t, ss));
 }
 
-double thermallyPerfect::SpecEnergy(const double& t,
-                                    const vector<double>& mf) const {
-  MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
-             "species size mismatch");
-  auto e = 0.0;
-  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    e += mf[ss] * this->SpeciesSpecEnergy(t, ss);
-  }
-  return e;
-}
-
 double thermallyPerfect::SpeciesSpecEnthalpy(const double& t,
                                              const int& ss) const {
   MSG_ASSERT(ss <= this->NumSpecies(), "species out of range");
   return this->Hf(ss) +
          this->R(ss) * ((this->N(ss) + 1) * t + this->VibEqTerm(t, ss));
-}
-
-double thermallyPerfect::SpecEnthalpy(const double& t,
-                                      const vector<double>& mf) const {
-  MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
-             "species size mismatch");
-  auto h = 0.0;
-  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-    h += mf[ss] * this->SpeciesSpecEnthalpy(t, ss);
-  }
-  return h;
 }
 
 double thermallyPerfect::TemperatureFromSpecEnergy(
