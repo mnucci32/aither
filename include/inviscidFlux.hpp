@@ -408,14 +408,15 @@ inviscidFlux AUSMFlux(const T1 &left, const T2 &right, const physics &phys,
 
   // calculate average specific enthalpy normal to face
   const auto velNormL = left.Velocity().DotProd(area);
-  const auto velTanSqL = (left.Velocity() - velNormL * area).MagSq();
+  // const auto velTanSqL = (left.Velocity() - velNormL * area).MagSq();
   const auto velNormR = right.Velocity().DotProd(area);
-  const auto velTanSqR = (right.Velocity() - velNormR * area).MagSq();
-  const auto hnl = left.Enthalpy(phys) - 0.5 * velTanSqL;
-  const auto hnr = right.Enthalpy(phys) - 0.5 * velTanSqR;
-  const auto hn = 0.5 * (hnl + hnr);
+  // const auto velTanSqR = (right.Velocity() - velNormR * area).MagSq();
+  // const auto hnl = left.Enthalpy(phys) - 0.5 * velTanSqL;
+  // const auto hnr = right.Enthalpy(phys) - 0.5 * velTanSqR;
+  // const auto hn = 0.5 * (hnl + hnr);
 
   // calculate c* from Kim, Kim, Rho 1998
+  /*
   const auto mfl = left.MassFractions();
   const auto mfr = right.MassFractions();
   vector<double> mf(mfl.size());
@@ -427,6 +428,12 @@ inviscidFlux AUSMFlux(const T1 &left, const T2 &right, const physics &phys,
   const auto t = 0.5 * (tl + tr);
   const auto gamma = phys.Thermodynamic()->Gamma(t, mf);
   const auto sosStar = sqrt(2.0 * hn * (gamma - 1.0) / (gamma + 1.0));
+  */
+  // using this c* to avoid oscillations near shocks - also easier to extend to
+  // thermally perfect gas model
+  const auto sosL = left.SoS(phys);
+  const auto sosR = right.SoS(phys);
+  const auto sosStar = sqrt(sosL * sosR);
 
   // calculate speed of sound on face c_1/2 from Kim, Kim, Rho 1998
   const auto vel = 0.5 * (velNormL + velNormR);
