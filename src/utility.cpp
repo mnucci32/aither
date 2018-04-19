@@ -615,7 +615,7 @@ void CalcResidual(vector<procBlock> &states,
   SwapEddyViscAndGradients(states, connections, rank, MPI_tensorDouble,
                            MPI_vec3d, inp.NumberGhostLayers());
 
-  if (inp.IsRANS() || inp.IsReacting()) {
+  if (inp.IsRANS() || phys.Chemistry()->IsReacting()) {
     // swap turbulence variables calculated during residual calculation
     SwapTurbVars(states, connections, rank, inp.NumberGhostLayers());
 

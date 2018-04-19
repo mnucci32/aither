@@ -163,11 +163,9 @@ class input {
   string TimeIntegration() const { return timeIntegration_; }
   bool IsMultilevelInTime() const { return timeIntegration_ == "bdf2"; }
   bool IsMultiSpecies() const { return this->NumSpecies() > 1; }
-  bool IsReacting() const { return this->NumReactions() > 0; }
   bool NeedToStoreTimeN() const {
     return this->IsImplicit() || this->TimeIntegration() == "rk4";
   }
-  int NumReactions() const { return 0; }
 
   double CFL() const {return cfl_;}
   void CalcCFL(const int &i);

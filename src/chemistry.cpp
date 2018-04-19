@@ -83,13 +83,13 @@ vector<double> reacting::SourceTerms(
     for (const auto &rx : reactions_) {
       const auto prodMinReac = rx.StoichProduct(ss) - rx.StoichReactant(ss);
       const auto kf = rx.ForwardRate(t);
-      auto fwdTerm = 0.0;
+      auto fwdTerm = 1.0;
       for (auto ff = 0U; ff < src.size(); ++ff) {
         fwdTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichReactant(ff));
       }
 
       const auto kb = rx.BackwardRate(t, R, refP_, thermo);
-      auto bckTerm = 0.0;
+      auto bckTerm = 1.0;
       for (auto ff = 0U; ff < src.size(); ++ff) {
         bckTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichProduct(ff));
       }

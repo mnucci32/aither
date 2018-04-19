@@ -134,7 +134,7 @@ class reacting : public chemistry {
   vector<double> SourceTerms(
       const vector<double>& rho, const double& t, const double &R,
       const unique_ptr<thermodynamic>& thermo) const override;
-  bool IsReacting() const override { return true; }
+  bool IsReacting() const override { return this->NumReactions() > 0; }
   double SrcSpecRad(const vector<double>& rho, const double& t,
                     const double& vol) const override {
     return 0.0;

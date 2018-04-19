@@ -80,7 +80,7 @@ class reaction {
     if (!isNondimensional_) {
       const auto tauRef = lref / aref;
       arrheniusTheta_ /= tref;
-      arrheniusC_ *= tauRef;
+      arrheniusC_ *= tauRef * pow(tref, arrheniusEta_);
     }
     isNondimensional_ = true;
   }

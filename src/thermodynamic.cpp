@@ -107,7 +107,7 @@ double thermodynamic::SpecEnthalpy(const double& t,
 
 double thermodynamic::OmegaTerm(const double& t, const int &ss) const {
   return 1.0 + this->N(ss) - (1.0 + this->N(ss)) * log(t) +
-         this->Hf(ss) / this->R(ss) - this->S0(ss) / this->R(ss);
+         this->Hf(ss) / (this->R(ss) * t) - this->S0(ss) / this->R(ss);
 }
 
 // ---------------------------------------------------------------------------
