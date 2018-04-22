@@ -21,6 +21,7 @@
 #include <cmath>
 #include <string>
 #include <iostream>
+#include <numeric>
 #include <memory>
 
 using std::vector;
@@ -29,7 +30,6 @@ using std::unique_ptr;
 
 // forward class declarations
 class input;
-class thermodynamic;
 
 // class to hold reaction data
 class reaction {
@@ -40,6 +40,7 @@ class reaction {
   double arrheniusC_;
   double arrheniusEta_;
   double arrheniusTheta_;
+  double universalGasConst_;
   bool isForwardOnly_;
   bool isNondimensional_ = false;
 
@@ -67,20 +68,26 @@ class reaction {
   double ForwardRate(const double &t) const {
     return arrheniusC_ * pow(t, arrheniusEta_) * std::exp(-arrheniusTheta_ / t);
   }
-  double BackwardRate(const double &t, const double &R, const double &refP,
-                      const unique_ptr<thermodynamic> &thermo) const {
-    return isForwardOnly_ ? 0.0
-                          : this->ForwardRate(t) /
-                                this->EquilibriumRate(t, R, refP, thermo);
+  double BackwardRate(const double &t, const double &refP,
+                      const vector<double> &omega) const {
+    return isForwardOnly_
+               ? 0.0
+               : this->ForwardRate(t) / this->EquilibriumRate(t, refP, omega);
   }
-  double EquilibriumRate(const double &, const double &, const double &,
-                         const unique_ptr<thermodynamic> &) const;
+  double EquilibriumRate(const double &, const double &,
+                         const vector<double> &) const;
   void Nondimensionalize(const double &tref, const double &lref,
                          const double &aref) {
     if (!isNondimensional_) {
-      const auto tauRef = lref / aref;
+      universalGasConst_ /= (aref * aref) / tref;
+      // forward rate units are (mol / m^3)^(1 - nu_reac_sum) / s
+      // backward rate units are (mol / m^3)^(1 - nu_prod_sum) / s
       arrheniusTheta_ /= tref;
-      arrheniusC_ *= tauRef * pow(tref, arrheniusEta_);
+      const auto tauRef = lref / aref;
+      const auto nuReacSum = std::accumulate(std::begin(stoichReactants_),
+                                             std::end(stoichReactants_), 0.0);
+      const auto conRef = pow(1.0 / pow(lref, 3.0), 1.0 - nuReacSum);
+      arrheniusC_ *= tauRef * pow(tref, arrheniusEta_) / conRef;
     }
     isNondimensional_ = true;
   }

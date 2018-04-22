@@ -35,6 +35,7 @@ reaction::reaction(const string &str, const input &inp) {
   stoichReactants_.resize(ns, 0.0);
   stoichProducts_.resize(ns, 0.0);
   species_.reserve(ns);
+  universalGasConst_ = inp.Fluid(0).UniversalGasConstant();
 
   // get species names
   for (auto ii = 0; ii < ns; ++ii) {
@@ -74,7 +75,7 @@ reaction::reaction(const string &str, const input &inp) {
            << endl;
       exit(EXIT_FAILURE);
     }
-    stoichProducts_[inp.SpeciesIndex(species)] = stoich;
+    stoichProducts_[inp.SpeciesIndex(species)] += stoich;
   }
   for (const auto &re : reactants) {
     const auto speciesStart = re.find_first_not_of("0123456789.");
@@ -86,7 +87,7 @@ reaction::reaction(const string &str, const input &inp) {
            << endl;
       exit(EXIT_FAILURE);
     }
-    stoichReactants_[inp.SpeciesIndex(species)] = stoich;
+    stoichReactants_[inp.SpeciesIndex(species)] += stoich;
   }
 
   // get rate data -----------------------------------------------------------
@@ -200,15 +201,17 @@ std::ostream &operator<<(std::ostream &os, const reaction &rx) {
 }
 
 // member function to calculate equilibrium reaction rate
-double reaction::EquilibriumRate(
-    const double &t, const double &R, const double &refP,
-    const unique_ptr<thermodynamic> &thermo) const {
+double reaction::EquilibriumRate(const double &t, const double &refP,
+                                 const vector<double> &omega) const {
+  MSG_ASSERT(omega.size() == stoichProducts_.size(), "species size mismatch");
   auto prodMinReac = 0.0;
   auto expTerm = 0.0;
-  for (auto ii = 0U; ii < stoichProducts_.size(); ++ii) {
-    auto specProdMinReac = stoichProducts_[ii] - stoichReactants_[ii];
+  for (auto ss = 0U; ss < stoichProducts_.size(); ++ss) {
+    auto specProdMinReac = stoichProducts_[ss] - stoichReactants_[ss];
     prodMinReac += specProdMinReac;
-    expTerm += thermo->SpeciesOmega(t, ii) * specProdMinReac;
+    expTerm += omega[ss] * specProdMinReac;
   }
-  return pow(refP / (R * t), prodMinReac) * exp(-expTerm);
+  const auto kp = std::exp(-expTerm);
+  // reaction rate based on concentration
+  return pow(refP / (universalGasConst_ * t), prodMinReac) * kp;
 }

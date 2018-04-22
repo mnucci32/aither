@@ -69,12 +69,19 @@ void reacting::ReadFromFile(const input &inp) {
 }
 
 vector<double> reacting::SourceTerms(
-    const vector<double> &rho, const double &t, const double &R,
+    const vector<double> &rho, const double &t,
     const unique_ptr<thermodynamic> &thermo) const {
   MSG_ASSERT(rho.size() == molarMass_.size(), "species size mismatch");
   vector<double> src(rho.size(), 0.0);
   if (t < freezingTemperature_) {  // no reactions
     return src;
+  }
+
+  // get omega terms
+  std::vector<double> omega;
+  omega.reserve(rho.size());
+  for (auto ss = 0U; ss < rho.size(); ++ss) {
+    omega.push_back(thermo->SpeciesOmega(t, ss));
   }
 
   // loop over all species
@@ -88,7 +95,7 @@ vector<double> reacting::SourceTerms(
         fwdTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichReactant(ff));
       }
 
-      const auto kb = rx.BackwardRate(t, R, refP_, thermo);
+      const auto kb = rx.BackwardRate(t, refP_, omega);
       auto bckTerm = 1.0;
       for (auto ff = 0U; ff < src.size(); ++ff) {
         bckTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichProduct(ff));

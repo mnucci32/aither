@@ -37,9 +37,8 @@ caloricallyPerfect::caloricallyPerfect(const vector<fluid>& fl,
     gasConst_.push_back(f.GasConstant() * tRef / (aRef * aRef));
     hf_.push_back(f.HeatOfFormation());
     s0_.push_back(f.ReferenceEntropy() -
-                  f.GasConstant() * (f.N() + 1.0) *
-                      log(f.ReferenceTemperature() * tRef) * tRef /
-                      (aRef * aRef));
+                  gasConst_.back() * (f.N() + 1.0) *
+                      std::log(f.ReferenceTemperature()));
   }
 }
 
@@ -54,7 +53,8 @@ thermallyPerfect::thermallyPerfect(const vector<fluid>& fl, const double& tRef,
     auto s0 = 0.0;
     for (const auto &thetaV : vibTemp_[ss]) {
       const auto tr = fl[ss].ReferenceTemperature();
-      s0 += thetaV / (exp(thetaV / tr) * tr) - log(1.0 - exp(-thetaV / tr));
+      s0 += thetaV / ((std::exp(thetaV / tr) - 1.0) * tr) -
+            std::log(1.0 - std::exp(-thetaV / tr));
     }
     this->SubtractS0(ss, s0);
   }
@@ -106,7 +106,7 @@ double thermodynamic::SpecEnthalpy(const double& t,
 
 
 double thermodynamic::OmegaTerm(const double& t, const int &ss) const {
-  return 1.0 + this->N(ss) - (1.0 + this->N(ss)) * log(t) +
+  return (1.0 + this->N(ss)) * (1.0 - std::log(t)) +
          this->Hf(ss) / (this->R(ss) * t) - this->S0(ss) / this->R(ss);
 }
 

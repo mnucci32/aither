@@ -50,7 +50,7 @@ class chemistry {
   // Member functions for abstract base class
   virtual int NumReactions() const { return 0; }
   virtual vector<double> SourceTerms(
-      const vector<double>& rho, const double& t, const double &R,
+      const vector<double>& rho, const double& t,
       const unique_ptr<thermodynamic>& thermo) const = 0;
   virtual bool IsReacting() const { return false; }
   virtual double SrcSpecRad(const vector<double>& rho, const double& t,
@@ -58,7 +58,7 @@ class chemistry {
     return 0.0;
   }
   virtual squareMatrix SourceJac(
-      const vector<double>& rho, const double& t, const double &R,
+      const vector<double>& rho, const double& t,
       const unique_ptr<thermodynamic>& thermo) const {
     return squareMatrix();
   }
@@ -84,7 +84,7 @@ class frozen : public chemistry {
 
   // Member functions
   vector<double> SourceTerms(
-      const vector<double>& rho, const double& t, const double &R,
+      const vector<double>& rho, const double& t,
       const unique_ptr<thermodynamic>& thermo) const override {
     return vector<double>(rho.size(), 0.0);
   }
@@ -112,7 +112,8 @@ class reacting : public chemistry {
     molarMass_.reserve(inp.Fluids().size());
     for (const auto& f : inp.Fluids()) {
       molarMass_.push_back(f.MolarMass());
-      if (refP_ < f.ReferencePressure() * 0.999 || refP_ > f.ReferencePressure() * 1.001) {
+      if (refP_ < f.ReferencePressure() * 0.999 ||
+          refP_ > f.ReferencePressure() * 1.001) {
         cerr << "ERROR: reference pressures for fluids are not the same!"
              << endl;
         exit(EXIT_FAILURE);
@@ -132,7 +133,7 @@ class reacting : public chemistry {
   // Member functions
   int NumReactions() const override { return reactions_.size(); }
   vector<double> SourceTerms(
-      const vector<double>& rho, const double& t, const double &R,
+      const vector<double>& rho, const double& t,
       const unique_ptr<thermodynamic>& thermo) const override;
   bool IsReacting() const override { return this->NumReactions() > 0; }
   double SrcSpecRad(const vector<double>& rho, const double& t,
@@ -140,7 +141,7 @@ class reacting : public chemistry {
     return 0.0;
   }
   squareMatrix SourceJac(
-      const vector<double>& rho, const double& t, const double &R,
+      const vector<double>& rho, const double& t,
       const unique_ptr<thermodynamic>& thermo) const override {
     return squareMatrix();
   }
