@@ -202,14 +202,15 @@ std::ostream &operator<<(std::ostream &os, const reaction &rx) {
 
 // member function to calculate equilibrium reaction rate
 double reaction::EquilibriumRate(const double &t, const double &refP,
-                                 const vector<double> &omega) const {
-  MSG_ASSERT(omega.size() == stoichProducts_.size(), "species size mismatch");
+                                 const vector<double> &gibbsTerm) const {
+  MSG_ASSERT(gibbsTerm.size() == stoichProducts_.size(),
+             "species size mismatch");
   auto prodMinReac = 0.0;
   auto expTerm = 0.0;
   for (auto ss = 0U; ss < stoichProducts_.size(); ++ss) {
     auto specProdMinReac = stoichProducts_[ss] - stoichReactants_[ss];
     prodMinReac += specProdMinReac;
-    expTerm += omega[ss] * specProdMinReac;
+    expTerm += gibbsTerm[ss] * specProdMinReac;
   }
   const auto kp = std::exp(-expTerm);
   // reaction rate based on concentration

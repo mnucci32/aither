@@ -120,22 +120,14 @@ double caloricallyPerfect::TemperatureFromSpecEnergy(
   return (e - hf) / this->Cv(t, mf);
 }
 
+double caloricallyPerfect::SpeciesGibbsMinStdState(const double& t,
+                                                   const int& ss) const {
+  return this->R(ss) * (1.0 + this->N(ss)) * (1.0 - t * std::log(t)) +
+         this->Hf(ss) - this->S0(ss) * t;
+}
+
 // ---------------------------------------------------------------------------
 // thermally perfect functions
-double thermallyPerfect::SpeciesSpecEnergy(const double& t,
-                                           const int& ss) const {
-  MSG_ASSERT(ss <= this->NumSpecies(), "species out of range");
-  return this->Hf(ss) +
-         this->R(ss) * (this->N(ss) * t + this->VibEqTerm(t, ss));
-}
-
-double thermallyPerfect::SpeciesSpecEnthalpy(const double& t,
-                                             const int& ss) const {
-  MSG_ASSERT(ss <= this->NumSpecies(), "species out of range");
-  return this->Hf(ss) +
-         this->R(ss) * ((this->N(ss) + 1) * t + this->VibEqTerm(t, ss));
-}
-
 double thermallyPerfect::TemperatureFromSpecEnergy(
     const double& e, const vector<double>& mf) const {
   auto temperature = 0.0;

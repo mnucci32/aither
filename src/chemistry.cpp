@@ -77,11 +77,12 @@ vector<double> reacting::SourceTerms(
     return src;
   }
 
-  // get omega terms
-  std::vector<double> omega;
-  omega.reserve(rho.size());
+  // get gibbs minimization terms
+  std::vector<double> gibbsTerm;
+  gibbsTerm.reserve(rho.size());
   for (auto ss = 0U; ss < rho.size(); ++ss) {
-    omega.push_back(thermo->SpeciesOmega(t, ss));
+    gibbsTerm.push_back(thermo->SpeciesGibbsMinStdState(t, ss) /
+                        (thermo->R(ss) * t));
   }
 
   // loop over all species
@@ -95,7 +96,7 @@ vector<double> reacting::SourceTerms(
         fwdTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichReactant(ff));
       }
 
-      const auto kb = rx.BackwardRate(t, refP_, omega);
+      const auto kb = rx.BackwardRate(t, refP_, gibbsTerm);
       auto bckTerm = 1.0;
       for (auto ff = 0U; ff < src.size(); ++ff) {
         bckTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichProduct(ff));
