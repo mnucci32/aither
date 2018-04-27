@@ -104,12 +104,6 @@ double thermodynamic::SpecEnthalpy(const double& t,
   return h;
 }
 
-
-double thermodynamic::OmegaTerm(const double& t, const int &ss) const {
-  return (1.0 + this->N(ss)) * (1.0 - std::log(t)) +
-         this->Hf(ss) / (this->R(ss) * t) - this->S0(ss) / this->R(ss);
-}
-
 // ---------------------------------------------------------------------------
 // Member functions for calorically perfect class
 double caloricallyPerfect::TemperatureFromSpecEnergy(
@@ -122,7 +116,7 @@ double caloricallyPerfect::TemperatureFromSpecEnergy(
 
 double caloricallyPerfect::SpeciesGibbsMinStdState(const double& t,
                                                    const int& ss) const {
-  return this->R(ss) * (1.0 + this->N(ss)) * (1.0 - t * std::log(t)) +
+  return this->R(ss) * t * (1.0 + this->N(ss)) * (1.0 - std::log(t)) +
          this->Hf(ss) - this->S0(ss) * t;
 }
 

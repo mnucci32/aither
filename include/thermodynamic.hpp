@@ -64,9 +64,6 @@ class thermodynamic {
   }
   double Cp(const double& t, const vector<double>& mf) const;
   double Cv(const double& t, const vector<double>& mf) const;
-  double OmegaTerm(const double& t, const int &ss) const;
-  virtual double SpeciesOmega(const double& t, const int &ss) const = 0;
-
   virtual double SpeciesSpecEnergy(const double& t, const int& ss) const = 0;
   double SpecEnergy(const double& t, const vector<double>& mf) const;
   virtual double SpeciesSpecEnthalpy(const double& t, const int& ss) const = 0;
@@ -101,9 +98,6 @@ class caloricallyPerfect : public thermodynamic {
   const double& Hf(const int& ss) const override { return hf_[ss]; }
   const double& S0(const int& ss) const override { return s0_[ss]; }
   void SubtractS0(const int& ss, const double& val) { s0_[ss] -= val; }
-  double SpeciesOmega(const double &t, const int& ss) const override {
-    return this->OmegaTerm(ss, t);
-  }
   double SpeciesSpecEnergy(const double& t, const int& ss) const override {
     return hf_[ss] + this->SpeciesCv(t, ss) * t;
   }
@@ -113,7 +107,7 @@ class caloricallyPerfect : public thermodynamic {
   double TemperatureFromSpecEnergy(const double& e,
                                    const vector<double>& mf) const override;
   double SpeciesCp(const double& t, const int& ss) const override {
-    return this->R(ss) * ((this->N(ss) + 1.0));
+    return this->R(ss) * (this->N(ss) + 1.0);
   }
   double SpeciesCv(const double& t, const int& ss) const override {
     return this->R(ss) * this->N(ss);
@@ -151,14 +145,6 @@ class thermallyPerfect : public caloricallyPerfect {
     return vibEq;
   }
 
-  double OmegaVibTerm(const double &t, const int &ss) const {
-    auto omegaVib = 0.0;
-    for (auto &vt : vibTemp_[ss]) {
-      omegaVib += log(1.0 - exp(-vt / t));
-    }
-    return omegaVib;
-  }
-
   double GibbsVibTerm(const double &t, const int &ss) const {
     auto gibbsVib = 0.0;
     for (auto &vt : vibTemp_[ss]) {
@@ -174,11 +160,11 @@ class thermallyPerfect : public caloricallyPerfect {
 
   // Member functions
   double SpeciesSpecEnergy(const double& t, const int& ss) const override {
-    return caloricallyPerfect::SpeciesSpecEnergy(t, ss) +
+    return this->Hf(ss) + caloricallyPerfect::SpeciesCv(t, ss) * t + 
            this->R(ss) * this->VibEqTerm(t, ss);
   }
   double SpeciesSpecEnthalpy(const double& t, const int& ss) const override {
-    return caloricallyPerfect::SpeciesSpecEnthalpy(t, ss) +
+    return this->Hf(ss) + caloricallyPerfect::SpeciesCp(t, ss) * t + 
            this->R(ss) * this->VibEqTerm(t, ss);
   }
   double TemperatureFromSpecEnergy(const double& e,
@@ -190,9 +176,6 @@ class thermallyPerfect : public caloricallyPerfect {
   double SpeciesCv(const double& t, const int& ss) const override {
     return caloricallyPerfect::SpeciesCv(t, ss) +
            this->R(ss) * this->VibEqCpCvTerm(t, ss);
-  }
-  double SpeciesOmega(const double& t, const int &ss) const override {
-    return this->OmegaTerm(t, ss) + this->OmegaVibTerm(t, ss);
   }
   double SpeciesGibbsMinStdState(const double& t,
                                  const int& ss) const override {
