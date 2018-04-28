@@ -59,8 +59,8 @@ class chemistry {
   }
   virtual squareMatrix SourceJac(
       const vector<double>& rho, const double& t,
-      const unique_ptr<thermodynamic>& thermo) const {
-    return squareMatrix();
+      const unique_ptr<thermodynamic>& thermo, const int &size) const {
+    return squareMatrix(size);
   }
 
   // Destructor
@@ -142,9 +142,7 @@ class reacting : public chemistry {
   }
   squareMatrix SourceJac(
       const vector<double>& rho, const double& t,
-      const unique_ptr<thermodynamic>& thermo) const override {
-    return squareMatrix();
-  }
+      const unique_ptr<thermodynamic>& thermo, const int &size) const override;
 
   // Destructor
   ~reacting() noexcept {}

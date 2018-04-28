@@ -43,13 +43,14 @@ ostream &operator<<(ostream &os, const source &m) {
 // Member function to calculate the source terms for the species equations
 squareMatrix source::CalcChemSrc(const physics &phys,
                                  const primitiveView &state,
-                                 const double &temperature) {
+                                 const double &temperature,
+                                 const int &numFlow) {
   const auto src = phys.Chemistry()->SourceTerms(state.RhoVec(), temperature,
                                                  phys.Thermodynamic());
   std::copy(std::begin(src), std::end(src), std::begin(*this));
 
   return phys.Chemistry()->SourceJac(state.RhoVec(), temperature,
-                                     phys.Thermodynamic());
+                                     phys.Thermodynamic(), numFlow);
 }
 
 // Member function to calculate the source terms for the turbulence equations

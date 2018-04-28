@@ -107,3 +107,10 @@ vector<double> reacting::SourceTerms(
   }
   return src;
 }
+
+  squareMatrix reacting::SourceJac(
+      const vector<double>& rho, const double& t,
+      const unique_ptr<thermodynamic>& thermo, const int &size) const {
+    auto chemJac = squareMatrix(size);
+    return chemJac;
+  }
