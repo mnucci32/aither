@@ -24,13 +24,14 @@
 #include "reactions.hpp"
 #include "fluid.hpp"
 #include "input.hpp"
-#include "matrix.hpp"
 
 using std::vector;
 using std::unique_ptr;
 
 // forward declarations
-class thermodynamic;
+class squareMatrix;
+class primitive;
+class physics;
 
 // abstract base class for chemistry models
 class chemistry {
@@ -49,19 +50,17 @@ class chemistry {
 
   // Member functions for abstract base class
   virtual int NumReactions() const { return 0; }
-  virtual vector<double> SourceTerms(
-      const vector<double>& rho, const double& t,
-      const unique_ptr<thermodynamic>& thermo) const = 0;
+  virtual vector<double> SourceTerms(const vector<double>& rho, const double& t,
+                                     const vector<double>& gibbsTerm) const = 0;
   virtual bool IsReacting() const { return false; }
   virtual double SrcSpecRad(const vector<double>& rho, const double& t,
                             const double& vol) const {
     return 0.0;
   }
-  virtual squareMatrix SourceJac(
-      const vector<double>& rho, const double& t,
-      const unique_ptr<thermodynamic>& thermo, const int &size) const {
-    return squareMatrix(size);
-  }
+  virtual squareMatrix SourceJac(const primitive& state, const double& t,
+                                 const vector<double>& gibbsTerm,
+                                 const vector<double>& w,
+                                 const physics& phys) const;
 
   // Destructor
   virtual ~chemistry() noexcept {}
@@ -83,9 +82,8 @@ class frozen : public chemistry {
   frozen& operator=(const frozen&) = default;
 
   // Member functions
-  vector<double> SourceTerms(
-      const vector<double>& rho, const double& t,
-      const unique_ptr<thermodynamic>& thermo) const override {
+  vector<double> SourceTerms(const vector<double>& rho, const double& t,
+                             const vector<double>& gibbsTerm) const override {
     return vector<double>(rho.size(), 0.0);
   }
 
@@ -132,17 +130,17 @@ class reacting : public chemistry {
 
   // Member functions
   int NumReactions() const override { return reactions_.size(); }
-  vector<double> SourceTerms(
-      const vector<double>& rho, const double& t,
-      const unique_ptr<thermodynamic>& thermo) const override;
+  vector<double> SourceTerms(const vector<double>& rho, const double& t,
+                             const vector<double>& gibbsTerm) const override;
   bool IsReacting() const override { return this->NumReactions() > 0; }
   double SrcSpecRad(const vector<double>& rho, const double& t,
                     const double& vol) const override {
     return 0.0;
   }
-  squareMatrix SourceJac(
-      const vector<double>& rho, const double& t,
-      const unique_ptr<thermodynamic>& thermo, const int &size) const override;
+  squareMatrix SourceJac(const primitive& state, const double& t,
+                         const vector<double>& gibbsTerm,
+                         const vector<double>& w,
+                         const physics& phys) const override;
 
   // Destructor
   ~reacting() noexcept {}

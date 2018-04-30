@@ -120,6 +120,15 @@ double caloricallyPerfect::SpeciesGibbsMinStdState(const double& t,
          this->Hf(ss) - this->S0(ss) * t;
 }
 
+vector<double> caloricallyPerfect::GibbsMinimization(const double& t) const {
+  vector<double> gibbs;
+  gibbs.reserve(this->NumSpecies());
+  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+    gibbs.push_back(this->SpeciesGibbsMinStdState(t, ss) / (this->R(ss) * t));
+  }
+  return gibbs;
+}
+
 // ---------------------------------------------------------------------------
 // thermally perfect functions
 double thermallyPerfect::TemperatureFromSpecEnergy(

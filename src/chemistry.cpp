@@ -24,7 +24,9 @@
 #include "utility.hpp"
 #include "inputStates.hpp"
 #include "input.hpp"
-#include "thermodynamic.hpp"
+#include "matrix.hpp"
+#include "primitive.hpp"
+#include "physicsModels.hpp"
 
 using std::ifstream;
 using std::string;
@@ -32,6 +34,13 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::unique_ptr;
+
+squareMatrix chemistry::SourceJac(const primitive &state, const double &t,
+                                  const vector<double> &gibbsTerm,
+                                  const vector<double> &w,
+                                  const physics &phys) const {
+  return squareMatrix(state.Size() - state.NumTurbulence());
+}
 
 void reacting::ReadFromFile(const input &inp) {
   auto fname = inp.ChemistryMechanism() + ".mch";
@@ -68,21 +77,12 @@ void reacting::ReadFromFile(const input &inp) {
   mchFile.close();
 }
 
-vector<double> reacting::SourceTerms(
-    const vector<double> &rho, const double &t,
-    const unique_ptr<thermodynamic> &thermo) const {
+vector<double> reacting::SourceTerms(const vector<double> &rho, const double &t,
+                                     const vector<double> &gibbsTerm) const {
   MSG_ASSERT(rho.size() == molarMass_.size(), "species size mismatch");
   vector<double> src(rho.size(), 0.0);
   if (t < freezingTemperature_) {  // no reactions
     return src;
-  }
-
-  // get gibbs minimization terms
-  std::vector<double> gibbsTerm;
-  gibbsTerm.reserve(rho.size());
-  for (auto ss = 0U; ss < rho.size(); ++ss) {
-    gibbsTerm.push_back(thermo->SpeciesGibbsMinStdState(t, ss) /
-                        (thermo->R(ss) * t));
   }
 
   // loop over all species
@@ -108,9 +108,48 @@ vector<double> reacting::SourceTerms(
   return src;
 }
 
-  squareMatrix reacting::SourceJac(
-      const vector<double>& rho, const double& t,
-      const unique_ptr<thermodynamic>& thermo, const int &size) const {
-    auto chemJac = squareMatrix(size);
+squareMatrix reacting::SourceJac(const primitive &state, const double &t,
+                                 const vector<double> &gibbsTerm,
+                                 const vector<double> &w, 
+                                 const physics &phys) const {
+  MSG_ASSERT(gibbsTerm.size() == molarMass_.size(), "species size mismatch");
+  MSG_ASSERT(w.size() == molarMass_.size(), "species size mismatch");
+
+  auto chemJac = squareMatrix(state.Size() - state.NumTurbulence());
+  if (t < freezingTemperature_) {  // no reactions
     return chemJac;
   }
+
+  // calculate perturbation step for species equations
+  constexpr auto epsilon = 1.0e-30;
+  const auto rhoSum = state.Rho();
+  const auto hRho = epsilon * rhoSum;
+
+  for (auto cc = 0U; cc < w.size(); ++cc) {
+    // preturb state - want derivative wrt to conservative variables, but for 
+    // species terms conservative and primitive variables are the same - more
+    // efficient to use primitive variables
+    auto preturbed = state.RhoVec();
+    preturbed[cc] += hRho;
+    // compute chemistry source terms
+    const auto wPreturbed = this->SourceTerms(preturbed, t, gibbsTerm);
+
+    for (auto rr = 0U; rr < w.size(); ++rr) {
+      chemJac(rr, cc) = (wPreturbed[rr] - w[rr]) / hRho;
+    }
+  }
+
+  // calculate perturbation step for energy equation
+  const auto maxEigV = state.Velocity().Mag() + state.SoS(phys);
+  const auto hEnergy = epsilon * rhoSum * maxEigV * maxEigV;
+  const auto ei = state.EnergyIndex();
+  auto preturbedCons = state.ConsVars(phys);
+  preturbedCons[ei] += hEnergy;
+  const auto preturbed = primitive(preturbedCons, phys);
+  const auto wPreturbed = this->SourceTerms(preturbed.RhoVec(), t, gibbsTerm);
+  for (auto rr = 0U; rr < w.size(); ++rr) {
+    chemJac(rr, ei) = (wPreturbed[rr] - w[rr]) / hEnergy;
+  }
+
+  return chemJac;
+}

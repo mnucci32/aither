@@ -74,6 +74,7 @@ class thermodynamic {
   virtual double SpeciesCv(const double& t, const int& ss) const = 0;
   virtual double SpeciesGibbsMinStdState(const double& t,
                                          const int& ss) const = 0;
+  virtual vector<double> GibbsMinimization(const double& t) const = 0;
 
   // Destructor
   virtual ~thermodynamic() noexcept {}
@@ -113,6 +114,7 @@ class caloricallyPerfect : public thermodynamic {
     return this->R(ss) * this->N(ss);
   }
   double SpeciesGibbsMinStdState(const double& t, const int& ss) const override;
+  vector<double> GibbsMinimization(const double& t) const override;
 
   // Destructor
   ~caloricallyPerfect() noexcept {}

@@ -6586,9 +6586,8 @@ void procBlock::CalcSrcTerms(const physics &phys, const input &inp,
 
         if (phys.Chemistry()->IsReacting()) {
           // calculate chemistry source terms
-          const auto chemJac =
-              src.CalcChemSrc(phys, state_(ii, jj, kk),
-                              temperature_(ii, jj, kk), inp.NumFlowEquations());
+          const auto chemJac = src.CalcChemSrc(phys, state_(ii, jj, kk),
+                                               temperature_(ii, jj, kk));
 
           // add source spectral radius for species equations
           // subtract because residual is initially on opposite side of equation
