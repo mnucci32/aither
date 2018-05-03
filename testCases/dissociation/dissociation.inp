@@ -13,14 +13,14 @@ inviscidFlux: roe
 inviscidFluxJacobian: rusanov
 limiter: minmod
 
-iterations: 1500
+iterations: 1200
 nonlinearIterations: 5
 outputFrequency: 100
 outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, temperature, mf_O2, mf_O>
 restartFrequency: 100
 
 # reference conditions
-referenceDensity: 1.283
+referenceDensity: 1.26062
 referenceTemperature: 3000
 referenceLength: 1
 
@@ -30,17 +30,17 @@ thermodynamicModel: thermallyPerfect
 chemistryModel: reacting
 chemistryMechanism: O2_2s2r
 
-initialConditions: <icState(tag=0; pressure=1000000; density=1.283; velocity=[0, 0, 0]; massFractions=[O2=1.0]),
-                    icState(tag=1; pressure=100000; density=0.1924; velocity=[0, 0, 0]; massFractions=[O2=1.0])>
+initialConditions: <icState(tag=0; pressure=1000000; density=1.26062; velocity=[0, 0, 0]; massFractions=[O2=0.9823651, O=0.0176349]),
+                    icState(tag=1; pressure=100000; density=0.192364; velocity=[0, 0, 0]; massFractions=[O2=0.999670814, O=0.000329186])>
 
-matrixSolver: lusgs
-matrixSweeps: 1
+matrixSolver: blusgs
+matrixSweeps: 4
 matrixRelaxation: 1
 
 turbulenceModel: none
 
-boundaryStates: <characteristic(tag=2; pressure=1000000; density=1.283; velocity=[0, 0, 0]; massFractions=[O2=1.0]),
-                 characteristic(tag=3; pressure=100000; density=0.1924; velocity=[0, 0, 0]; massFractions=[O2=1.0])>
+boundaryStates: <characteristic(tag=2; pressure=1000000; density=1.26062; velocity=[0, 0, 0]; massFractions=[O2=0.9823651, O=0.0176349]),
+                 characteristic(tag=3; pressure=100000; density=0.192364; velocity=[0, 0, 0]; massFractions=[O2=0.999670814, O=0.000329186])>
 
 #-------------------------------------------------------------
 boundaryConditions: 2
@@ -48,7 +48,7 @@ boundaryConditions: 2
 2 2 2
 # i-surfaces
   interblock            500  500    0    1    0    1  1001
-  characteristic                0    0    0    1    0    1     2
+  characteristic          0    0    0    1    0    1     2
 # j-surfaces
   slipWall                0  500    0    0    0    1     1
   slipWall                0  500    1    1    0    1     1
