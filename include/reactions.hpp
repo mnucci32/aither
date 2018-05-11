@@ -79,7 +79,6 @@ class reaction {
   void Nondimensionalize(const double &tref, const double &lref,
                          const double &aref) {
     if (!isNondimensional_) {
-      universalGasConst_ /= (aref * aref) / tref;
       // forward rate units are (mol / m^3)^(1 - nu_reac_sum) / s
       // backward rate units are (mol / m^3)^(1 - nu_prod_sum) / s
       arrheniusTheta_ /= tref;

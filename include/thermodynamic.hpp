@@ -90,7 +90,7 @@ class caloricallyPerfect : public thermodynamic {
 
  public:
   // Constructor
-  caloricallyPerfect(const vector<fluid>&, const double&, const double&);
+  caloricallyPerfect(const vector<fluid>&);
 
   // Member functions
   int NumSpecies() const override { return n_.size(); }
@@ -157,8 +157,7 @@ class thermallyPerfect : public caloricallyPerfect {
 
  public:
   // Constructor
-  thermallyPerfect(const vector<fluid>& fl, const double& tRef,
-                   const double& aRef);
+  thermallyPerfect(const vector<fluid>& fl);
 
   // Member functions
   double SpeciesSpecEnergy(const double& t, const int& ss) const override {

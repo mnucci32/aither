@@ -25,8 +25,7 @@ using std::endl;
 using std::cerr;
 
 // constructor
-caloricallyPerfect::caloricallyPerfect(const vector<fluid>& fl,
-                                       const double& tRef, const double& aRef) {
+caloricallyPerfect::caloricallyPerfect(const vector<fluid>& fl) {
   const auto numSpecies = fl.size();
   n_.reserve(numSpecies);
   gasConst_.reserve(numSpecies);
@@ -34,7 +33,7 @@ caloricallyPerfect::caloricallyPerfect(const vector<fluid>& fl,
   s0_.reserve(numSpecies);
   for (auto& f : fl) {
     n_.push_back(f.N());
-    gasConst_.push_back(f.GasConstant() * tRef / (aRef * aRef));
+    gasConst_.push_back(f.GasConstant());
     hf_.push_back(f.HeatOfFormation());
     s0_.push_back(f.ReferenceEntropy() -
                   gasConst_.back() * (f.N() + 1.0) *
@@ -42,9 +41,8 @@ caloricallyPerfect::caloricallyPerfect(const vector<fluid>& fl,
   }
 }
 
-thermallyPerfect::thermallyPerfect(const vector<fluid>& fl, const double& tRef,
-                                   const double& aRef)
-    : caloricallyPerfect(fl, tRef, aRef) {
+thermallyPerfect::thermallyPerfect(const vector<fluid>& fl)
+    : caloricallyPerfect(fl) {
   vibTemp_.reserve(fl.size());
   for (auto& f : fl) {
     vibTemp_.push_back(f.VibrationalTemperature());

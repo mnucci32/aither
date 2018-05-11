@@ -87,15 +87,17 @@ fluid::fluid(string &str, const string name) {
 }
 
 void fluid::Nondimensionalize(const double &tRef, const double &rRef,
-                              const double &aRef) {
+                              const double &aRef, const double &lRef) {
   if (!this->IsNondimensional()) {
     std::for_each(vibTemp_.begin(), vibTemp_.end(),
                   [&tRef](auto &val) { val /= tRef; });
     // converting hf & s from mol to kg values, then nondimensionalizing
     heatOfFormation_ /= molarMass_ * (aRef * aRef);
+    refS_ /= molarMass_ / tRef * (aRef * aRef);
+    molarMass_ /= rRef / pow(lRef, 3.0);
     refP_ /= rRef * aRef * aRef;
     refT_ /= tRef;
-    refS_ /= molarMass_ / tRef * (aRef * aRef);
+    universalGasConst_ /= aRef * aRef * rRef / (tRef * pow(lRef, 3.0));
     this->SetNondimensional(true);
   }
 }

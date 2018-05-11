@@ -726,7 +726,7 @@ unique_ptr<eos> input::AssignEquationOfState() const {
   unique_ptr<eos> eqnState(nullptr);
   if (equationOfState_ == "idealGas") {
     eqnState =
-        unique_ptr<eos>{std::make_unique<idealGas>(fluids_, tRef_, aRef_)};
+        unique_ptr<eos>{std::make_unique<idealGas>(fluids_)};
   } else {
     cerr << "ERROR: Error in input::AssignEquationOfState(). Equation of state "
          << equationOfState_ << " is not recognized!" << endl;
@@ -756,10 +756,10 @@ unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
   unique_ptr<thermodynamic> thermo(nullptr);
   if (thermodynamicModel_ == "caloricallyPerfect") {
     thermo = unique_ptr<thermodynamic>{
-        std::make_unique<caloricallyPerfect>(fluids_, tRef_, aRef_)};
+        std::make_unique<caloricallyPerfect>(fluids_)};
   } else if (thermodynamicModel_ == "thermallyPerfect") {
     thermo = unique_ptr<thermodynamic>{
-        std::make_unique<thermallyPerfect>(fluids_, tRef_, aRef_)};
+        std::make_unique<thermallyPerfect>(fluids_)};
   } else {
     cerr << "ERROR: Error in input::AssignThermodynamicModel(). Thermodynamic "
          << "model " << thermodynamicModel_ << " is not recognized!" << endl;
@@ -1128,6 +1128,6 @@ void input::NondimensionalizeStateData(const unique_ptr<eos> &eqnState) {
 
 void input::NondimensionalizeFluid() {
   for (auto &fl : fluids_) {
-    fl.Nondimensionalize(tRef_, rRef_, aRef_);
+    fl.Nondimensionalize(tRef_, rRef_, aRef_, lRef_);
   }
 }

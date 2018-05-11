@@ -34,7 +34,7 @@ using std::ostream;
 // class for fluid properties
 class fluid {
   double n_;
-  double molarMass_;  // kg/mol
+  double molarMass_;  // kg / mol
   vector<double> vibTemp_;  // K
   double refP_ = 101325.0;  // Pa
   double refT_ = 298.0;  // K
@@ -80,7 +80,8 @@ class fluid {
   double ReferencePressure() const { return refP_; }
   double ReferenceEntropy() const { return refS_; }
 
-  void Nondimensionalize(const double&, const double &, const double &);
+  void Nondimensionalize(const double &, const double &, const double &,
+                         const double &);
 
   // Destructor
   ~fluid() noexcept {}
