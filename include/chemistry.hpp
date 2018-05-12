@@ -51,16 +51,13 @@ class chemistry {
   // Member functions for abstract base class
   virtual int NumReactions() const { return 0; }
   virtual vector<double> SourceTerms(const vector<double>& rho, const double& t,
-                                     const vector<double>& gibbsTerm) const = 0;
+                                     const vector<double>& gibbsTerm,
+                                     double& specRad) const = 0;
   virtual bool IsReacting() const { return false; }
-  virtual double SrcSpecRad(const vector<double>& rho, const double& t,
-                            const double& vol) const {
-    return 0.0;
-  }
   virtual squareMatrix SourceJac(const primitive& state, const double& t,
                                  const vector<double>& gibbsTerm,
-                                 const vector<double>& w,
-                                 const physics& phys) const;
+                                 const vector<double>& w, const physics& phys,
+                                 const bool& isBlockMatrix) const;
 
   // Destructor
   virtual ~chemistry() noexcept {}
@@ -83,7 +80,9 @@ class frozen : public chemistry {
 
   // Member functions
   vector<double> SourceTerms(const vector<double>& rho, const double& t,
-                             const vector<double>& gibbsTerm) const override {
+                             const vector<double>& gibbsTerm,
+                             double& specRad) const override {
+    specRad = 0.0;
     return vector<double>(rho.size(), 0.0);
   }
 
@@ -131,16 +130,13 @@ class reacting : public chemistry {
   // Member functions
   int NumReactions() const override { return reactions_.size(); }
   vector<double> SourceTerms(const vector<double>& rho, const double& t,
-                             const vector<double>& gibbsTerm) const override;
+                             const vector<double>& gibbsTerm,
+                             double& specRad) const override;
   bool IsReacting() const override { return this->NumReactions() > 0; }
-  double SrcSpecRad(const vector<double>& rho, const double& t,
-                    const double& vol) const override {
-    return 0.0;
-  }
   squareMatrix SourceJac(const primitive& state, const double& t,
                          const vector<double>& gibbsTerm,
-                         const vector<double>& w,
-                         const physics& phys) const override;
+                         const vector<double>& w, const physics& phys,
+                         const bool& isBlockMatrix) const override;
 
   // Destructor
   ~reacting() noexcept {}

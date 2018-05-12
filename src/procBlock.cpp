@@ -6586,15 +6586,15 @@ void procBlock::CalcSrcTerms(const physics &phys, const input &inp,
 
         if (phys.Chemistry()->IsReacting()) {
           // calculate chemistry source terms
+          auto chemSpecRad = 0.0;
           const auto chemJac = src.CalcChemSrc(phys, state_(ii, jj, kk),
-                                               temperature_(ii, jj, kk));
+                                               temperature_(ii, jj, kk), 
+                                               vol_(ii, jj, kk),
+                                               inp.IsBlockMatrix(), 
+                                               chemSpecRad);
 
           // add source spectral radius for species equations
-          // subtract because residual is initially on opposite side of equation
-          const auto chemSpecRad = phys.Chemistry()->SrcSpecRad(
-              state_(ii, jj, kk).RhoVec(), temperature_(ii, jj, kk),
-              vol_(ii, jj, kk));
-          specRadius_(ii, jj, kk).SubtractFromFlowVariable(chemSpecRad);
+          specRadius_(ii, jj, kk).AddToFlowVariable(chemSpecRad);
 
           // add contribution of source spectral radius to flux jacobian
           if (inp.IsBlockMatrix()) {

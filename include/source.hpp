@@ -64,7 +64,8 @@ class source : public residual {
                            const double &, const double &, const double &,
                            const double &);
   squareMatrix CalcChemSrc(const physics &, const primitiveView &,
-                           const double &);
+                           const double &, const double &, const bool &, 
+                           double &);
 
   // destructor
   ~source() noexcept {}

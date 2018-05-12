@@ -37,9 +37,10 @@ using std::unique_ptr;
 
 squareMatrix chemistry::SourceJac(const primitive &state, const double &t,
                                   const vector<double> &gibbsTerm,
-                                  const vector<double> &w,
-                                  const physics &phys) const {
-  return squareMatrix(state.Size() - state.NumTurbulence());
+                                  const vector<double> &w, const physics &phys,
+                                  const bool &isBlockMatrix) const {
+  return isBlockMatrix ? squareMatrix(state.Size() - state.NumTurbulence())
+                       : squareMatrix();
 }
 
 void reacting::ReadFromFile(const input &inp) {
@@ -78,13 +79,24 @@ void reacting::ReadFromFile(const input &inp) {
 }
 
 vector<double> reacting::SourceTerms(const vector<double> &rho, const double &t,
-                                     const vector<double> &gibbsTerm) const {
+                                     const vector<double> &gibbsTerm,
+                                     double &specRad) const {
   MSG_ASSERT(rho.size() == molarMass_.size(), "species size mismatch");
+
   vector<double> src(rho.size(), 0.0);
   if (t < freezingTemperature_) {  // no reactions
     return src;
   }
 
+  // calculate mass fractions
+  const auto rhoSum = std::accumulate(std::begin(rho), std::end(rho), 0.0);
+  vector<double> mf;
+  mf.reserve(rho.size());
+  for (const auto &ri : rho) {
+mf.push_back(ri / rhoSum);
+  }
+
+  vector<double> destruction(src.size(), 0.0);
   // loop over all species
   for (auto ss = 0U; ss < src.size(); ++ss) {
     // loop over all reactions
@@ -101,19 +113,26 @@ vector<double> reacting::SourceTerms(const vector<double> &rho, const double &t,
       for (auto ff = 0U; ff < src.size(); ++ff) {
         bckTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichProduct(ff));
       }
+      destruction[ss] += kb * bckTerm;
       src[ss] += prodMinReac * (kf * fwdTerm - kb * bckTerm);
     }
+    destruction[ss] *= molarMass_[ss] / mf[ss];
     src[ss] *= molarMass_[ss];
   }
+
+  specRad = *std::max_element(std::begin(destruction), std::end(destruction));
   return src;
 }
 
 squareMatrix reacting::SourceJac(const primitive &state, const double &t,
                                  const vector<double> &gibbsTerm,
-                                 const vector<double> &w, 
-                                 const physics &phys) const {
+                                 const vector<double> &w, const physics &phys,
+                                 const bool &isBlockMatrix) const {
   MSG_ASSERT(gibbsTerm.size() == molarMass_.size(), "species size mismatch");
   MSG_ASSERT(w.size() == molarMass_.size(), "species size mismatch");
+  if (!isBlockMatrix) {  // using spectral radius instead
+    return squareMatrix();
+  }
 
   auto chemJac = squareMatrix(state.Size() - state.NumTurbulence());
   if (t < freezingTemperature_) {  // no reactions
@@ -124,6 +143,7 @@ squareMatrix reacting::SourceJac(const primitive &state, const double &t,
   constexpr auto epsilon = 1.0e-30;
   const auto rhoSum = state.Rho();
   const auto hRho = epsilon * rhoSum;
+  auto specRad = 0.0;  // dummy value, not used
 
   for (auto cc = 0U; cc < w.size(); ++cc) {
     // preturb state - want derivative wrt to conservative variables, but for 
@@ -132,7 +152,7 @@ squareMatrix reacting::SourceJac(const primitive &state, const double &t,
     auto preturbed = state.RhoVec();
     preturbed[cc] += hRho;
     // compute chemistry source terms
-    const auto wPreturbed = this->SourceTerms(preturbed, t, gibbsTerm);
+    const auto wPreturbed = this->SourceTerms(preturbed, t, gibbsTerm, specRad);
 
     for (auto rr = 0U; rr < w.size(); ++rr) {
       chemJac(rr, cc) = (wPreturbed[rr] - w[rr]) / hRho;
@@ -146,7 +166,8 @@ squareMatrix reacting::SourceJac(const primitive &state, const double &t,
   auto preturbedCons = state.ConsVars(phys);
   preturbedCons[ei] += hEnergy;
   const auto preturbed = primitive(preturbedCons, phys);
-  const auto wPreturbed = this->SourceTerms(preturbed.RhoVec(), t, gibbsTerm);
+  const auto wPreturbed =
+      this->SourceTerms(preturbed.RhoVec(), t, gibbsTerm, specRad);
   for (auto rr = 0U; rr < w.size(); ++rr) {
     chemJac(rr, ei) = (wPreturbed[rr] - w[rr]) / hEnergy;
   }

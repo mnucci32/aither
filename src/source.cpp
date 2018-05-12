@@ -43,14 +43,17 @@ ostream &operator<<(ostream &os, const source &m) {
 // Member function to calculate the source terms for the species equations
 squareMatrix source::CalcChemSrc(const physics &phys,
                                  const primitiveView &state,
-                                 const double &temperature) {
+                                 const double &temperature, 
+                                 const double &vol,
+                                 const bool &isBlockMatrix, double &specRad) {
   const auto gibbsTerm = phys.Thermodynamic()->GibbsMinimization(temperature);
-  const auto src =
-      phys.Chemistry()->SourceTerms(state.RhoVec(), temperature, gibbsTerm);
+  const auto src = phys.Chemistry()->SourceTerms(state.RhoVec(), temperature,
+                                                 gibbsTerm, specRad);
   std::copy(std::begin(src), std::end(src), std::begin(*this));
+  specRad *= vol;
 
   return phys.Chemistry()->SourceJac(state.CopyData(), temperature, gibbsTerm,
-                                     src, phys);
+                                     src, phys, isBlockMatrix) * vol;
 }
 
 // Member function to calculate the source terms for the turbulence equations
