@@ -25,13 +25,12 @@ using std::endl;
 using std::cerr;
 
 // constructor
-idealGas::idealGas(const vector<fluid> &fl, const double &tRef,
-                   const double &aRef) {
+idealGas::idealGas(const vector<fluid> &fl) {
   const auto numSpecies = fl.size();
   gasConst_.reserve(numSpecies);
   for (auto &f : fl) {
     // nondimensionalize gas constant
-    gasConst_.push_back(f.GasConstant() * tRef / (aRef * aRef));
+    gasConst_.push_back(f.GasConstant());
   }
 }
 

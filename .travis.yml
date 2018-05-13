@@ -27,7 +27,7 @@ matrix:
         - CXX_COMPILER=g++-5
         - C_COMPILER=gcc-5
         - BUILD_TYPE=release
-        - AITHER_FLUID_DATABASE=$TRAVIS_BUILD_DIR/build/install/fluidDatabase
+        - AITHER_INSTALL_DIRECTORY=$TRAVIS_BUILD_DIR/build/install
     - os: linux
       dist: trusty
       sudo: required
@@ -42,7 +42,7 @@ matrix:
         - CXX_COMPILER=g++-6
         - C_COMPILER=gcc-6
         - BUILD_TYPE=debug
-        - AITHER_FLUID_DATABASE=$TRAVIS_BUILD_DIR/build/install/fluidDatabase
+        - AITHER_INSTALL_DIRECTORY=$TRAVIS_BUILD_DIR/build/install
     - os: linux
       dist: trusty
       sudo: required
@@ -57,7 +57,7 @@ matrix:
         - CXX_COMPILER=g++-7
         - C_COMPILER=gcc-7
         - BUILD_TYPE=release
-        - AITHER_FLUID_DATABASE=$TRAVIS_BUILD_DIR/build/install/fluidDatabase
+        - AITHER_INSTALL_DIRECTORY=$TRAVIS_BUILD_DIR/build/install
     - os: linux
       dist: trusty
       sudo: required
@@ -73,7 +73,7 @@ matrix:
         - CXX_COMPILER=clang++-3.8
         - C_COMPILER=clang-3.8
         - BUILD_TYPE=release
-        - AITHER_FLUID_DATABASE=$TRAVIS_BUILD_DIR/build/install/fluidDatabase
+        - AITHER_INSTALL_DIRECTORY=$TRAVIS_BUILD_DIR/build/install
     - os: osx
       osx_image: xcode8
       compiler: gcc
@@ -83,7 +83,7 @@ matrix:
         - HOMEBREW_CC=gcc-7
         - HOMEBREW_CXX=g++-7
         - BUILD_TYPE=release
-        - AITHER_FLUID_DATABASE=$TRAVIS_BUILD_DIR/build/install/fluidDatabase
+        - AITHER_INSTALL_DIRECTORY=$TRAVIS_BUILD_DIR/build/install
     - os: osx
       osx_image: xcode8
       compiler: clang
@@ -93,7 +93,7 @@ matrix:
         - HOMEBREW_CC=clang
         - HOMEBREW_CXX=clang++
         - BUILD_TYPE=release
-        - AITHER_FLUID_DATABASE=$TRAVIS_BUILD_DIR/build/install/fluidDatabase
+        - AITHER_INSTALL_DIRECTORY=$TRAVIS_BUILD_DIR/build/install
 
 # upgrade packages
 before_install:

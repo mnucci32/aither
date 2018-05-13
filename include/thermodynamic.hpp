@@ -47,6 +47,11 @@ class thermodynamic {
 
   // Member functions for abstract base class
   virtual int NumSpecies() const = 0;
+  virtual const double& N(const int& ss) const = 0;
+  virtual const double& R(const int& ss) const = 0;
+  virtual const double& Hf(const int& ss) const = 0;
+  virtual const double& S0(const int& ss) const = 0;
+
   double SpeciesGamma(const double& t, const int& ss) const {
     return this->SpeciesCp(t, ss) / this->SpeciesCv(t, ss);
   }
@@ -59,17 +64,17 @@ class thermodynamic {
   }
   double Cp(const double& t, const vector<double>& mf) const;
   double Cv(const double& t, const vector<double>& mf) const;
-  
   virtual double SpeciesSpecEnergy(const double& t, const int& ss) const = 0;
-  virtual double SpecEnergy(const double& t,
-                            const vector<double>& mf) const = 0;
+  double SpecEnergy(const double& t, const vector<double>& mf) const;
   virtual double SpeciesSpecEnthalpy(const double& t, const int& ss) const = 0;
-  virtual double SpecEnthalpy(const double& t,
-                              const vector<double>& mf) const = 0;
+  double SpecEnthalpy(const double& t, const vector<double>& mf) const;
   virtual double TemperatureFromSpecEnergy(const double& e,
                                            const vector<double>& mf) const = 0;
   virtual double SpeciesCp(const double& t, const int& ss) const = 0;
   virtual double SpeciesCv(const double& t, const int& ss) const = 0;
+  virtual double SpeciesGibbsMinStdState(const double& t,
+                                         const int& ss) const = 0;
+  virtual vector<double> GibbsMinimization(const double& t) const = 0;
 
   // Destructor
   virtual ~thermodynamic() noexcept {}
@@ -80,36 +85,36 @@ class thermodynamic {
 class caloricallyPerfect : public thermodynamic {
   vector<double> n_;
   vector<double> gasConst_;
+  vector<double> hf_;
+  vector<double> s0_;
 
  public:
   // Constructor
-  caloricallyPerfect(const vector<fluid>&, const double&, const double&);
+  caloricallyPerfect(const vector<fluid>&);
 
   // Member functions
   int NumSpecies() const override { return n_.size(); }
-  const double& N(const int &ss) const { return n_[ss]; }
-  const double& R(const int &ss) const { return gasConst_[ss]; }
+  const double& N(const int &ss) const override { return n_[ss]; }
+  const double& R(const int &ss) const override { return gasConst_[ss]; }
+  const double& Hf(const int& ss) const override { return hf_[ss]; }
+  const double& S0(const int& ss) const override { return s0_[ss]; }
+  void SubtractS0(const int& ss, const double& val) { s0_[ss] -= val; }
   double SpeciesSpecEnergy(const double& t, const int& ss) const override {
-    return this->SpeciesCv(t, ss) * t;
-  }
-  double SpecEnergy(const double& t, const vector<double>& mf) const override {
-    return this->Cv(t, mf) * t;
+    return hf_[ss] + this->SpeciesCv(t, ss) * t;
   }
   double SpeciesSpecEnthalpy(const double& t, const int& ss) const override {
-    return this->SpeciesCp(t, ss) * t;
-  }
-  double SpecEnthalpy(const double& t,
-                      const vector<double>& mf) const override {
-    return this->Cp(t, mf) * t;
+    return hf_[ss] + this->SpeciesCp(t, ss) * t;
   }
   double TemperatureFromSpecEnergy(const double& e,
                                    const vector<double>& mf) const override;
   double SpeciesCp(const double& t, const int& ss) const override {
-    return this->R(ss) * ((this->N(ss) + 1.0));
+    return this->R(ss) * (this->N(ss) + 1.0);
   }
   double SpeciesCv(const double& t, const int& ss) const override {
     return this->R(ss) * this->N(ss);
   }
+  double SpeciesGibbsMinStdState(const double& t, const int& ss) const override;
+  vector<double> GibbsMinimization(const double& t) const override;
 
   // Destructor
   ~caloricallyPerfect() noexcept {}
@@ -142,23 +147,41 @@ class thermallyPerfect : public caloricallyPerfect {
     return vibEq;
   }
 
+  double GibbsVibTerm(const double &t, const int &ss) const {
+    auto gibbsVib = 0.0;
+    for (auto &vt : vibTemp_[ss]) {
+      gibbsVib += log(1.0 - exp(-vt / t));
+    }
+    return gibbsVib * t;
+  }
+
  public:
   // Constructor
-  thermallyPerfect(const vector<fluid>& fl, const double& tRef,
-                   const double& aRef);
+  thermallyPerfect(const vector<fluid>& fl);
 
   // Member functions
-  double SpeciesSpecEnergy(const double& t, const int& ss) const override;
-  double SpecEnergy(const double& t, const vector<double>& mf) const override;
-  double SpeciesSpecEnthalpy(const double& t, const int& ss) const override;
-  double SpecEnthalpy(const double& t, const vector<double>& mf) const override;
+  double SpeciesSpecEnergy(const double& t, const int& ss) const override {
+    return this->Hf(ss) + caloricallyPerfect::SpeciesCv(t, ss) * t + 
+           this->R(ss) * this->VibEqTerm(t, ss);
+  }
+  double SpeciesSpecEnthalpy(const double& t, const int& ss) const override {
+    return this->Hf(ss) + caloricallyPerfect::SpeciesCp(t, ss) * t + 
+           this->R(ss) * this->VibEqTerm(t, ss);
+  }
   double TemperatureFromSpecEnergy(const double& e,
                                    const vector<double>& mf) const override;
   double SpeciesCp(const double& t, const int& ss) const override {
-    return this->R(ss) * ((this->N(ss) + 1.0) + this->VibEqCpCvTerm(t, ss));
+    return caloricallyPerfect::SpeciesCp(t, ss) +
+           this->R(ss) * this->VibEqCpCvTerm(t, ss);
   }
   double SpeciesCv(const double& t, const int& ss) const override {
-    return this->R(ss) * (this->N(ss) + this->VibEqCpCvTerm(t, ss));
+    return caloricallyPerfect::SpeciesCv(t, ss) +
+           this->R(ss) * this->VibEqCpCvTerm(t, ss);
+  }
+  double SpeciesGibbsMinStdState(const double& t,
+                                 const int& ss) const override {
+    return caloricallyPerfect::SpeciesGibbsMinStdState(t, ss) +
+           this->R(ss) * this->GibbsVibTerm(t, ss);
   }
 
   // Destructor

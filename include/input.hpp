@@ -41,6 +41,7 @@ class transport;
 class thermodynamic;
 class diffusion;
 class physics;
+class chemistry;
 
 class input {
   string simName_;  // simulation name
@@ -87,9 +88,12 @@ class input {
   string equationOfState_;  // model for equation of state
   string transportModel_;  // model for viscous transport
   string diffusionModel_;  // model for species diffusion
+  string chemistryModel_;  // model for chemical reactions
+  string chemistryMechanism_;  // reaction mechanism
   int restartFrequency_;  // how often to output restart data
   int iterationStart_;  // starting number for iterations
   double schmidtNumber_;  // schmidt number for species diffusion
+  double freezingTemperature_;  // temperature below which reactions cease
 
   set<string> outputVariables_;  // variables to output
   set<string> wallOutputVariables_;  // wall variables to output
@@ -104,11 +108,13 @@ class input {
   void CheckTurbulenceModel() const;
   void CheckSpecies() const;
   void CheckNonreflecting() const;
+  void CheckChemistryMechanism() const;
   unique_ptr<turbModel> AssignTurbulenceModel() const;
   unique_ptr<eos> AssignEquationOfState() const;
   unique_ptr<transport> AssignTransportModel() const;
   unique_ptr<diffusion> AssignDiffusionModel(const double &) const;
   unique_ptr<thermodynamic> AssignThermodynamicModel() const;
+  unique_ptr<chemistry> AssignChemistryModel() const;
 
  public:
   // constructor
@@ -215,6 +221,8 @@ class input {
   string EquationOfState() const {return equationOfState_;}
   string TransportModel() const {return transportModel_;}
   string DiffusionModel() const {return diffusionModel_;}
+  string ChemistryModel() const {return chemistryModel_;}
+  string ChemistryMechanism() const {return chemistryMechanism_;}
 
   int NumVars() const {return vars_.size();}
   int NumVarsOutput() const {return outputVariables_.size();}
@@ -246,6 +254,7 @@ class input {
   icState ICStateForBlock(const int &) const;
   const shared_ptr<inputState> & BCData(const int &) const;
   const fluid &Fluid(const int &ii) const { return fluids_[ii]; }
+  const vector<fluid> &Fluids() const { return fluids_; }
   void CheckSpecies(const vector<string> &) const;
   bool HaveSpecies(const string &) const;
   int SpeciesIndex(const string &) const;
@@ -253,6 +262,7 @@ class input {
   bool IsWenoZ() const {return this->FaceReconstruction() == "wenoZ";}
 
   double SchmidtNumber() const { return schmidtNumber_; }
+  double FreezingTemperature() const { return freezingTemperature_; }
 
   // destructor
   ~input() noexcept {}

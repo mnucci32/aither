@@ -23,6 +23,9 @@
 #include "vector3d.hpp"
 #include "tensor.hpp"
 #include "matrix.hpp"
+#include "arrayView.hpp"
+#include "primitive.hpp"
+#include "physicsModels.hpp"
 
 using std::cout;
 using std::endl;
@@ -35,6 +38,22 @@ ostream &operator<<(ostream &os, const source &m) {
     os << m[rr] << endl;
   }
   return os;
+}
+
+// Member function to calculate the source terms for the species equations
+squareMatrix source::CalcChemSrc(const physics &phys,
+                                 const primitiveView &state,
+                                 const double &temperature, 
+                                 const double &vol,
+                                 const bool &isBlockMatrix, double &specRad) {
+  const auto gibbsTerm = phys.Thermodynamic()->GibbsMinimization(temperature);
+  const auto src = phys.Chemistry()->SourceTerms(state.RhoVec(), temperature,
+                                                 gibbsTerm, specRad);
+  std::copy(std::begin(src), std::end(src), std::begin(*this));
+  specRad *= vol;
+
+  return phys.Chemistry()->SourceJac(state.CopyData(), temperature, gibbsTerm,
+                                     src, phys, isBlockMatrix) * vol;
 }
 
 // Member function to calculate the source terms for the turbulence equations

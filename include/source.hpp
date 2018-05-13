@@ -40,6 +40,7 @@ using std::unique_ptr;
 class turbModel;
 class transport;
 class squareMatrix;
+class physics;
 
 class source : public residual {
  public:
@@ -62,6 +63,9 @@ class source : public residual {
                            const unique_ptr<transport> &, const double &,
                            const double &, const double &, const double &,
                            const double &);
+  squareMatrix CalcChemSrc(const physics &, const primitiveView &,
+                           const double &, const double &, const bool &, 
+                           double &);
 
   // destructor
   ~source() noexcept {}

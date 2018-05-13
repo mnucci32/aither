@@ -270,60 +270,17 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right, const physics &phys,
                     std::is_same<primitiveView, T2>::value,
                 "T2 requires primitive or primativeView type");
 
-  // compute Rho averaged quantities
-  // Roe averaged state
+  // compute Roe averaged quantities
   const auto roe = RoeAveragedState(left, right);
-  // Roe averaged total enthalpy
   const auto hR = roe.Enthalpy(phys);
-  // Roe averaged speed of sound
   const auto aR = roe.SoS(phys);
-  // Roe averaged density
   const auto rhoR = roe.Rho();
-  // Roe velocity dotted with normalized area vector
   const auto velNormR = roe.Velocity().DotProd(n);
-  // Roe mass fractions
   const auto mfR = roe.MassFractions();
-  // Delta between right and left states
+  // delta between right and left states
   const auto delta = right - left;
-  // normal velocity difference between left and right states
   const auto normVelDiff = delta.Velocity().DotProd(n);
 
-  // calculate wave strengths (Cr - Cl)
-  vector<double> waveStrength(4 + left.NumTurbulence());
-  waveStrength[0] = (delta.P() - rhoR * aR * normVelDiff) / (2.0 * aR * aR);
-  waveStrength[1] = delta.Rho() - delta.P() / (aR * aR);
-  waveStrength[2] = (delta.P() + rhoR * aR * normVelDiff) / (2.0 * aR * aR);
-  waveStrength[3] = rhoR;
-  for (auto ii = 0; ii < left.NumTurbulence(); ++ii) {
-    waveStrength[4 + ii] = rhoR * delta.TurbulenceN(ii) +
-                           roe.TurbulenceN(ii) * delta.Rho() -
-                           delta.P() * roe.TurbulenceN(ii) / (aR * aR);
-  }
-
-  // calculate absolute value of wave speeds (L)
-  vector<double> waveSpeed(4 + left.NumTurbulence());
-  waveSpeed[0] = fabs(velNormR - aR);  // left moving acoustic wave speed
-  waveSpeed[1] = fabs(velNormR);       // entropy wave speed
-  waveSpeed[2] = fabs(velNormR + aR);  // right moving acoustic wave speed
-  waveSpeed[3] = fabs(velNormR);       // shear wave speed
-  for (auto ii = 0; ii < left.NumTurbulence(); ++ii) {
-    waveSpeed[4 + ii] = fabs(velNormR);  // turbulent eqn wave speed
-  }
-
-  // calculate entropy fix (Harten) and adjust wave speeds if necessary
-  // default setting for entropy fix to kick in
-  constexpr auto entropyFix = 0.1;
-
-  if (waveSpeed[0] < entropyFix) {
-    waveSpeed[0] =
-        0.5 * (waveSpeed[0] * waveSpeed[0] / entropyFix + entropyFix);
-  }
-  if (waveSpeed[2] < entropyFix) {
-    waveSpeed[2] =
-        0.5 * (waveSpeed[2] * waveSpeed[2] / entropyFix + entropyFix);
-  }
-
-  // calculate right eigenvectors (T)
   // get indices
   const auto imx = left.MomentumXIndex();
   const auto imy = left.MomentumYIndex();
@@ -331,82 +288,86 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right, const physics &phys,
   const auto ie = left.EnergyIndex();
   const auto it = left.TurbulenceIndex();
 
-  // calculate eigenvector due to left acoustic wave
-  varArray lAcousticEigV(left.Size(), left.NumSpecies());
-  for (auto ii = 0; ii < lAcousticEigV.NumSpecies(); ++ii) {
-    lAcousticEigV[ii] = mfR[ii];
-  }
-  lAcousticEigV[imx] = roe.U() - aR * n.X();
-  lAcousticEigV[imy] = roe.V() - aR * n.Y();
-  lAcousticEigV[imz] = roe.W() - aR * n.Z();
-  lAcousticEigV[ie] = hR - aR * velNormR;
-  for (auto ii = 0; ii < lAcousticEigV.NumTurbulence(); ++ii) {
-    lAcousticEigV[it + ii] = roe.TurbulenceN(ii);
-  }
-
-  // calculate eigenvector due to entropy wave
-  varArray entropyEigV(left.Size(), left.NumSpecies());
-  for (auto ii = 0; ii < entropyEigV.NumSpecies(); ++ii) {
-    entropyEigV[ii] = 1.0;
-  }
-  // non-species values are repated for number of species
-  entropyEigV[imx] = roe.U() * entropyEigV.NumSpecies();
-  entropyEigV[imy] = roe.V() * entropyEigV.NumSpecies();
-  entropyEigV[imz] = roe.W() * entropyEigV.NumSpecies();
-  entropyEigV[ie] = 0.5 * roe.Velocity().MagSq() * entropyEigV.NumSpecies();
-  // turbulence values are zero
-
-  // calculate eigenvector due to right acoustic wave
-  varArray rAcousticEigV(left.Size(), left.NumSpecies());
-  for (auto ii = 0; ii < rAcousticEigV.NumSpecies(); ++ii) {
-    rAcousticEigV[ii] = mfR[ii];
-  }
-  rAcousticEigV[imx] = roe.U() + aR * n.X();
-  rAcousticEigV[imy] = roe.V() + aR * n.Y();
-  rAcousticEigV[imz] = roe.W() + aR * n.Z();
-  rAcousticEigV[ie] = hR + aR * velNormR;
-  for (auto ii = 0; ii < rAcousticEigV.NumTurbulence(); ++ii) {
-    rAcousticEigV[it + ii] = roe.TurbulenceN(ii);
-  }
-
-  // calculate eigenvector due to shear wave
-  varArray shearEigV(left.Size(), left.NumSpecies());
-  // species values are zero
-  shearEigV[imx] = delta.U() - normVelDiff * n.X();
-  shearEigV[imy] = delta.V() - normVelDiff * n.Y();
-  shearEigV[imz] = delta.W() - normVelDiff * n.Z();
-  shearEigV[ie] =
-      roe.Velocity().DotProd(delta.Velocity()) - velNormR * normVelDiff;
-  // turbulence values are zero
-
-  // calculate eigenvector due to turbulent equation 1
-  varArray tkeEigV(left.Size(), left.NumSpecies());
-  if (tkeEigV.HasTurbulenceData()) {
-    tkeEigV[it] = 1.0;
-  }
-
-  // calculate eigenvector due to turbulent equation 2
-  varArray omgEigV(left.Size(), left.NumSpecies());
-  if (omgEigV.HasTurbulenceData() && omgEigV.NumTurbulence() > 1) {
-    omgEigV[it + 1] = 1.0;
-  }
-
-  // calculate dissipation term ( eigenvector * wave speed * wave strength)
+  // start calculation of dissipation term - follows procedure in Blazek 4.3.3
   varArray dissipation(left.Size(), left.NumSpecies());
-  for (auto ii = 0; ii < dissipation.Size(); ++ii) {
-    // contribution from left acoustic wave
-    // contribution from entropy wave
-    // contribution from right acoustic wave
-    // contribution from shear wave
-    // contribution from turbulent wave 1
-    // contribution from turbulent wave 2
-    dissipation[ii] = waveSpeed[0] * waveStrength[0] * lAcousticEigV[ii] +
-                      waveSpeed[1] * waveStrength[1] * entropyEigV[ii] +
-                      waveSpeed[2] * waveStrength[2] * rAcousticEigV[ii] +
-                      waveSpeed[3] * waveStrength[3] * shearEigV[ii];
-    if (dissipation.HasTurbulenceData()) {
-      dissipation[ii] += waveSpeed[4] * waveStrength[4] * tkeEigV[ii] +
-                         waveSpeed[5] * waveStrength[5] * omgEigV[ii];
+
+  // left moving acoustic wave ------------------------------------------------
+  auto waveSpeed = fabs(velNormR - aR);
+  // calculate entropy fix (Harten) and adjust wave speed if necessary
+  // default setting for entropy fix to kick in
+  constexpr auto entropyFix = 0.1;
+  if (waveSpeed < entropyFix) {
+    waveSpeed = 0.5 * (waveSpeed * waveSpeed / entropyFix + entropyFix);
+  }
+  auto waveStrength = (delta.P() - rhoR * aR * normVelDiff) / (2.0 * aR * aR);
+  auto waveSpeedStrength = waveSpeed * waveStrength;
+  for (auto ii = 0; ii < dissipation.NumSpecies(); ++ii) {
+    dissipation[ii] += waveSpeedStrength * mfR[ii];
+  }
+  dissipation[imx] += waveSpeedStrength * (roe.U() - aR * n.X());
+  dissipation[imy] += waveSpeedStrength * (roe.V() - aR * n.Y());
+  dissipation[imz] += waveSpeedStrength * (roe.W() - aR * n.Z());
+  dissipation[ie] += waveSpeedStrength * (hR - aR * velNormR);
+  for (auto ii = 0; ii < dissipation.NumTurbulence(); ++ii) {
+    dissipation[it + ii] += waveSpeedStrength * roe.TurbulenceN(ii);
+  }
+
+  // entropy and shear waves -------------------------------------------------
+  // entropy wave
+  waveSpeed = fabs(velNormR);
+  for (auto ii = 0; ii < dissipation.NumSpecies(); ++ii) {
+    waveStrength = delta.RhoN(ii) - delta.P() / (aR * aR);
+    waveSpeedStrength = waveSpeed * waveStrength;
+    dissipation[ii] += waveSpeedStrength * mfR[ii];
+  }
+  waveStrength = delta.Rho() - delta.P() / (aR * aR);
+  waveSpeedStrength = waveSpeed * waveStrength;
+  dissipation[imx] += waveSpeedStrength * roe.U();
+  dissipation[imy] += waveSpeedStrength * roe.V();
+  dissipation[imz] += waveSpeedStrength * roe.W();
+  dissipation[ie] += waveSpeedStrength * 0.5 * roe.Velocity().MagSq();
+  // turbulence values are zero
+
+  // shear wave
+  waveStrength = rhoR;
+  waveSpeedStrength = waveSpeed * waveStrength;
+  // species values are zero
+  dissipation[imx] += waveSpeedStrength * (delta.U() - normVelDiff * n.X());
+  dissipation[imy] += waveSpeedStrength * (delta.V() - normVelDiff * n.Y());
+  dissipation[imz] += waveSpeedStrength * (delta.W() - normVelDiff * n.Z());
+  dissipation[ie] +=
+      waveSpeedStrength *
+      (roe.Velocity().DotProd(delta.Velocity()) - velNormR * normVelDiff);
+  // turbulence values are zero
+
+  // right moving acoustic wave ------------------------------------------------
+  waveSpeed = fabs(velNormR + aR);
+  // calculate entropy fix (Harten) and adjust wave speed if necessary
+  if (waveSpeed < entropyFix) {
+    waveSpeed = 0.5 * (waveSpeed * waveSpeed / entropyFix + entropyFix);
+  }
+  waveStrength = (delta.P() + rhoR * aR * normVelDiff) / (2.0 * aR * aR);
+  waveSpeedStrength = waveSpeed * waveStrength;
+  for (auto ii = 0; ii < dissipation.NumSpecies(); ++ii) {
+    dissipation[ii] += waveSpeedStrength * mfR[ii];
+  }
+  dissipation[imx] += waveSpeedStrength * (roe.U() + aR * n.X());
+  dissipation[imy] += waveSpeedStrength * (roe.V() + aR * n.Y());
+  dissipation[imz] += waveSpeedStrength * (roe.W() + aR * n.Z());
+  dissipation[ie] += waveSpeedStrength * (hR + aR * velNormR);
+  for (auto ii = 0; ii < dissipation.NumTurbulence(); ++ii) {
+    dissipation[it + ii] += waveSpeedStrength * roe.TurbulenceN(ii);
+  }
+
+  // waves for turbulence equations -------------------------------------------
+  if (dissipation.HasTurbulenceData()) {
+    waveSpeed = fabs(velNormR);
+    for (auto ii = 0; ii < dissipation.NumTurbulence(); ++ii) {
+      waveStrength = rhoR * delta.TurbulenceN(ii) +
+                     roe.TurbulenceN(ii) * delta.Rho() -
+                     delta.P() * roe.TurbulenceN(ii) / (aR * aR);
+      waveSpeedStrength = waveSpeed * waveStrength;
+      dissipation[it + ii] += waveSpeedStrength * 1.0;
     }
   }
 
@@ -447,14 +408,15 @@ inviscidFlux AUSMFlux(const T1 &left, const T2 &right, const physics &phys,
 
   // calculate average specific enthalpy normal to face
   const auto velNormL = left.Velocity().DotProd(area);
-  const auto velTanSqL = (left.Velocity() - velNormL * area).MagSq();
+  // const auto velTanSqL = (left.Velocity() - velNormL * area).MagSq();
   const auto velNormR = right.Velocity().DotProd(area);
-  const auto velTanSqR = (right.Velocity() - velNormR * area).MagSq();
-  const auto hnl = left.Enthalpy(phys) - 0.5 * velTanSqL;
-  const auto hnr = right.Enthalpy(phys) - 0.5 * velTanSqR;
-  const auto hn = 0.5 * (hnl + hnr);
+  // const auto velTanSqR = (right.Velocity() - velNormR * area).MagSq();
+  // const auto hnl = left.Enthalpy(phys) - 0.5 * velTanSqL;
+  // const auto hnr = right.Enthalpy(phys) - 0.5 * velTanSqR;
+  // const auto hn = 0.5 * (hnl + hnr);
 
   // calculate c* from Kim, Kim, Rho 1998
+  /*
   const auto mfl = left.MassFractions();
   const auto mfr = right.MassFractions();
   vector<double> mf(mfl.size());
@@ -466,6 +428,12 @@ inviscidFlux AUSMFlux(const T1 &left, const T2 &right, const physics &phys,
   const auto t = 0.5 * (tl + tr);
   const auto gamma = phys.Thermodynamic()->Gamma(t, mf);
   const auto sosStar = sqrt(2.0 * hn * (gamma - 1.0) / (gamma + 1.0));
+  */
+  // using this c* to avoid oscillations near shocks - also easier to extend to
+  // thermally perfect gas model
+  const auto sosL = left.SoS(phys);
+  const auto sosR = right.SoS(phys);
+  const auto sosStar = sqrt(sosL * sosR);
 
   // calculate speed of sound on face c_1/2 from Kim, Kim, Rho 1998
   const auto vel = 0.5 * (velNormL + velNormR);

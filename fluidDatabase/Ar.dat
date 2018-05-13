@@ -1,7 +1,23 @@
+# This data is aggregated from the following sources
+#
+# NIST Computational Chemistry Comparison and Benchmark Database 
+# NIST Standard Reference Database Number 101 
+# Release 18, October 2016, Editor: Russell D. Johnson III 
+# http://cccbdb.nist.gov/
+#
+# P.J. Linstrom and W.G. Mallard, Eds., NIST Chemistry WebBook, 
+# NIST Standard Reference Database Number 69, 
+# National Institute of Standards and Technology, Gaithersburg MD, 20899, 
+# doi:10.18434/T4D303, (retrieved March 3, 2018).
+
 # general fluid properties
 n: 1.5
 molarMass: 39.948
 vibrationalTemperature: []
+heatOfFormation: 0
+referencePressure: 101325
+referenceTemperature: 298.15
+referenceEntropy: 154.85
 
 # Sutherland's coefficients for transport properties
 # ----- viscosity -----

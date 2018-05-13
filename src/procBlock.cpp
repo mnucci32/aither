@@ -1631,7 +1631,7 @@ blkMultiArray3d<varArray> procBlock::InitializeMatrixUpdate(
           x.InsertBlock(
               ii, jj, kk,
               aInv.ArrayMult(ii, jj, kk,
-                             -thetaInv * residual_(ii, jj, kk) -
+                             -thetaInv * residual_(ii, jj, kk) +
                                  this->SolDeltaNm1(ii, jj, kk, inp) -
                                  this->SolDeltaMmN(ii, jj, kk, inp, phys)));
         }
@@ -6582,34 +6582,62 @@ void procBlock::CalcSrcTerms(const physics &phys, const input &inp,
   for (auto kk = 0; kk < this->NumK(); kk++) {
     for (auto jj = 0; jj < this->NumJ(); jj++) {
       for (auto ii = 0; ii < this->NumI(); ii++) {
-        // calculate turbulent source terms
-        const auto phi =
-            phys.Turbulence()->UsePhi() ? this->MaxCellWidth(ii, jj, kk) : 1.0;
         source src(this->NumEquations(), this->NumSpecies());
-        const auto srcJac = src.CalcTurbSrc(
-            phys.Turbulence(), state_(ii, jj, kk), velocityGrad_(ii, jj, kk),
-            temperatureGrad_(ii, jj, kk), tkeGrad_(ii, jj, kk),
-            omegaGrad_(ii, jj, kk), phys.Transport(), vol_(ii, jj, kk),
-            eddyViscosity_(ii, jj, kk), f1_(ii, jj, kk), f2_(ii, jj, kk), phi);
+
+        if (phys.Chemistry()->IsReacting()) {
+          // calculate chemistry source terms
+          auto chemSpecRad = 0.0;
+          const auto chemJac = src.CalcChemSrc(phys, state_(ii, jj, kk),
+                                               temperature_(ii, jj, kk), 
+                                               vol_(ii, jj, kk),
+                                               inp.IsBlockMatrix(), 
+                                               chemSpecRad);
+
+          // add source spectral radius for species equations
+          // subtract because residual is initially on opposite side of equation
+          specRadius_(ii, jj, kk).SubtractFromFlowVariable(chemSpecRad);
+
+          // add contribution of source spectral radius to flux jacobian
+          if (inp.IsBlockMatrix()) {
+            mainDiagonal.SubtractFromFlow(ii, jj, kk, chemJac);
+          } else if (inp.IsImplicit()) {
+            const uncoupledScalar srcJacScalar(chemSpecRad, 0.0);
+            mainDiagonal.Subtract(ii, jj, kk,
+                                  fluxJacobian(srcJacScalar, isRANS_));
+          }
+        }
+
+        if (isRANS_) {
+          // calculate turbulent source terms
+          const auto phi = phys.Turbulence()->UsePhi()
+                               ? this->MaxCellWidth(ii, jj, kk)
+                               : 1.0;
+          const auto srcJac = src.CalcTurbSrc(
+              phys.Turbulence(), state_(ii, jj, kk), velocityGrad_(ii, jj, kk),
+              temperatureGrad_(ii, jj, kk), tkeGrad_(ii, jj, kk),
+              omegaGrad_(ii, jj, kk), phys.Transport(), vol_(ii, jj, kk),
+              eddyViscosity_(ii, jj, kk), f1_(ii, jj, kk), f2_(ii, jj, kk),
+              phi);
+
+          // add source spectral radius for turbulence equations
+          // subtract because residual is initially on opposite side of equation
+          const auto turbSpecRad = phys.Turbulence()->SrcSpecRad(
+              state_(ii, jj, kk), phys.Transport(), vol_(ii, jj, kk), phi);
+          specRadius_(ii, jj, kk).SubtractFromTurbVariable(turbSpecRad);
+
+          // add contribution of source spectral radius to flux jacobian
+          if (inp.IsBlockMatrix()) {
+            mainDiagonal.SubtractFromTurb(ii, jj, kk, srcJac);
+          } else if (inp.IsImplicit()) {
+            const uncoupledScalar srcJacScalar(0.0, turbSpecRad);
+            mainDiagonal.Subtract(ii, jj, kk,
+                                  fluxJacobian(srcJacScalar, isRANS_));
+          }
+        }
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
         this->SubtractFromResidual(ii, jj, kk, src * vol_(ii, jj, kk));
-
-        // add source spectral radius for turbulence equations
-        // subtract because residual is initially on opposite side of equation
-        const auto turbSpecRad = phys.Turbulence()->SrcSpecRad(
-            state_(ii, jj, kk), phys.Transport(), vol_(ii, jj, kk), phi);
-        specRadius_(ii, jj, kk).SubtractFromTurbVariable(turbSpecRad);
-
-        // add contribution of source spectral radius to flux jacobian
-        if (inp.IsBlockMatrix()) {
-          mainDiagonal.SubtractFromTurb(ii, jj, kk, srcJac);
-        } else if (inp.IsImplicit()) {
-          const uncoupledScalar srcJacScalar(0.0, turbSpecRad);
-          mainDiagonal.Subtract(ii, jj, kk,
-                                fluxJacobian(srcJacScalar, isRANS_));
-        }
       }
     }
   }

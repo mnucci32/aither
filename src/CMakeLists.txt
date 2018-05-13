@@ -2,7 +2,7 @@ project (aither)
 
 # set version number
 set (aither_VERSION_MAJOR 0)
-set (aither_VERSION_MINOR 8)
+set (aither_VERSION_MINOR 9)
 set (aither_VERSION_PATCH 0)
 
 message (STATUS "Cmake version ${CMAKE_VERSION}")
@@ -29,6 +29,7 @@ configure_file (
 set(sources
   main.cpp
   boundaryConditions.cpp
+  chemistry.cpp
   conserved.cpp
   eos.cpp
   fluid.cpp
@@ -47,6 +48,7 @@ set(sources
   primitive.cpp
   procBlock.cpp
   range.cpp
+  reactions.cpp
   resid.cpp
   slices.cpp
   source.cpp
@@ -149,3 +151,7 @@ install (FILES "${PROJECT_BINARY_DIR}/macros.hpp" DESTINATION include)
 # install fluid database files
 FILE (GLOB files "${CMAKE_SOURCE_DIR}/fluidDatabase/*.dat")
 install (FILES ${files} DESTINATION fluidDatabase)
+
+# install chemistry mechanism files
+FILE (GLOB files "${CMAKE_SOURCE_DIR}/chemistryMechanisms/*.mch")
+install (FILES ${files} DESTINATION chemistryMechanisms)

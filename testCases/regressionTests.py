@@ -258,7 +258,7 @@ def main():
     multiCyl.SetNumberOfProcessors(maxProcs)
     multiCyl.SetNumberOfIterations(numIterations)
     multiCyl.SetResiduals(
-        [2.0447e-01, 3.1399e-01, 4.5458e-01, 1.1121e+00, 1.9913e-01])
+        [2.0529e-01, 3.4540e-01, 5.0153e-01, 1.0180e+00, 1.9997e-01])
     multiCyl.SetIgnoreIndices(3)
     multiCyl.SetMpirunPath(options.mpirunPath)
 
@@ -519,13 +519,13 @@ def main():
     supersonicMixing.SetNumberOfProcessors(maxProcs)
     supersonicMixing.SetNumberOfIterations(numIterationsShort)
     if supersonicMixing.Processors() == 2:
-        supersonicMixing.SetResiduals([2.1444e-01, 1.5217e-01, 1.2462e+00, 
-                                       8.2062e-02, 1.1356e-01, 3.6555e-04,
-                                       1.1891e-05])
+        supersonicMixing.SetResiduals([2.1642e-01, 1.5503e-01, 1.3670e+00,
+                                       8.2043e-02, 3.3908e-01, 3.6563e-04,
+                                       1.2388e-05])
     else:
-        supersonicMixing.SetResiduals([2.1185e-01, 1.5024e-01, 1.2409e+00,
-                                       8.6013e-02, 1.1192e-01, 3.6604e-04,
-                                       1.1882e-05])
+        supersonicMixing.SetResiduals([2.1360e-01, 1.5278e-01, 1.3632e+00,
+                                       7.8807e-02, 3.3470e-01, 3.6610e-04,
+                                       1.2393e-05])
     supersonicMixing.SetIgnoreIndices(3)
     supersonicMixing.SetMpirunPath(options.mpirunPath)
 
@@ -534,13 +534,34 @@ def main():
     totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------
+    # dissociation
+    # reacting chemistry
+    dissociation = regressionTest()
+    dissociation.SetRegressionCase("dissociation")
+    dissociation.SetAitherPath(options.aitherPath)
+    dissociation.SetRunDirectory("dissociation")
+    dissociation.SetProfile(isProfile)
+    dissociation.SetNumberOfProcessors(1)
+    dissociation.SetNumberOfIterations(numIterations)
+    dissociation.SetResiduals([4.6027e-01, 4.6120e-01, 2.6470e+07, 1.0000e+00,
+                               2.3423e-01])
+    dissociation.SetIgnoreIndices(2)
+    dissociation.SetIgnoreIndices(3)
+    dissociation.SetMpirunPath(options.mpirunPath)
+
+    # run regression case
+    passed = dissociation.RunCase()
+    totalPass = totalPass and all(passed)
+
+    # ------------------------------------------------------------------
     # regression test overall pass/fail
     # ------------------------------------------------------------------
+    errorCode = 0
     if totalPass and uniform.PassedStatus() != "ERRORS":
         print("All tests passed!")
     else:
         print("ERROR: Some tests failed")
-        sys.exit(1)
+        errorCode = 1
     print("--------------------------------------------------")
     print("subsonicCylinder:", subCyl.PassedStatus())
     print("multiblockCylinder:", multiCyl.PassedStatus())
@@ -557,7 +578,8 @@ def main():
     print("uniform:", uniform.PassedStatus())
     print("convectingVortex:", vortex.PassedStatus())
     print("supersonicMixing:", supersonicMixing.PassedStatus())
-    sys.exit(0)
+    print("dissociation:", dissociation.PassedStatus())
+    sys.exit(errorCode)
 
 if __name__ == "__main__":
     main()

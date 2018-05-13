@@ -25,23 +25,36 @@ using std::endl;
 using std::cerr;
 
 // constructor
-caloricallyPerfect::caloricallyPerfect(const vector<fluid>& fl,
-                                       const double& tRef, const double& aRef) {
+caloricallyPerfect::caloricallyPerfect(const vector<fluid>& fl) {
   const auto numSpecies = fl.size();
   n_.reserve(numSpecies);
   gasConst_.reserve(numSpecies);
-  for (auto &f : fl) {
+  hf_.reserve(numSpecies);
+  s0_.reserve(numSpecies);
+  for (auto& f : fl) {
     n_.push_back(f.N());
-    gasConst_.push_back(f.GasConstant() * tRef / (aRef * aRef));
+    gasConst_.push_back(f.GasConstant());
+    hf_.push_back(f.HeatOfFormation());
+    s0_.push_back(f.ReferenceEntropy() -
+                  gasConst_.back() * (f.N() + 1.0) *
+                      std::log(f.ReferenceTemperature()));
   }
 }
 
-thermallyPerfect::thermallyPerfect(const vector<fluid>& fl, const double& tRef,
-                                   const double& aRef)
-    : caloricallyPerfect(fl, tRef, aRef) {
+thermallyPerfect::thermallyPerfect(const vector<fluid>& fl)
+    : caloricallyPerfect(fl) {
   vibTemp_.reserve(fl.size());
   for (auto& f : fl) {
     vibTemp_.push_back(f.VibrationalTemperature());
+  }
+  for (auto ss = 0U; ss < vibTemp_.size(); ++ss) {
+    auto s0 = 0.0;
+    for (const auto &thetaV : vibTemp_[ss]) {
+      const auto tr = fl[ss].ReferenceTemperature();
+      s0 += thetaV / ((std::exp(thetaV / tr) - 1.0) * tr) -
+            std::log(1.0 - std::exp(-thetaV / tr));
+    }
+    this->SubtractS0(ss, s0);
   }
 }
 
@@ -67,24 +80,8 @@ double thermodynamic::Cv(const double& t, const vector<double>& mf) const {
   return cv;
 }
 
-// ---------------------------------------------------------------------------
-// Member functions for calorically perfect class
-double caloricallyPerfect::TemperatureFromSpecEnergy(
-    const double& e, const vector<double>& mf) const {
-  const auto t = 1.0;  // cpg has constant Cv, so value of t is meaningless
-  return e / this->Cv(t, mf);
-}
-
-// ---------------------------------------------------------------------------
-// thermally perfect functions
-double thermallyPerfect::SpeciesSpecEnergy(const double& t,
-                                           const int& ss) const {
-  MSG_ASSERT(ss <= this->NumSpecies(), "species out of range");
-  return this->R(ss) * (this->N(ss) * t + this->VibEqTerm(t, ss));
-}
-
-double thermallyPerfect::SpecEnergy(const double& t,
-                                    const vector<double>& mf) const {
+double thermodynamic::SpecEnergy(const double& t,
+                                 const vector<double>& mf) const {
   MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
              "species size mismatch");
   auto e = 0.0;
@@ -94,14 +91,8 @@ double thermallyPerfect::SpecEnergy(const double& t,
   return e;
 }
 
-double thermallyPerfect::SpeciesSpecEnthalpy(const double& t,
-                                             const int& ss) const {
-  MSG_ASSERT(ss <= this->NumSpecies(), "species out of range");
-  return this->R(ss) * ((this->N(ss) + 1) * t + this->VibEqTerm(t, ss));
-}
-
-double thermallyPerfect::SpecEnthalpy(const double& t,
-                                      const vector<double>& mf) const {
+double thermodynamic::SpecEnthalpy(const double& t,
+                                   const vector<double>& mf) const {
   MSG_ASSERT(this->NumSpecies() == static_cast<int>(mf.size()),
              "species size mismatch");
   auto h = 0.0;
@@ -111,6 +102,33 @@ double thermallyPerfect::SpecEnthalpy(const double& t,
   return h;
 }
 
+// ---------------------------------------------------------------------------
+// Member functions for calorically perfect class
+double caloricallyPerfect::TemperatureFromSpecEnergy(
+    const double& e, const vector<double>& mf) const {
+  const auto t = 1.0;  // cpg has constant Cv, so value of t is meaningless
+  const auto hf =
+      std::inner_product(std::begin(hf_), std::end(hf_), std::begin(mf), 0.0);
+  return (e - hf) / this->Cv(t, mf);
+}
+
+double caloricallyPerfect::SpeciesGibbsMinStdState(const double& t,
+                                                   const int& ss) const {
+  return this->R(ss) * t * (1.0 + this->N(ss)) * (1.0 - std::log(t)) +
+         this->Hf(ss) - this->S0(ss) * t;
+}
+
+vector<double> caloricallyPerfect::GibbsMinimization(const double& t) const {
+  vector<double> gibbs;
+  gibbs.reserve(this->NumSpecies());
+  for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+    gibbs.push_back(this->SpeciesGibbsMinStdState(t, ss) / (this->R(ss) * t));
+  }
+  return gibbs;
+}
+
+// ---------------------------------------------------------------------------
+// thermally perfect functions
 double thermallyPerfect::TemperatureFromSpecEnergy(
     const double& e, const vector<double>& mf) const {
   auto temperature = 0.0;

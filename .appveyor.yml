@@ -9,7 +9,7 @@ platform: x64
 environment:
   PYTHON: C:\Python35-x64
   PATH: C:\Program Files\Project\bin;C:\Program Files\Microsoft MPI\Bin;%PATH%
-  AITHER_FLUID_DATABASE: C:\Program Files\Project\fluidDatabase
+  AITHER_INSTALL_DIRECTORY: C:\Program Files\Project
 build_script:
 - ps: >-
     powershell ci\appveyor\installMPI.ps1

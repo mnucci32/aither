@@ -34,7 +34,6 @@ Schmidt number based diffusion.
 
 ### To Do List
 * Add multigrid scheme for improved convergence
-* Add reacting flow capability
 * Performance improvements
 
 ### Dependencies
@@ -50,7 +49,7 @@ cmake -DCMAKE_INSTALL_PREFIX=/path/to/installation -DCMAKE_BUILD_TYPE=release /p
 make
 make install
 
-export AITHER_FLUID_DATABASE=/path/to/installation/fluidDatabase
+export AITHER_INSTALL_DIRECTORY=/path/to/installation
 ```
 
 Cmake will automatically look for an MPI package. To specify a specific 
