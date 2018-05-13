@@ -6594,7 +6594,8 @@ void procBlock::CalcSrcTerms(const physics &phys, const input &inp,
                                                chemSpecRad);
 
           // add source spectral radius for species equations
-          specRadius_(ii, jj, kk).AddToFlowVariable(chemSpecRad);
+          // subtract because residual is initially on opposite side of equation
+          specRadius_(ii, jj, kk).SubtractFromFlowVariable(chemSpecRad);
 
           // add contribution of source spectral radius to flux jacobian
           if (inp.IsBlockMatrix()) {

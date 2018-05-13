@@ -113,14 +113,14 @@ mf.push_back(ri / rhoSum);
       for (auto ff = 0U; ff < src.size(); ++ff) {
         bckTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichProduct(ff));
       }
-      destruction[ss] += kb * bckTerm;
+      destruction[ss] -= kb * bckTerm;
       src[ss] += prodMinReac * (kf * fwdTerm - kb * bckTerm);
     }
     destruction[ss] *= molarMass_[ss] / mf[ss];
     src[ss] *= molarMass_[ss];
   }
 
-  specRad = *std::max_element(std::begin(destruction), std::end(destruction));
+  specRad = *std::min_element(std::begin(destruction), std::end(destruction));
   return src;
 }
 
