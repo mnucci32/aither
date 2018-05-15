@@ -615,10 +615,11 @@ void CalcResidual(vector<procBlock> &states,
   SwapEddyViscAndGradients(states, connections, rank, MPI_tensorDouble,
                            MPI_vec3d, inp.NumberGhostLayers());
 
-  if (inp.IsRANS() || phys.Chemistry()->IsReacting()) {
+  if (inp.IsRANS()) {
     // swap turbulence variables calculated during residual calculation
     SwapTurbVars(states, connections, rank, inp.NumberGhostLayers());
-
+  }
+  if (inp.IsRANS() || phys.Chemistry()->IsReacting()) {
     for (auto bb = 0U; bb < states.size(); bb++) {
       // calculate source terms for residual
       states[bb].CalcSrcTerms(phys, inp, mainDiagonal[bb]);
