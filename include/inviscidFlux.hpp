@@ -316,9 +316,9 @@ inviscidFlux RoeFlux(const T1 &left, const T2 &right, const physics &phys,
   // entropy wave
   waveSpeed = fabs(velNormR);
   for (auto ii = 0; ii < dissipation.NumSpecies(); ++ii) {
-    waveStrength = delta.RhoN(ii) - delta.P() / (aR * aR);
+    waveStrength = -delta.P() / (aR * aR);
     waveSpeedStrength = waveSpeed * waveStrength;
-    dissipation[ii] += waveSpeedStrength * mfR[ii];
+    dissipation[ii] += waveSpeedStrength * mfR[ii] + waveSpeed * delta.RhoN(ii);
   }
   waveStrength = delta.Rho() - delta.P() / (aR * aR);
   waveSpeedStrength = waveSpeed * waveStrength;
