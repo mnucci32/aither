@@ -543,8 +543,8 @@ def main():
     dissociation.SetProfile(isProfile)
     dissociation.SetNumberOfProcessors(1)
     dissociation.SetNumberOfIterations(numIterations)
-    dissociation.SetResiduals([4.6027e-01, 4.6120e-01, 2.6470e+07, 1.0000e+00,
-                               2.3423e-01])
+    dissociation.SetResiduals([4.5420e-01, 4.6147e-01, 1.0000e+00, 1.0000e+00,
+                               2.3419e-01])
     dissociation.SetIgnoreIndices(2)
     dissociation.SetIgnoreIndices(3)
     dissociation.SetMpirunPath(options.mpirunPath)
