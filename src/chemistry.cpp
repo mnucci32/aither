@@ -113,7 +113,7 @@ mf.push_back(ri / rhoSum);
       for (auto ff = 0U; ff < src.size(); ++ff) {
         bckTerm *= pow(rho[ff] / molarMass_[ff], rx.StoichProduct(ff));
       }
-      destruction[ss] -= kb * bckTerm;
+      destruction[ss] -= prodMinReac * kb * bckTerm;
       src[ss] += prodMinReac * (kf * fwdTerm - kb * bckTerm);
     }
     destruction[ss] *= molarMass_[ss] / mf[ss];
@@ -140,7 +140,7 @@ squareMatrix reacting::SourceJac(const primitive &state, const double &t,
   }
 
   // calculate perturbation step for species equations
-  constexpr auto epsilon = 1.0e-30;
+  constexpr auto epsilon = 1.0e-10;
   const auto rhoSum = state.Rho();
   const auto hRho = epsilon * rhoSum;
   auto specRad = 0.0;  // dummy value, not used
