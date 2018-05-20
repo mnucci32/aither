@@ -124,6 +124,13 @@ class matMultiArray3d : public multiArray3d<double> {
                    this->BeginFlow(ii, jj, kk) + this->BlockSize(), jac.begin(),
                    this->BeginFlow(ii, jj, kk), std::minus<double>());
   }
+  void SubtractFromFlow(const int &ii, const int &jj, const int &kk,
+                        const squareMatrix &jac) {
+    MSG_ASSERT(jac.Size() == this->FlowSize(), "block size must match");
+    std::transform(this->BeginFlow(ii, jj, kk), this->BeginTurb(ii, jj, kk),
+                   jac.begin(), this->BeginFlow(ii, jj, kk),
+                   std::minus<double>());
+  }
   void SubtractFromTurb(const int &ii, const int &jj, const int &kk,
                         const squareMatrix &jac) {
     MSG_ASSERT(jac.Size() == this->TurbSize(), "block size must match");

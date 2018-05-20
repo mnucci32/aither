@@ -6,15 +6,17 @@
 | Develop | [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=develop)](https://travis-ci.org/mnucci32/aither) | [![Build status](https://ci.appveyor.com/api/projects/status/o7fc231lp9jxlsib/branch/develop?svg=true)](https://ci.appveyor.com/project/mnucci32/aither/branch/develop) | [![Coverage Status](https://codecov.io/github/mnucci32/aither/coverage.svg?branch=develop)](https://codecov.io/github/mnucci32/aither?branch=develop) |
 
 ### About The Code
-This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is 
-a cell centered, structured solver, using multi-block structured grids in Plot3D 
-format. It uses explicit and implicit time integration methods. It uses MUSCL 
-extrapolation to reconstruct the primitive variables from the cell centers to 
-the cell faces for 2nd order accuracy. Higher order reconstruction is acheived 
-with a 5th order WENO reconstruction for the inviscid fluxes, and a 4th order 
-central reconstruction for the viscous fluxes. The code uses the Roe 
-flux difference splitting scheme for the inviscid fluxes, and a central scheme 
-for the viscous fluxes. It is second order accurate in both space and time.
+Aither is a 3D Navier-Stokes computational fluid dynamics solver capable of 
+modeling finite rate chemsitry. It is a cell centered, structured solver, using 
+multi-block structured grids in Plot3D format. It uses explicit and implicit 
+time integration methods. It uses MUSCL extrapolation to reconstruct the 
+primitive variables from the cell centers to the cell faces for 2nd order 
+accuracy. Higher order reconstruction is acheived with a 5th order WENO 
+reconstruction for the inviscid fluxes, and a 4th order central reconstruction 
+for the viscous fluxes. The code uses either the Roe flux difference splitting 
+or AUSMPW+ flux vector splitting scheme for the inviscid fluxes, and a central 
+scheme for the viscous fluxes. It is second order accurate in both space and 
+time.
 
 ### Current Status
 The code is 2nd order accurate in space and time. Available explicit time 
@@ -22,19 +24,18 @@ integration methods are forward euler (1st order) and a minimum storage four
 stage Runge-Kutta method (2nd order). The implicit solver (LU-SGS, BLU-SGS, 
 DPLUR, BDPLUR) is implemented for implicit time integration. Dual time stepping 
 is implemented for time accuracy in the implicit solver. Available implicit 
-time integrations methods come from the Beam and Warming family of methods and 
+time integration methods come from the Beam and Warming family of methods and 
 are the implicit euler (1st order), Crank-Nicholson (2nd order), and BDF2
 (2nd order) methods. The code has been thoroughly commented. It has been made 
 parallel using MPI. For RANS simulations the Wilcox K-Omega 2006 and SST 2003 
 turbulence models are available. Wall functions are supported for both models. 
 For detatched eddy simulations, the SST-DES turbulence model is available. For 
-large eddy simulations, the WALE subgrid scale model is available. A 
-Multi-species flow capability is in progress. Supported diffusion models will be
-Schmidt number based diffusion.
+large eddy simulations, the WALE subgrid scale model is available. 
+Multispecies flow is supported and a Schmidt number based model is used for
+diffusion. Reacting flow is modeled with a finite rate chemistry model.
 
 ### To Do List
 * Add multigrid scheme for improved convergence
-* Add reacting flow capability
 * Performance improvements
 
 ### Dependencies
@@ -50,7 +51,7 @@ cmake -DCMAKE_INSTALL_PREFIX=/path/to/installation -DCMAKE_BUILD_TYPE=release /p
 make
 make install
 
-export AITHER_FLUID_DATABASE=/path/to/installation/fluidDatabase
+export AITHER_INSTALL_DIRECTORY=/path/to/installation
 ```
 
 Cmake will automatically look for an MPI package. To specify a specific 

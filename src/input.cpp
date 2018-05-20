@@ -88,9 +88,12 @@ input::input(const string &name, const string &resName) : simName_(name),
   equationOfState_ = "idealGas";  // default to ideal gas
   transportModel_ = "sutherland";  // default to sutherland
   diffusionModel_ = "none";  // default to no diffusion
+  chemistryModel_ = "frozen";  // default to nonreacting flow
+  chemistryMechanism_ = "none";  // default to no mechanism
   restartFrequency_ = 0;  // default to not write restarts
   iterationStart_ = 0;  // default to start from iteration zero
   schmidtNumber_ = 0.9;
+  freezingTemperature_ = 0.0;
 
   // default to primitive variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
@@ -126,12 +129,15 @@ input::input(const string &name, const string &resName) : simName_(name),
            "turbulenceModel",
            "thermodynamicModel",
            "diffusionModel",
+           "chemistryModel",
+           "chemistryMechanism",
            "equationOfState",
            "transportModel",
            "outputVariables",
            "wallOutputVariables",
            "initialConditions",
            "schmidtNumber",
+           "freezingTemperature",
            "boundaryStates",
            "boundaryConditions"};
 }
@@ -183,7 +189,7 @@ void input::ReadInput(const int &rank) {
 
     if (line.length() > 0) {  // only proceed if line has data
       // split line at variable separator
-      auto tokens = Tokenize(line, ":", 2);
+      auto tokens = Tokenize(line, ":", 1);
 
       // search to see if first token corresponds to any keywords
       auto key = tokens[0];
@@ -391,6 +397,16 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->TransportModel() << endl;
           }
+        } else if (key == "chemistryModel") {
+          chemistryModel_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->ChemistryModel() << endl;
+          }
+        } else if (key == "chemistryMechanism") {
+          chemistryMechanism_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->ChemistryMechanism() << endl;
+          }
         } else if (key == "diffusionModel") {
           diffusionModel_ = tokens[1];
           if (rank == ROOTP) {
@@ -400,6 +416,11 @@ void input::ReadInput(const int &rank) {
           schmidtNumber_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
             cout << key << ": " << this->SchmidtNumber() << endl;
+          }
+        } else if (key == "freezingTemperature") {
+          freezingTemperature_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << ": " << this->FreezingTemperature() << endl;
           }
         } else if (key == "outputVariables") {
           // clear default variables from set
@@ -561,6 +582,8 @@ void input::ReadInput(const int &rank) {
     aRef_ += mixtureRef_[ii] * gamma * fluids_[ii].GasConstant() * tRef_;
   }
   aRef_ = sqrt(aRef_);
+  // nondimensionalize freezing temperature
+  freezingTemperature_ /= tRef_;
 
   // input file sanity checks
   this->CheckNonlinearIterations();
@@ -569,6 +592,7 @@ void input::ReadInput(const int &rank) {
   this->CheckTurbulenceModel();
   this->CheckSpecies();
   this->CheckNonreflecting();
+  this->CheckChemistryMechanism();
 
   if (rank == ROOTP) {
     cout << endl;
@@ -702,7 +726,7 @@ unique_ptr<eos> input::AssignEquationOfState() const {
   unique_ptr<eos> eqnState(nullptr);
   if (equationOfState_ == "idealGas") {
     eqnState =
-        unique_ptr<eos>{std::make_unique<idealGas>(fluids_, tRef_, aRef_)};
+        unique_ptr<eos>{std::make_unique<idealGas>(fluids_)};
   } else {
     cerr << "ERROR: Error in input::AssignEquationOfState(). Equation of state "
          << equationOfState_ << " is not recognized!" << endl;
@@ -732,10 +756,10 @@ unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
   unique_ptr<thermodynamic> thermo(nullptr);
   if (thermodynamicModel_ == "caloricallyPerfect") {
     thermo = unique_ptr<thermodynamic>{
-        std::make_unique<caloricallyPerfect>(fluids_, tRef_, aRef_)};
+        std::make_unique<caloricallyPerfect>(fluids_)};
   } else if (thermodynamicModel_ == "thermallyPerfect") {
     thermo = unique_ptr<thermodynamic>{
-        std::make_unique<thermallyPerfect>(fluids_, tRef_, aRef_)};
+        std::make_unique<thermallyPerfect>(fluids_)};
   } else {
     cerr << "ERROR: Error in input::AssignThermodynamicModel(). Thermodynamic "
          << "model " << thermodynamicModel_ << " is not recognized!" << endl;
@@ -761,13 +785,31 @@ unique_ptr<diffusion> input::AssignDiffusionModel(const double &sct) const {
   return diff;
 }
 
+// member function to get chemistry model
+unique_ptr<chemistry> input::AssignChemistryModel() const {
+  // define thermodynamic model
+  unique_ptr<chemistry> chem(nullptr);
+  if (chemistryModel_ == "frozen" || chemistryModel_ == "none") {
+    chem = unique_ptr<chemistry>{std::make_unique<frozen>()};
+  } else if (chemistryModel_ == "reacting") {
+    chem = unique_ptr<chemistry>{std::make_unique<reacting>(*this)};
+  } else {
+    cerr << "ERROR: Error in input::AssignChemistryModel(). Chemistry "
+         << "model " << chemistryModel_ << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return chem;
+}
+
+
 physics input::AssignPhysicsModels() const {
   auto eqnState = this->AssignEquationOfState();
   auto trans = this->AssignTransportModel();
   auto thermo = this->AssignThermodynamicModel();
   auto turb = this->AssignTurbulenceModel();
   auto diff = this->AssignDiffusionModel(turb->TurbSchmidtNumber());
-  return {eqnState, trans, thermo, diff, turb};
+  auto chem = this->AssignChemistryModel();
+  return {eqnState, trans, thermo, diff, turb, chem};
 }
 
 // member function to return the name of the simulation without the file
@@ -942,6 +984,19 @@ void input::CheckNonreflecting() const {
   }
 }
 
+// check that chemistry mechanism is only used with reacting flow
+void input::CheckChemistryMechanism() const {
+  if (chemistryMechanism_ == "none" && chemistryModel_ == "reacting") {
+    cerr << "ERROR: chemistry mechanism should be specified with "
+         << chemistryModel_ << " chemistry model!" << endl;
+    exit(EXIT_FAILURE);
+  } else if (chemistryMechanism_ != "none" && chemistryModel_ != "reacting") {
+    cerr << "ERROR: chemistry mechanism requires reacting chemistry model"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
 // member function to check that all species specified are defined
 // vector of species comes from prescribed ic file
 void input::CheckSpecies(const vector<string> &species) const {
@@ -1073,6 +1128,6 @@ void input::NondimensionalizeStateData(const unique_ptr<eos> &eqnState) {
 
 void input::NondimensionalizeFluid() {
   for (auto &fl : fluids_) {
-    fl.Nondimensionalize(tRef_);
+    fl.Nondimensionalize(tRef_, rRef_, aRef_, lRef_);
   }
 }

@@ -89,7 +89,7 @@ class idealGas : public eos {
 
  public:
   // Constructor
-  idealGas(const vector<fluid> &, const double &, const double &);
+  idealGas(const vector<fluid> &);
 
   // Member functions
   int NumSpecies() const override { return gasConst_.size(); }

@@ -441,16 +441,15 @@ primitive GetGhostState(const primitiveView &interior, const string &bcType,
         const auto rhoSoSN = rhoN * sosN;
         const auto deltaPressure = ghost.P() - stateN.P();
         const auto length = bcData->LengthScale();
-        const auto alphaR = sigma / (sosN * length);
+        const auto alpha = sigma * sosN / length;
 
-        const auto rhoNp1 = (rhoN + dt * alphaR * freeState.Rho() +
+        const auto rhoNp1 = (rhoN + dt * alpha * freeState.Rho() +
                              deltaPressure / (sosN * sosN)) /
-                            (1.0 + dt * alphaR);
+                            (1.0 + dt * alpha);
         for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
           ghost[ii] = rhoNp1 * freeState.MassFractionN(ii);
         }
 
-        const auto alpha = sigma * sosN / length;
         const auto k = alpha * (1.0 - maxMach * maxMach);
         auto vel = (stateN.Velocity() + dt * k * freeState.Velocity() -
                     normArea * deltaPressure / rhoSoSN) /
