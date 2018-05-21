@@ -2,7 +2,7 @@ project (aither)
 
 # set version number
 set (aither_VERSION_MAJOR 0)
-set (aither_VERSION_MINOR 9)
+set (aither_VERSION_MINOR 10)
 set (aither_VERSION_PATCH 0)
 
 message (STATUS "Cmake version ${CMAKE_VERSION}")

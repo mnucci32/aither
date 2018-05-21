@@ -59,10 +59,6 @@ installation, set **-DMPI_DIR** to the MPI installation directory. In addition
 to **release**, other supported build types are **debug**, **profile**,
 **relwithdebinfo**, and **minsizerel**.
 
-The **AITHER_FLUID_DATABASE** environment variable should be set to the 
-**fluidDatabase** folder inside of the installation directory. This tells aither
-where to look for fluid properties.
-
 ### How To Run
 ```bash
 mpirun -np 1 aither inputFile.inp [restartFile.rst] > outputFile.out 2> errorFile.err &
