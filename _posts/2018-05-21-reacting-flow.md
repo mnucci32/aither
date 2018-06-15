@@ -2,7 +2,7 @@
 layout: post
 title: "Reacting Flow"
 date: 2018-05-21 08:00
-tags: [CFD, Aither, C++, finit-rate, chemsitry, reactions]
+tags: [CFD, Aither, C++, finite-rate, chemsitry, reactions]
 comments: true
 ---
 ## Finite Rate Chemistry in Aither
