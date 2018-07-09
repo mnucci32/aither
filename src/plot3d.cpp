@@ -447,13 +447,22 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
 /* Member function to split a plot3dBlock along a plane defined by a direction
 and an index.
 */
-void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &blk1,
-                        plot3dBlock &blk2) const {
+plot3dBlock plot3dBlock::Split(const string &dir, const int &ind) {
   // dir -- plane to split along, either i, j, or k
   // ind -- index (face) to split at (w/o counting ghost cells)
 
-  blk1 = plot3dBlock(coords_.Slice(dir, {coords_.Start(dir), ind + 1}));
-  blk2 = plot3dBlock(coords_.Slice(dir, {ind, coords_.End(dir)}));
+  const auto blk2 = plot3dBlock(coords_.Slice(dir, {ind, coords_.End(dir)}));
+  (*this) = plot3dBlock(coords_.Slice(dir, {coords_.Start(dir), ind + 1}));
+  return blk2;
+}
+
+void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &lower,
+                        plot3dBlock &upper) const {
+  // dir -- plane to split along, either i, j, or k
+  // ind -- index (face) to split at (w/o counting ghost cells)
+
+  lower = plot3dBlock(coords_.Slice(dir, {coords_.Start(dir), ind + 1}));
+  upper = plot3dBlock(coords_.Slice(dir, {ind, coords_.End(dir)}));
 }
 
 /* Member function to join a plot3dBlock along a plane defined by a direction.

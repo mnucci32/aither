@@ -5348,6 +5348,9 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   blk1.parBlock_ = parBlock_;
   blk2.parBlock_ = parBlock_;
 
+  blk1.nodes_ = nodes_;
+  blk2.nodes_ = blk1.nodes_.Split(dir, ind);
+
   // ------------------------------------------------------------------
   // assign variables for lower split
   // assign cell variables with ghost cells
@@ -5526,6 +5529,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
   newBlk.wallData_ = wallData_;
   newBlk.JoinWallData(blk.wallData_, dir);
+  newBlk.nodes_.Join(blk.nodes_, dir);
 
   // assign variables from lower block -----------------------------
   // assign cell variables with ghost cells

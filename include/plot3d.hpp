@@ -98,7 +98,8 @@ class plot3dBlock {
     return coords_(ii, jj, kk);
   }
 
-  void Split(const string &, const int &, plot3dBlock &, plot3dBlock &) const;
+  plot3dBlock Split(const string &, const int &);
+  void Split(const string &, const int &, plot3dBlock &, plot3dBlock&) const;
   void Join(const plot3dBlock &, const string &);
 
   // destructor
