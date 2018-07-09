@@ -64,6 +64,18 @@ class plot3dBlock {
 
   vector3d<double> Centroid(const int &, const int &, const int &) const;
 
+  // provide begin and end so std::begin and std::end can be used
+  // use lower case to conform with std::begin, std::end
+  auto begin() noexcept {return coords_.begin();}
+  const auto begin() const noexcept {return coords_.begin();}
+  auto end() noexcept {return coords_.end();}
+  const auto end() const noexcept {return coords_.end();}
+
+  void ClearResize(const int &ni, const int &nj, const int &nk) {
+    coords_.ClearResize(ni, nj, nk, 0);
+  }
+
+  int Size() const { return coords_.Size(); }
   int NumI() const { return coords_.NumI(); }
   int NumJ() const { return coords_.NumJ(); }
   int NumK() const { return coords_.NumK(); }

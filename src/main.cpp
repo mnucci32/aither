@@ -114,7 +114,6 @@ int main(int argc, char *argv[]) {
   // Nondimensionalize BC & IC data
   inp.NondimensionalizeStateData(phys.EoS());
 
-  vector<plot3dBlock> mesh;
   vector<connection> connections;
   vector<procBlock> stateBlocks;
   vector<vector3d<double>> viscFaces;
@@ -125,11 +124,11 @@ int main(int argc, char *argv[]) {
     cout << "Number of equations: " << inp.NumEquations() << endl << endl;
 
     // Read grid
-    mesh = ReadP3dGrid(inp.GridName(), inp.LRef(), totalCells);
-    vector<vector3d<int>> gridSizes(mesh.size());
-    for (auto ii = 0U; ii < mesh.size(); ++ii) {
-      gridSizes[ii] = {mesh[ii].NumCellsI(), mesh[ii].NumCellsJ(),
-                       mesh[ii].NumCellsK()};
+    auto mesh = ReadP3dGrid(inp.GridName(), inp.LRef(), totalCells);
+    vector<vector3d<int>> gridSizes;
+    gridSizes.reserve(mesh.size());
+    for (const auto &msh : mesh) {
+      gridSizes.emplace_back(msh.NumCellsI(), msh.NumCellsJ(), msh.NumCellsK());
     }
 
     // Get BCs for blocks
@@ -151,7 +150,7 @@ int main(int argc, char *argv[]) {
 
     // Initialize the whole mesh with ICs and assign ghost cells geometry
     stateBlocks.resize(mesh.size());
-    for (auto ll = 0U; ll < mesh.size(); ll++) {
+    for (auto ll = 0U; ll < mesh.size(); ++ll) {
       stateBlocks[ll] =
           procBlock(mesh[ll], decomp.ParentBlock(ll), bcs[ll], ll,
                     decomp.Rank(ll), decomp.LocalPosition(ll), inp);

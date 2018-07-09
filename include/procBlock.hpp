@@ -27,6 +27,7 @@
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
 #include "multiArray3d.hpp"        // multiArray3d
+#include "plot3d.hpp"              // plot3dBlk
 #include "blkMultiArray3d.hpp"     // blkMultiArray3d
 #include "tensor.hpp"              // tensor
 #include "primitive.hpp"           // primitive
@@ -50,7 +51,6 @@ class viscousFlux;
 class input;
 class geomSlice;
 class source;
-class plot3dBlock;
 class resid;
 class kdtree;
 class conserved;
@@ -70,6 +70,7 @@ class procBlock {
   multiArray3d<unitVec3dMag<double>> fAreaJ_;  // face area vector for j-faces
   multiArray3d<unitVec3dMag<double>> fAreaK_;  // face area vector for k-faces
 
+  plot3dBlock nodes_;  // coordinates of nodes
   multiArray3d<vector3d<double>> center_;  // coordinates of cell center
   multiArray3d<vector3d<double>> fCenterI_;  // coordinates of i-face centers
   multiArray3d<vector3d<double>> fCenterJ_;  // coordinates of j-face centers
@@ -247,6 +248,9 @@ class procBlock {
 
   double Vol(const int &ii, const int &jj, const int &kk) const {
     return vol_(ii, jj, kk);
+  }
+  vector3d<double> Node(const int &ii, const int &jj, const int &kk) const {
+    return nodes_.Coords(ii, jj, kk);
   }
   vector3d<double> Center(const int &ii, const int &jj, const int &kk) const {
     return center_(ii, jj, kk);

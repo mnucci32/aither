@@ -64,6 +64,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   // lpos -- local position of block on processor
   // inp -- input variables
 
+  nodes_ = blk;
   numGhosts_ = inp.NumberGhostLayers();
   parBlock_ = numBlk;
 
@@ -212,6 +213,7 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   } else {
     consVarsNm1_ = {};
   }
+  nodes_ = {ni + 1, nj + 1, nk + 1};
   center_ = {ni, nj, nk, numGhosts_};
   fAreaI_ = {ni + 1, nj, nk, numGhosts_};
   fAreaJ_ = {ni, nj + 1, nk, numGhosts_};
@@ -4697,6 +4699,9 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
   MPI_Pack_size(consVarsNm1_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for solution n-1
   sendBufSize += tempSize;
+  MPI_Pack_size(nodes_.Size(), MPI_vec3d, MPI_COMM_WORLD,
+                &tempSize);  // add size for nodes
+  sendBufSize += tempSize;
   MPI_Pack_size(center_.Size(), MPI_vec3d, MPI_COMM_WORLD,
                 &tempSize);  // add size for cell centers
   sendBufSize += tempSize;
@@ -4788,6 +4793,8 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
     MPI_Pack(&(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
+  MPI_Pack(&(*std::begin(nodes_)), nodes_.Size(), MPI_vec3d, sendBuffer,
+           sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(center_)), center_.Size(), MPI_vec3d, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fAreaI_)), fAreaI_.Size(), MPI_vec3dMag,
@@ -4889,6 +4896,9 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_vec3d,
                consVarsNm1_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack sol n-1
   }
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(nodes_)),
+             nodes_.Size(), MPI_vec3d,
+             MPI_COMM_WORLD);  // unpack nodes
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(center_)),
              center_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack cell centers
@@ -4942,6 +4952,7 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
     consVarsNm1_.ClearResize(numI, numJ, numK, 0, numEqns, numSpecies);
   }
 
+  nodes_.ClearResize(numI + 1, numJ + 1, numK + 1);
   center_.ClearResize(numI, numJ, numK, numGhosts);
   vol_.ClearResize(numI, numJ, numK, numGhosts);
 
