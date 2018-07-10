@@ -456,15 +456,6 @@ plot3dBlock plot3dBlock::Split(const string &dir, const int &ind) {
   return blk2;
 }
 
-void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &lower,
-                        plot3dBlock &upper) const {
-  // dir -- plane to split along, either i, j, or k
-  // ind -- index (face) to split at (w/o counting ghost cells)
-
-  lower = plot3dBlock(coords_.Slice(dir, {coords_.Start(dir), ind + 1}));
-  upper = plot3dBlock(coords_.Slice(dir, {ind, coords_.End(dir)}));
-}
-
 /* Member function to join a plot3dBlock along a plane defined by a direction.
 The calling instance will be the lower portion of the joined block,
 and the input instance will be the upper portion of the joined block.

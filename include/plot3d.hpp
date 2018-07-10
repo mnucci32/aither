@@ -99,7 +99,6 @@ class plot3dBlock {
   }
 
   plot3dBlock Split(const string &, const int &);
-  void Split(const string &, const int &, plot3dBlock &, plot3dBlock&) const;
   void Join(const plot3dBlock &, const string &);
 
   // destructor

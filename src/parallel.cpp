@@ -127,9 +127,9 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
       auto affectedConnections = GetBlockInterConnBCs(bcs, grid, blk);
 
       // split grid
-      plot3dBlock lBlk, uBlk;
-      grid[blk].Split(dir, ind, lBlk, uBlk);
+      const auto uBlk = grid[blk].Split(dir, ind);
       grid.push_back(uBlk);
+
       // split bcs
       vector<boundarySurface> altSurf;
       auto newBcs = bcs[blk].Split(dir, ind, blk, newBlk, altSurf);
@@ -142,9 +142,6 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
             affectedConnections.at(alt).second, alt.PartnerBlock(), dir, ind,
             blk, newBlk);
       }
-
-      // reassign split grid
-      grid[blk] = lBlk;
 
       decomp.Split(blk, ind, dir);
       decomp.SendToProc(blk, ol, ul);
