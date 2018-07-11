@@ -35,6 +35,7 @@ set(sources
   fluid.cpp
   fluxJacobian.cpp
   ghostStates.cpp
+  gridLevel.cpp
   input.cpp
   inputStates.cpp
   inviscidFlux.cpp

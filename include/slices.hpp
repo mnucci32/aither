@@ -40,7 +40,7 @@ class connection;
 class range;
 
 class geomSlice {
-  multiArray3d<vector3d<double>> center_;  // coordinates of cell center_
+  multiArray3d<vector3d<double>> center_;  // coordinates of cell center
   multiArray3d<unitVec3dMag<double>> fAreaI_;  // face area vector for i-faces
   multiArray3d<unitVec3dMag<double>> fAreaJ_;  // face area vector for j-faces
   multiArray3d<unitVec3dMag<double>> fAreaK_;  // face area vector for k-faces

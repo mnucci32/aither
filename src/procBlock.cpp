@@ -60,7 +60,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   // numBlk -- the block number of blk (the parent block)
   // bound -- boundary conditions for block
   // pos -- global position of block, an identifying number unique to this block
-  // r -- processor rank_ that procBlock should be on
+  // r -- processor rank that procBlock should be on
   // lpos -- local position of block on processor
   // inp -- input variables
 

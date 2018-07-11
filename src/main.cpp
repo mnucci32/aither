@@ -30,6 +30,7 @@
 #include "vector3d.hpp"
 #include "input.hpp"
 #include "procBlock.hpp"
+#include "gridLevel.hpp"
 #include "primitive.hpp"
 #include "physicsModels.hpp"
 #include "thermodynamic.hpp"
@@ -115,7 +116,7 @@ int main(int argc, char *argv[]) {
   inp.NondimensionalizeStateData(phys.EoS());
 
   vector<connection> connections;
-  vector<procBlock> stateBlocks;
+  vector<procBlock> solution;
   vector<vector3d<double>> viscFaces;
   // l2 norm residuals to normalize by
   residual residL2First(inp.NumEquations(), inp.NumSpecies());
@@ -149,32 +150,32 @@ int main(int argc, char *argv[]) {
     connections = GetConnectionBCs(bcs, mesh, decomp, inp);
 
     // Initialize the whole mesh with ICs and assign ghost cells geometry
-    stateBlocks.resize(mesh.size());
+    solution.resize(mesh.size());
     for (auto ll = 0U; ll < mesh.size(); ++ll) {
-      stateBlocks[ll] =
+      solution[ll] =
           procBlock(mesh[ll], decomp.ParentBlock(ll), bcs[ll], ll,
                     decomp.Rank(ll), decomp.LocalPosition(ll), inp);
-      stateBlocks[ll].InitializeStates(inp, phys);
-      stateBlocks[ll].AssignGhostCellsGeom();
+      solution[ll].InitializeStates(inp, phys);
+      solution[ll].AssignGhostCellsGeom();
     }
     // if restart, get data from restart file
     if (inp.IsRestart()) {
-      ReadRestart(stateBlocks, restartFile, decomp, inp, phys, residL2First,
+      ReadRestart(solution, restartFile, decomp, inp, phys, residL2First,
                   gridSizes);
     }
 
     // Swap geometry for connection BCs
     for (auto &conn : connections) {
-      SwapGeomSlice(conn, stateBlocks[conn.BlockFirst()],
-                    stateBlocks[conn.BlockSecond()]);
+      SwapGeomSlice(conn, solution[conn.BlockFirst()],
+                    solution[conn.BlockSecond()]);
     }
     // Get ghost cell edge data
-    for (auto &block : stateBlocks) {
+    for (auto &block : solution) {
       block.AssignGhostCellsGeomEdge();
     }
 
     // Get face centers of faces with viscous wall BC
-    viscFaces = GetViscousFaceCenters(stateBlocks);
+    viscFaces = GetViscousFaceCenters(solution);
 
     cout << "Solution Initialized" << endl << endl;
     //---------------------------------------------------------------------
@@ -190,12 +191,12 @@ int main(int argc, char *argv[]) {
   SendNumProcBlocks(decomp.NumBlocksOnAllProc(), numProcBlock);
 
   // Send procBlocks to appropriate processor
-  auto localStateBlocks =
-      SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_vec3d, MPI_vec3dMag,
+  auto localSolution =
+      SendProcBlocks(solution, rank, numProcBlock, MPI_vec3d, MPI_vec3dMag,
                      inp);
 
   // Update auxillary variables (temperature, viscosity, etc), cell widths
-  for (auto &block : localStateBlocks) {
+  for (auto &block : localSolution) {
     block.UpdateAuxillaryVariables(phys, false);
     block.CalcCellWidths();
   }
@@ -232,8 +233,8 @@ int main(int argc, char *argv[]) {
   }
 
   if (tree.Size() > 0) {
-    CalcWallDistance(localStateBlocks, tree);
-    SwapWallDist(localStateBlocks, connections, rank, inp.NumberGhostLayers());
+    CalcWallDistance(localSolution, tree);
+    SwapWallDist(localSolution, connections, rank, inp.NumberGhostLayers());
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -248,11 +249,11 @@ int main(int argc, char *argv[]) {
   // Allocate array for flux jacobian
   vector<matMultiArray3d> mainDiagonal(numProcBlock);
   if (inp.IsImplicit()) {
-    ResizeArrays(localStateBlocks, inp, mainDiagonal);
+    ResizeArrays(localSolution, inp, mainDiagonal);
   }
 
   // Send/recv solutions - necessary to get wall distances
-  GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_uncoupledScalar,
+  GetProcBlocks(solution, localSolution, rank, MPI_uncoupledScalar,
                 MPI_vec3d, MPI_tensorDouble, inp);
 
   ofstream resFile;
@@ -269,10 +270,10 @@ int main(int argc, char *argv[]) {
     }
 
     // Write out cell centers grid file
-    WriteCellCenter(inp.GridName(), stateBlocks, decomp, inp);
+    WriteCellCenter(inp.GridName(), solution, decomp, inp);
 
     // Write out initial results
-    WriteFun(stateBlocks, phys, inp.IterationStart(), decomp, inp);
+    WriteFun(solution, phys, inp.IterationStart(), decomp, inp);
     WriteMeta(inp, inp.IterationStart());
   }
 
@@ -288,23 +289,23 @@ int main(int argc, char *argv[]) {
 
     // Store time-n solution, for time integration methods that require it
     if (inp.NeedToStoreTimeN()) {
-      AssignSolToTimeN(localStateBlocks, phys);
+      AssignSolToTimeN(localSolution, phys);
       if (!inp.IsRestart() && inp.IsMultilevelInTime() && nn == 0) {
-        AssignSolToTimeNm1(localStateBlocks);
+        AssignSolToTimeNm1(localSolution);
       }
     }
 
     // loop over nonlinear iterations
     for (auto mm = 0; mm < inp.NonlinearIterations(); mm++) {
       // Get boundary conditions for all blocks
-      GetBoundaryConditions(localStateBlocks, inp, phys, connections, rank);
+      GetBoundaryConditions(localSolution, inp, phys, connections, rank);
 
       // Calculate residual (RHS)
-      CalcResidual(localStateBlocks, mainDiagonal, phys, inp, connections, rank,
+      CalcResidual(localSolution, mainDiagonal, phys, inp, connections, rank,
                    MPI_tensorDouble, MPI_vec3d);
 
       // Calculate time step
-      CalcTimeStep(localStateBlocks, inp);
+      CalcTimeStep(localSolution, inp);
 
       // Initialize residual variables
       // l2 norm residuals
@@ -312,10 +313,10 @@ int main(int argc, char *argv[]) {
       resid residLinf;  // linf residuals
       auto matrixResid = 0.0;
       if (inp.IsImplicit()) {
-        matrixResid = ImplicitUpdate(localStateBlocks, mainDiagonal, inp, phys,
+        matrixResid = ImplicitUpdate(localSolution, mainDiagonal, inp, phys,
                                      mm, residL2, residLinf, connections, rank);
       } else {  // explicit time integration
-        ExplicitUpdate(localStateBlocks, inp, phys, mm, residL2, residLinf);
+        ExplicitUpdate(localSolution, inp, phys, mm, residL2, residLinf);
       }
 
       // ----------------------------------------------------------------------
@@ -348,14 +349,14 @@ int main(int argc, char *argv[]) {
     // write out function file
     if (inp.WriteOutput(nn) || inp.WriteRestart(nn)) {
       // Send/recv solutions
-      GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_uncoupledScalar,
+      GetProcBlocks(solution, localSolution, rank, MPI_uncoupledScalar,
                     MPI_vec3d, MPI_tensorDouble, inp);
 
       if (rank == ROOTP && inp.WriteOutput(nn)) {
         cout << "writing out function file at iteration "
              << nn + inp.IterationStart()<< endl;
         // Write out function file
-        WriteFun(stateBlocks, phys, (nn + inp.IterationStart() + 1), decomp,
+        WriteFun(solution, phys, (nn + inp.IterationStart() + 1), decomp,
                  inp);
         WriteMeta(inp, (nn + inp.IterationStart() + 1));
       }
@@ -363,7 +364,7 @@ int main(int argc, char *argv[]) {
         cout << "writing out restart file at iteration "
              << nn + inp.IterationStart()<< endl;
         // Write out restart file
-        WriteRestart(stateBlocks, phys, (nn + inp.IterationStart() + 1), decomp,
+        WriteRestart(solution, phys, (nn + inp.IterationStart() + 1), decomp,
                      inp, residL2First);
       }
     }
