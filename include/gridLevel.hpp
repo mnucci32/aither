@@ -22,6 +22,8 @@
 #include "procBlock.hpp"
 #include "boundaryConditions.hpp"
 #include "vector3d.hpp"
+#include "matMultiArray3d.hpp"
+#include "mpi.h"
 
 using std::string;
 using std::vector;
@@ -33,6 +35,7 @@ class decomposition;
 class input;
 class physics;
 class residual;
+class kdtree;
 
 class gridLevel {
   vector<procBlock> blocks_;
@@ -44,6 +47,8 @@ class gridLevel {
             const vector<boundaryConditions>& bcs, const decomposition& decomp,
             const physics& phys, const vector<vector3d<int>>& origGridSizes,
             const string& restartFile, input& inp, residual& first);
+  gridLevel(const int& numBlocks) : blocks_(numBlocks) {}
+  gridLevel() : gridLevel(1) {}
 
   // move constructor and assignment operator
   gridLevel(gridLevel&&) noexcept = default;
@@ -57,10 +62,47 @@ class gridLevel {
   int NumBlocks() const { return blocks_.size(); }
   const vector<procBlock>& Blocks() const { return blocks_; }
   const procBlock& Block(const int &ii) const { return blocks_[ii]; }
+  procBlock& Block(const int &ii) { return blocks_[ii]; }
 
   int NumConnections() const { return connections_.size(); }
   const vector<connection>& Connections() const { return connections_; }
   const connection& Connection(const int& ii) const { return connections_[ii]; }
+  connection& Connection(const int& ii) { return connections_[ii]; }
+
+  gridLevel SendGridLevel(const int& rank, const int& numProcBlock,
+                          const MPI_Datatype& MPI_vec3d,
+                          const MPI_Datatype& MPI_vec3dMag,
+                          const MPI_Datatype& MPI_connection, const input& inp);
+  void GetGridLevel(const gridLevel& local, const int& rank,
+                    const MPI_Datatype& MPI_uncoupledScalar,
+                    const MPI_Datatype& MPI_vec3d,
+                    const MPI_Datatype& MPI_tensorDouble, const input& inp);
+  void CalcWallDistance(const kdtree& tree);
+  void AssignSolToTimeN(const physics& phys);
+  void AssignSolToTimeNm1();
+
+  void CalcTimeStep(const input& inp);
+  void ExplicitUpdate(const input& inp, const physics& phys, const int& mm,
+                      residual& residL2, resid& residLinf);
+  double ImplicitUpdate(vector<matMultiArray3d>& mainDiagonal, const input& inp,
+                        const physics& phys, const int& mm, residual& residL2,
+                        resid& residLinf, const int& rank);
+  void ResizeMatrix(const input& inp, const int& numProcBlock,
+                    vector<matMultiArray3d>& jac) const;
+
+  void GetBoundaryConditions(const input& inp, const physics& phys,
+                             const int& rank);
+  void SwapWallDist(const int& rank, const int& numGhosts);
+  void SwapTurbVars(const int& rank, const int& numGhosts);
+  void SwapEddyViscAndGradients(const int& rank,
+                                const MPI_Datatype& MPI_tensorDouble,
+                                const MPI_Datatype& MPI_vec3d,
+                                const int& numGhosts);
+  void CalcResidual(vector<matMultiArray3d>& mainDiagonal, const physics& phys,
+                    const input& inp, const int& rank,
+                    const MPI_Datatype& MPI_tensorDouble,
+                    const MPI_Datatype& MPI_vec3d);
+  void AuxillaryAndWidths(const physics& phys);
 
   // Destructor
   ~gridLevel() noexcept {}

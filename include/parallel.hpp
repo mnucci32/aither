@@ -14,9 +14,8 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef PARALLELHEADERDEF  // only if the macro PARALLELHEADERDEF is not defined
-                           // execute these lines of code
-#define PARALLELHEADERDEF  // define the macro
+#ifndef PARALLEL_HEADER_DEF
+#define PARALLEL_HEADER_DEF
 
 /* This header contains the function declarations for many of the parallel
  * functions in the code */
@@ -120,7 +119,6 @@ decomposition CubicDecomposition(vector<plot3dBlock>&,
                                  vector<boundaryConditions>&, const int&);
 
 void SendNumProcBlocks(const vector<int>&, int&);
-void SendConnections(vector<connection>&, const MPI_Datatype&);
 
 void SetDataTypesMPI(MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
                      MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
@@ -128,14 +126,6 @@ void SetDataTypesMPI(MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
 void FreeDataTypesMPI(MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
                       MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
                       MPI_Datatype &);
-
-vector<procBlock> SendProcBlocks(const vector<procBlock> &, const int &,
-                                 const int &, const MPI_Datatype &,
-                                 const MPI_Datatype &,
-                                 const input &);
-void GetProcBlocks(vector<procBlock> &, const vector<procBlock> &, const int &,
-                   const MPI_Datatype &, const MPI_Datatype &,
-                   const MPI_Datatype &, const input &);
 
 void MaxLinf(resid*, resid*, int*, MPI_Datatype*);
 

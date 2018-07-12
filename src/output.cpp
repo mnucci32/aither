@@ -36,6 +36,7 @@
 #include "conserved.hpp"           // conserved
 #include "varArray.hpp"            // residual
 #include "utility.hpp"
+#include "gridLevel.hpp"
 
 using std::cout;
 using std::endl;
@@ -672,7 +673,7 @@ void WriteRestart(const vector<procBlock> &splitVars, const physics &phys,
   outFile.close();
 }
 
-void ReadRestart(vector<procBlock> &vars, const string &restartName,
+void ReadRestart(gridLevel &vars, const string &restartName,
                  const decomposition &decomp, input &inp, const physics &phys,
                  residual &residL2First,
                  const vector<vector3d<int>> &gridSizes) {
@@ -783,7 +784,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
 
   // assign to procBlocks
   for (auto ii = 0U; ii < solN.size(); ++ii) {
-    vars[ii].GetStatesFromRestart(solN[ii]);
+    vars.Block(ii).GetStatesFromRestart(solN[ii]);
   }
 
   if (inp.IsMultilevelInTime()) {
@@ -800,15 +801,15 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
 
       // assign to procBlocks
       for (auto ii = 0U; ii < solNm1.size(); ++ii) {
-        vars[ii].GetSolNm1FromRestart(solNm1[ii]);
+        vars.Block(ii).GetSolNm1FromRestart(solNm1[ii]);
       }
 
     } else {
       cerr << "WARNING: Using multilevel time integration scheme, but only one "
            << "time level found in restart file" << endl;
       // assign solution at time n to n-1
-      AssignSolToTimeN(vars, phys);
-      AssignSolToTimeNm1(vars);
+      vars.AssignSolToTimeN(phys);
+      vars.AssignSolToTimeNm1();
     }
   }
 

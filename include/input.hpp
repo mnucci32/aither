@@ -264,6 +264,8 @@ class input {
   double SchmidtNumber() const { return schmidtNumber_; }
   double FreezingTemperature() const { return freezingTemperature_; }
 
+  int MultiGridLevls() const { return 1; }  // DEBUG -- add real value
+
   // destructor
   ~input() noexcept {}
 };

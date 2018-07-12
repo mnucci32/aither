@@ -115,8 +115,7 @@ int main(int argc, char *argv[]) {
   // Nondimensionalize BC & IC data
   inp.NondimensionalizeStateData(phys.EoS());
 
-  vector<connection> connections;
-  vector<procBlock> solution;
+  gridLevel solution;
   vector<vector3d<double>> viscFaces;
   // l2 norm residuals to normalize by
   residual residL2First(inp.NumEquations(), inp.NumSpecies());
@@ -146,36 +145,12 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
 
-    // Get connection BCs
-    connections = GetConnectionBCs(bcs, mesh, decomp, inp);
+    solution = gridLevel(mesh, bcs, decomp, phys, gridSizes, restartFile, inp,
+                         residL2First);
 
-    // Initialize the whole mesh with ICs and assign ghost cells geometry
-    solution.resize(mesh.size());
-    for (auto ll = 0U; ll < mesh.size(); ++ll) {
-      solution[ll] =
-          procBlock(mesh[ll], decomp.ParentBlock(ll), bcs[ll], ll,
-                    decomp.Rank(ll), decomp.LocalPosition(ll), inp);
-      solution[ll].InitializeStates(inp, phys);
-      solution[ll].AssignGhostCellsGeom();
-    }
-    // if restart, get data from restart file
-    if (inp.IsRestart()) {
-      ReadRestart(solution, restartFile, decomp, inp, phys, residL2First,
-                  gridSizes);
-    }
-
-    // Swap geometry for connection BCs
-    for (auto &conn : connections) {
-      SwapGeomSlice(conn, solution[conn.BlockFirst()],
-                    solution[conn.BlockSecond()]);
-    }
-    // Get ghost cell edge data
-    for (auto &block : solution) {
-      block.AssignGhostCellsGeomEdge();
-    }
 
     // Get face centers of faces with viscous wall BC
-    viscFaces = GetViscousFaceCenters(solution);
+    viscFaces = GetViscousFaceCenters(solution.Blocks());
 
     cout << "Solution Initialized" << endl << endl;
     //---------------------------------------------------------------------
@@ -190,19 +165,12 @@ int main(int argc, char *argv[]) {
   // Send number of procBlocks to all processors
   SendNumProcBlocks(decomp.NumBlocksOnAllProc(), numProcBlock);
 
-  // Send procBlocks to appropriate processor
-  auto localSolution =
-      SendProcBlocks(solution, rank, numProcBlock, MPI_vec3d, MPI_vec3dMag,
-                     inp);
+  // Send gridLevels to appropriate processor
+  auto localSolution = solution.SendGridLevel(
+      rank, numProcBlock, MPI_vec3d, MPI_vec3dMag, MPI_connection, inp);
 
   // Update auxillary variables (temperature, viscosity, etc), cell widths
-  for (auto &block : localSolution) {
-    block.UpdateAuxillaryVariables(phys, false);
-    block.CalcCellWidths();
-  }
-
-  // Send connections to all processors
-  SendConnections(connections, MPI_connection);
+  localSolution.AuxillaryAndWidths(phys);
 
   // Broadcast viscous face centers to all processors
   BroadcastViscFaces(MPI_vec3d, viscFaces);
@@ -233,8 +201,8 @@ int main(int argc, char *argv[]) {
   }
 
   if (tree.Size() > 0) {
-    CalcWallDistance(localSolution, tree);
-    SwapWallDist(localSolution, connections, rank, inp.NumberGhostLayers());
+    localSolution.CalcWallDistance(tree);
+    localSolution.SwapWallDist(rank, inp.NumberGhostLayers());
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -247,14 +215,14 @@ int main(int argc, char *argv[]) {
 
   //-----------------------------------------------------------------------
   // Allocate array for flux jacobian
-  vector<matMultiArray3d> mainDiagonal(numProcBlock);
+  vector<matMultiArray3d> mainDiagonal;
   if (inp.IsImplicit()) {
-    ResizeArrays(localSolution, inp, mainDiagonal);
+    localSolution.ResizeMatrix(inp, numProcBlock, mainDiagonal);
   }
 
   // Send/recv solutions - necessary to get wall distances
-  GetProcBlocks(solution, localSolution, rank, MPI_uncoupledScalar,
-                MPI_vec3d, MPI_tensorDouble, inp);
+  solution.GetGridLevel(localSolution, rank, MPI_uncoupledScalar, MPI_vec3d,
+                        MPI_tensorDouble, inp);
 
   ofstream resFile;
   if (rank == ROOTP) {
@@ -270,10 +238,10 @@ int main(int argc, char *argv[]) {
     }
 
     // Write out cell centers grid file
-    WriteCellCenter(inp.GridName(), solution, decomp, inp);
+    WriteCellCenter(inp.GridName(), solution.Blocks(), decomp, inp);
 
     // Write out initial results
-    WriteFun(solution, phys, inp.IterationStart(), decomp, inp);
+    WriteFun(solution.Blocks(), phys, inp.IterationStart(), decomp, inp);
     WriteMeta(inp, inp.IterationStart());
   }
 
@@ -289,23 +257,23 @@ int main(int argc, char *argv[]) {
 
     // Store time-n solution, for time integration methods that require it
     if (inp.NeedToStoreTimeN()) {
-      AssignSolToTimeN(localSolution, phys);
+      localSolution.AssignSolToTimeN(phys);
       if (!inp.IsRestart() && inp.IsMultilevelInTime() && nn == 0) {
-        AssignSolToTimeNm1(localSolution);
+        localSolution.AssignSolToTimeNm1();
       }
     }
 
     // loop over nonlinear iterations
     for (auto mm = 0; mm < inp.NonlinearIterations(); mm++) {
       // Get boundary conditions for all blocks
-      GetBoundaryConditions(localSolution, inp, phys, connections, rank);
+      localSolution.GetBoundaryConditions(inp, phys, rank);
 
       // Calculate residual (RHS)
-      CalcResidual(localSolution, mainDiagonal, phys, inp, connections, rank,
-                   MPI_tensorDouble, MPI_vec3d);
+      localSolution.CalcResidual(mainDiagonal, phys, inp, rank,
+                                 MPI_tensorDouble, MPI_vec3d);
 
       // Calculate time step
-      CalcTimeStep(localSolution, inp);
+      localSolution.CalcTimeStep(inp);
 
       // Initialize residual variables
       // l2 norm residuals
@@ -313,10 +281,10 @@ int main(int argc, char *argv[]) {
       resid residLinf;  // linf residuals
       auto matrixResid = 0.0;
       if (inp.IsImplicit()) {
-        matrixResid = ImplicitUpdate(localSolution, mainDiagonal, inp, phys,
-                                     mm, residL2, residLinf, connections, rank);
+        matrixResid = localSolution.ImplicitUpdate(mainDiagonal, inp, phys, mm,
+                                                   residL2, residLinf, rank);
       } else {  // explicit time integration
-        ExplicitUpdate(localSolution, inp, phys, mm, residL2, residLinf);
+        localSolution.ExplicitUpdate(inp, phys, mm, residL2, residLinf);
       }
 
       // ----------------------------------------------------------------------
@@ -349,23 +317,23 @@ int main(int argc, char *argv[]) {
     // write out function file
     if (inp.WriteOutput(nn) || inp.WriteRestart(nn)) {
       // Send/recv solutions
-      GetProcBlocks(solution, localSolution, rank, MPI_uncoupledScalar,
-                    MPI_vec3d, MPI_tensorDouble, inp);
+      solution.GetGridLevel(localSolution, rank, MPI_uncoupledScalar, MPI_vec3d,
+                            MPI_tensorDouble, inp);
 
       if (rank == ROOTP && inp.WriteOutput(nn)) {
         cout << "writing out function file at iteration "
              << nn + inp.IterationStart()<< endl;
         // Write out function file
-        WriteFun(solution, phys, (nn + inp.IterationStart() + 1), decomp,
-                 inp);
+        WriteFun(solution.Blocks(), phys, (nn + inp.IterationStart() + 1),
+                 decomp, inp);
         WriteMeta(inp, (nn + inp.IterationStart() + 1));
       }
       if (rank == ROOTP && inp.WriteRestart(nn)) {
         cout << "writing out restart file at iteration "
              << nn + inp.IterationStart()<< endl;
         // Write out restart file
-        WriteRestart(solution, phys, (nn + inp.IterationStart() + 1), decomp,
-                     inp, residL2First);
+        WriteRestart(solution.Blocks(), phys, (nn + inp.IterationStart() + 1),
+                     decomp, inp, residL2First);
       }
     }
   }  // loop for time step -----------------------------------------------------

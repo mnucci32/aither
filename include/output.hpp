@@ -51,6 +51,7 @@ class resid;
 class input;
 class primitive;
 class residual;
+class gridLevel;
 
 // function definitions
 template<typename T>
@@ -69,7 +70,7 @@ void WriteWallMeta(const input &, const int &);
 
 void WriteRestart(const vector<procBlock> &, const physics &, const int &,
                   const decomposition &, const input &, const residual &);
-void ReadRestart(vector<procBlock> &, const string &, const decomposition &,
+void ReadRestart(gridLevel &, const string &, const decomposition &,
                  input &, const physics &, residual &,
                  const vector<vector3d<int>> &);
 

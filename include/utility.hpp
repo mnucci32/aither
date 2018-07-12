@@ -60,46 +60,12 @@ vector3d<double> ScalarGradGG(
     const vector3d<double> &, const double &);
 
 void SwapGeomSlice(connection &, procBlock &, procBlock &);
-
-void GetBoundaryConditions(vector<procBlock> &, const input &,
-                           const physics &phys, vector<connection> &,
-                           const int &);
-
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
-void CalcWallDistance(vector<procBlock> &, const kdtree &);
-
-void AssignSolToTimeN(vector<procBlock> &, const physics &phys);
-void AssignSolToTimeNm1(vector<procBlock> &);
-
-void ExplicitUpdate(vector<procBlock> &, const input &, const physics &phys,
-                    const int &, residual &, resid &);
-double ImplicitUpdate(vector<procBlock> &, vector<matMultiArray3d> &,
-                      const input &, const physics &phys, const int &,
-                      residual &, resid &, const vector<connection> &,
-                      const int &);
-
 void SwapImplicitUpdate(vector<blkMultiArray3d<varArray>> &,
                         const vector<connection> &, const int &, const int &);
-void SwapTurbVars(vector<procBlock> &, const vector<connection> &, const int &,
-                  const int &);
-void SwapWallDist(vector<procBlock> &, const vector<connection> &, const int &,
-                  const int &);
-void SwapEddyViscAndGradients(vector<procBlock> &, const vector<connection> &,
-                              const int &, const MPI_Datatype &,
-                              const MPI_Datatype &, const int &);
-
-void CalcResidual(vector<procBlock> &, vector<matMultiArray3d> &,
-                  const physics &phys, const input &,
-                  const vector<connection> &, const int &, const MPI_Datatype &,
-                  const MPI_Datatype &);
-
-void CalcTimeStep(vector<procBlock> &, const input &);
 
 // function to reorder block by hyperplanes
 vector<vector3d<int>> HyperplaneReorder(const int &, const int &, const int &);
-
-void ResizeArrays(const vector<procBlock> &, const input &,
-                  vector<matMultiArray3d> &);
 
 vector3d<double> TauNormal(const tensor<double> &, const vector3d<double> &,
                            const double &, const double &,

@@ -28,6 +28,7 @@
 #include "procBlock.hpp"           // procBlock
 #include "boundaryConditions.hpp"  // connection
 #include "resid.hpp"               // resid
+#include "gridLevel.hpp"
 #include "macros.hpp"
 
 using std::max_element;
@@ -183,21 +184,6 @@ void SendNumProcBlocks(const vector<int> &loadBal, int &numProcBlock) {
               MPI_COMM_WORLD);
 }
 
-// function to send each processor the vector of connections it needs to compute
-// its boundary conditions
-void SendConnections(vector<connection> &connections,
-                     const MPI_Datatype &MPI_connection) {
-  // first determine the number of connections and send that to all processors
-  auto numCon = static_cast<int>(connections.size());
-  MPI_Bcast(&numCon, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
-
-  connections.resize(numCon);  // allocate space to receive the connections
-
-  // broadcast all connections to all processors
-  MPI_Bcast(&connections[0], connections.size(), MPI_connection, ROOTP,
-            MPI_COMM_WORLD);
-}
-
 /* Function to set custom MPI datatypes to allow for easier data transmission */
 void SetDataTypesMPI(MPI_Datatype &MPI_vec3d,
                      MPI_Datatype &MPI_procBlockInts,
@@ -326,64 +312,6 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d,
 
   // free MPI datatype for tensor<double> class
   MPI_Type_free(&MPI_tensorDouble);
-}
-
-/* Function to send procBlocks to their appropriate processor. This function is
-called after the decomposition has been run. The procBlock data all
-resides on the ROOT processor. In this function, the ROOT processor packs the
-procBlocks and sends them to the appropriate processor. All the non-ROOT
-processors receive and unpack the data from ROOT. This is used to send the
-geometric block data from ROOT to all the processors at the beginning of the
-simulation.
-*/
-vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
-                                 const int &rank, const int &numProcBlock,
-                                 const MPI_Datatype &MPI_vec3d,
-                                 const MPI_Datatype &MPI_vec3dMag,
-                                 const input &inp) {
-  // blocks -- full vector of all procBlocks. This is only used on ROOT
-  //           processor, all other processors just need a dummy variable to
-  //           call the function
-  // rank -- processor rank. Used to determine if process should send or
-  //         receive
-  // numProcBlock -- number of procBlocks that the processor should have. (All
-  //                 processors may give different values).
-  // MPI_vec3d -- MPI_Datatype used for vector3d<double>  transmission
-  // MPI_vec3dMag -- MPI_Datatype used for unitVec3dMag<double>  transmission
-  // input -- input variables
-
-  // vector of procBlocks for each processor
-  vector<procBlock> localBlocks(numProcBlock);
-
-  //------------------------------------------------------------------------
-  //                                  ROOT
-  //------------------------------------------------------------------------
-  if (rank == ROOTP) {  // may have to pack and send data
-    // loop over ALL blocks
-    for (auto &blk : blocks) {
-      // no need to send data because it is already on root processor
-      if (blk.Rank() == ROOTP) {
-        localBlocks[blk.LocalPosition()] = blk;
-      } else {  // send data to receiving processors
-        // pack and send procBlock
-        blk.PackSendGeomMPI(MPI_vec3d, MPI_vec3dMag);
-      }
-    }
-    //--------------------------------------------------------------------------
-    //                                NON - ROOT
-    //--------------------------------------------------------------------------
-  } else {  // receive and unpack data (non-root)
-    for (auto ii = 0; ii < numProcBlock; ++ii) {
-      // recv and unpack procBlock
-      procBlock tempBlock;
-      tempBlock.RecvUnpackGeomMPI(MPI_vec3d, MPI_vec3dMag, inp);
-
-      // add procBlock to output vector
-      localBlocks[tempBlock.LocalPosition()] = tempBlock;
-    }
-  }
-
-  return localBlocks;
 }
 
 /* Function to send procBlocks to the root processor. In this function, the
