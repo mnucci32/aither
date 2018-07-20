@@ -44,6 +44,7 @@
 #include "fluxJacobian.hpp"
 #include "utility.hpp"
 #include "matMultiArray3d.hpp"
+#include "mgSolution.hpp"
 
 using std::cout;
 using std::cerr;
@@ -115,7 +116,7 @@ int main(int argc, char *argv[]) {
   // Nondimensionalize BC & IC data
   inp.NondimensionalizeStateData(phys.EoS());
 
-  gridLevel solution;
+  mgSolution solution(inp.MultiGridLevels());
   vector<vector3d<double>> viscFaces;
   // l2 norm residuals to normalize by
   residual residL2First(inp.NumEquations(), inp.NumSpecies());
@@ -145,12 +146,12 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
 
-    solution = gridLevel(mesh, bcs, decomp, phys, gridSizes, restartFile, inp,
-                         residL2First);
+    solution.ConstructFinestLevel(mesh, bcs, decomp, phys, gridSizes,
+                                  restartFile, inp, residL2First);
 
 
     // Get face centers of faces with viscous wall BC
-    viscFaces = GetViscousFaceCenters(solution.Blocks());
+    viscFaces = GetViscousFaceCenters(solution.Finest().Blocks());
 
     cout << "Solution Initialized" << endl << endl;
     //---------------------------------------------------------------------
@@ -165,9 +166,10 @@ int main(int argc, char *argv[]) {
   // Send number of procBlocks to all processors
   SendNumProcBlocks(decomp.NumBlocksOnAllProc(), numProcBlock);
 
-  // Send gridLevels to appropriate processor
-  auto localSolution = solution.SendGridLevel(
+  // Send finest gridLevel to appropriate processor
+  auto localSolution = solution.SendFinestGridLevel(
       rank, numProcBlock, MPI_vec3d, MPI_vec3dMag, MPI_connection, inp);
+  localSolution.ConstructMultigrids();
 
   // Update auxillary variables (temperature, viscosity, etc), cell widths
   localSolution.AuxillaryAndWidths(phys);
@@ -191,6 +193,7 @@ int main(int argc, char *argv[]) {
   }
 
   // Construct k-d tree for wall distance calculation
+  // Using finest grid level faces for all levels
   kdtree tree(viscFaces);
 
   if (rank == ROOTP) {
@@ -214,15 +217,12 @@ int main(int argc, char *argv[]) {
   }
 
   //-----------------------------------------------------------------------
-  // Allocate array for flux jacobian
-  vector<matMultiArray3d> mainDiagonal;
-  if (inp.IsImplicit()) {
-    localSolution.ResizeMatrix(inp, numProcBlock, mainDiagonal);
-  }
+  // Allocate array for flux jacobian if necessary
+  localSolution.ResizeMatrix(inp, numProcBlock);
 
   // Send/recv solutions - necessary to get wall distances
-  solution.GetGridLevel(localSolution, rank, MPI_uncoupledScalar, MPI_vec3d,
-                        MPI_tensorDouble, inp);
+  solution.GetFinestGridLevel(localSolution, rank, MPI_uncoupledScalar,
+                              MPI_vec3d, MPI_tensorDouble, inp);
 
   ofstream resFile;
   if (rank == ROOTP) {
@@ -238,10 +238,11 @@ int main(int argc, char *argv[]) {
     }
 
     // Write out cell centers grid file
-    WriteCellCenter(inp.GridName(), solution.Blocks(), decomp, inp);
+    WriteCellCenter(inp.GridName(), solution.Finest().Blocks(), decomp, inp);
 
     // Write out initial results
-    WriteFun(solution.Blocks(), phys, inp.IterationStart(), decomp, inp);
+    WriteFun(solution.Finest().Blocks(), phys, inp.IterationStart(), decomp,
+             inp);
     WriteMeta(inp, inp.IterationStart());
   }
 
@@ -252,28 +253,31 @@ int main(int argc, char *argv[]) {
   for (auto nn = 0; nn < inp.Iterations(); nn++) {
     MPI_Barrier(MPI_COMM_WORLD);
 
+    // Get multigrid level
+    const auto ll = 0;  // DEBUG
+
     // Calculate cfl number
     inp.CalcCFL(nn);
 
     // Store time-n solution, for time integration methods that require it
     if (inp.NeedToStoreTimeN()) {
-      localSolution.AssignSolToTimeN(phys);
+      localSolution[ll].AssignSolToTimeN(phys);
       if (!inp.IsRestart() && inp.IsMultilevelInTime() && nn == 0) {
-        localSolution.AssignSolToTimeNm1();
+        localSolution[ll].AssignSolToTimeNm1();
       }
     }
 
     // loop over nonlinear iterations
     for (auto mm = 0; mm < inp.NonlinearIterations(); mm++) {
       // Get boundary conditions for all blocks
-      localSolution.GetBoundaryConditions(inp, phys, rank);
+      localSolution[ll].GetBoundaryConditions(inp, phys, rank);
 
       // Calculate residual (RHS)
-      localSolution.CalcResidual(mainDiagonal, phys, inp, rank,
-                                 MPI_tensorDouble, MPI_vec3d);
+      localSolution[ll].CalcResidual(phys, inp, rank, MPI_tensorDouble,
+                                     MPI_vec3d);
 
       // Calculate time step
-      localSolution.CalcTimeStep(inp);
+      localSolution[ll].CalcTimeStep(inp);
 
       // Initialize residual variables
       // l2 norm residuals
@@ -281,10 +285,10 @@ int main(int argc, char *argv[]) {
       resid residLinf;  // linf residuals
       auto matrixResid = 0.0;
       if (inp.IsImplicit()) {
-        matrixResid = localSolution.ImplicitUpdate(mainDiagonal, inp, phys, mm,
-                                                   residL2, residLinf, rank);
+        matrixResid = localSolution[ll].ImplicitUpdate(inp, phys, mm, residL2,
+                                                       residLinf, rank);
       } else {  // explicit time integration
-        localSolution.ExplicitUpdate(inp, phys, mm, residL2, residLinf);
+        localSolution[ll].ExplicitUpdate(inp, phys, mm, residL2, residLinf);
       }
 
       // ----------------------------------------------------------------------
@@ -317,23 +321,24 @@ int main(int argc, char *argv[]) {
     // write out function file
     if (inp.WriteOutput(nn) || inp.WriteRestart(nn)) {
       // Send/recv solutions
-      solution.GetGridLevel(localSolution, rank, MPI_uncoupledScalar, MPI_vec3d,
-                            MPI_tensorDouble, inp);
+      solution.GetFinestGridLevel(localSolution, rank, MPI_uncoupledScalar,
+                                  MPI_vec3d, MPI_tensorDouble, inp);
 
       if (rank == ROOTP && inp.WriteOutput(nn)) {
         cout << "writing out function file at iteration "
              << nn + inp.IterationStart()<< endl;
         // Write out function file
-        WriteFun(solution.Blocks(), phys, (nn + inp.IterationStart() + 1),
-                 decomp, inp);
+        WriteFun(solution.Finest().Blocks(), phys,
+                 (nn + inp.IterationStart() + 1), decomp, inp);
         WriteMeta(inp, (nn + inp.IterationStart() + 1));
       }
       if (rank == ROOTP && inp.WriteRestart(nn)) {
         cout << "writing out restart file at iteration "
              << nn + inp.IterationStart()<< endl;
         // Write out restart file
-        WriteRestart(solution.Blocks(), phys, (nn + inp.IterationStart() + 1),
-                     decomp, inp, residL2First);
+        WriteRestart(solution.Finest().Blocks(), phys,
+                     (nn + inp.IterationStart() + 1), decomp, inp,
+                     residL2First);
       }
     }
   }  // loop for time step -----------------------------------------------------

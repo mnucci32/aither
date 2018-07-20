@@ -81,7 +81,7 @@ gridLevel gridLevel::SendGridLevel(const int& rank, const int& numProcBlock,
                                    const MPI_Datatype& MPI_vec3d,
                                    const MPI_Datatype& MPI_vec3dMag,
                                    const MPI_Datatype& MPI_connection,
-                                   const input& inp) {
+                                   const input& inp) const {
   // *this -- global gridLevel, only meaningful on ROOT processor
   // rank -- proc rank, used to determine if process should send or receive
   // numProcBlock -- number of procBlocks that the processor should have. (All
@@ -234,15 +234,20 @@ void gridLevel::ExplicitUpdate(const input& inp, const physics& phys,
   }
 }
 
-void gridLevel::ResizeMatrix(const input& inp, const int &numProcBlock,
-                             vector<matMultiArray3d>& jac) const {
-  const auto fluxJac = inp.IsBlockMatrix() ?
-      fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations()) :
-      fluxJacobian(1, std::min(1, inp.NumTurbEquations()));
+void gridLevel::ResizeMatrix(const input& inp, const int &numProcBlock) {
+  MSG_ASSERT(diagonal_.size() == 0,
+             "only call when matrix diagonal hasn't been allocated");
+  if (inp.IsImplicit()) {
+    const auto fluxJac =
+        inp.IsBlockMatrix()
+            ? fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations())
+            : fluxJacobian(1, std::min(1, inp.NumTurbEquations()));
 
-  jac.reserve(numProcBlock);
-  for (const auto &block : blocks_) {
-    jac.emplace_back(block.NumI(), block.NumJ(), block.NumK(), 0, fluxJac);
+    diagonal_.reserve(numProcBlock);
+    for (const auto& block : blocks_) {
+      diagonal_.emplace_back(block.NumI(), block.NumJ(), block.NumK(), 0,
+                             fluxJac);
+    }
   }
 }
 
@@ -357,12 +362,10 @@ void gridLevel::SwapEddyViscAndGradients(const int& rank,
   }
 }
 
-void gridLevel::CalcResidual(vector<matMultiArray3d>& mainDiagonal,
-                             const physics& phys, const input& inp,
+void gridLevel::CalcResidual(const physics& phys, const input& inp,
                              const int& rank,
                              const MPI_Datatype& MPI_tensorDouble,
                              const MPI_Datatype& MPI_vec3d) {
-  // mainDiagonal -- main diagonal of A matrix for implicit solve
   // phys -- physics models
   // inp -- input variables
   // rank -- processor rank
@@ -371,7 +374,7 @@ void gridLevel::CalcResidual(vector<matMultiArray3d>& mainDiagonal,
 
   for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
     // calculate residual
-    blocks_[bb].CalcResidualNoSource(phys, inp, mainDiagonal[bb]);
+    blocks_[bb].CalcResidualNoSource(phys, inp, diagonal_[bb]);
   }
   // swap mut & gradients calculated during residual calculation
   this->SwapEddyViscAndGradients(rank, MPI_tensorDouble, MPI_vec3d,
@@ -384,16 +387,14 @@ void gridLevel::CalcResidual(vector<matMultiArray3d>& mainDiagonal,
   if (inp.IsRANS() || phys.Chemistry()->IsReacting()) {
     for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
       // calculate source terms for residual
-      blocks_[bb].CalcSrcTerms(phys, inp, mainDiagonal[bb]);
+      blocks_[bb].CalcSrcTerms(phys, inp, diagonal_[bb]);
     }
   }
 }
 
-double gridLevel::ImplicitUpdate(vector<matMultiArray3d>& mainDiagonal,
-                                 const input& inp, const physics& phys,
+double gridLevel::ImplicitUpdate(const input& inp, const physics& phys,
                                  const int& mm, residual& residL2,
                                  resid& residLinf, const int& rank) {
-  // mainDiagonal -- main diagonal of A matrix for all blocks on processor
   // inp -- input variables
   // phys -- physics models
   // mm -- nonlinear iteration
@@ -407,13 +408,13 @@ double gridLevel::ImplicitUpdate(vector<matMultiArray3d>& mainDiagonal,
 
   // add volume and time term and calculate inverse of main diagonal
   for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
-    blocks_[bb].InvertDiagonal(mainDiagonal[bb], inp);
+    blocks_[bb].InvertDiagonal(diagonal_[bb], inp);
   }
 
   // initialize matrix update
   vector<blkMultiArray3d<varArray>> du(this->NumBlocks());
   for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
-    du[bb] = blocks_[bb].InitializeMatrixUpdate(inp, phys, mainDiagonal[bb]);
+    du[bb] = blocks_[bb].InitializeMatrixUpdate(inp, phys, diagonal_[bb]);
   }
 
   // Solve Ax=b with supported solver
@@ -433,7 +434,7 @@ double gridLevel::ImplicitUpdate(vector<matMultiArray3d>& mainDiagonal,
       // forward lu-sgs sweep
       for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
         blocks_[bb].LUSGS_Forward(reorder[bb], du[bb], phys, inp,
-                                  mainDiagonal[bb], ii);
+                                  diagonal_[bb], ii);
       }
 
       // swap updates for ghost cells
@@ -441,8 +442,8 @@ double gridLevel::ImplicitUpdate(vector<matMultiArray3d>& mainDiagonal,
 
       // backward lu-sgs sweep
       for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
-        matrixError += blocks_[bb].LUSGS_Backward(reorder[bb], du[bb], phys, inp,
-                                                 mainDiagonal[bb], ii);
+        matrixError += blocks_[bb].LUSGS_Backward(reorder[bb], du[bb], phys,
+                                                  inp, diagonal_[bb], ii);
       }
     }
   } else if (inp.MatrixSolver() == "dplur" || inp.MatrixSolver() == "bdplur") {
@@ -452,7 +453,7 @@ double gridLevel::ImplicitUpdate(vector<matMultiArray3d>& mainDiagonal,
 
       for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
         // Calculate correction (du)
-        matrixError += blocks_[bb].DPLUR(du[bb], phys, inp, mainDiagonal[bb]);
+        matrixError += blocks_[bb].DPLUR(du[bb], phys, inp, diagonal_[bb]);
       }
     }
   } else {
@@ -473,7 +474,7 @@ double gridLevel::ImplicitUpdate(vector<matMultiArray3d>& mainDiagonal,
     }
 
     // zero flux jacobians
-    mainDiagonal[bb].Zero();
+    diagonal_[bb].Zero();
   }
 
   return matrixError;

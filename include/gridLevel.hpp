@@ -40,6 +40,7 @@ class kdtree;
 class gridLevel {
   vector<procBlock> blocks_;
   vector<connection> connections_;
+  vector<matMultiArray3d> diagonal_;
 
  public:
   // Constructor
@@ -72,7 +73,8 @@ class gridLevel {
   gridLevel SendGridLevel(const int& rank, const int& numProcBlock,
                           const MPI_Datatype& MPI_vec3d,
                           const MPI_Datatype& MPI_vec3dMag,
-                          const MPI_Datatype& MPI_connection, const input& inp);
+                          const MPI_Datatype& MPI_connection,
+                          const input& inp) const;
   void GetGridLevel(const gridLevel& local, const int& rank,
                     const MPI_Datatype& MPI_uncoupledScalar,
                     const MPI_Datatype& MPI_vec3d,
@@ -84,11 +86,9 @@ class gridLevel {
   void CalcTimeStep(const input& inp);
   void ExplicitUpdate(const input& inp, const physics& phys, const int& mm,
                       residual& residL2, resid& residLinf);
-  double ImplicitUpdate(vector<matMultiArray3d>& mainDiagonal, const input& inp,
-                        const physics& phys, const int& mm, residual& residL2,
-                        resid& residLinf, const int& rank);
-  void ResizeMatrix(const input& inp, const int& numProcBlock,
-                    vector<matMultiArray3d>& jac) const;
+  double ImplicitUpdate(const input& inp, const physics& phys, const int& mm,
+                        residual& residL2, resid& residLinf, const int& rank);
+  void ResizeMatrix(const input& inp, const int& numProcBlock);
 
   void GetBoundaryConditions(const input& inp, const physics& phys,
                              const int& rank);
@@ -98,8 +98,7 @@ class gridLevel {
                                 const MPI_Datatype& MPI_tensorDouble,
                                 const MPI_Datatype& MPI_vec3d,
                                 const int& numGhosts);
-  void CalcResidual(vector<matMultiArray3d>& mainDiagonal, const physics& phys,
-                    const input& inp, const int& rank,
+  void CalcResidual(const physics& phys, const input& inp, const int& rank,
                     const MPI_Datatype& MPI_tensorDouble,
                     const MPI_Datatype& MPI_vec3d);
   void AuxillaryAndWidths(const physics& phys);

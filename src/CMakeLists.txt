@@ -43,6 +43,7 @@ set(sources
   limiter.cpp
   matMultiArray3d.cpp
   matrix.cpp
+  mgSolution.cpp
   output.cpp
   parallel.cpp
   plot3d.cpp
