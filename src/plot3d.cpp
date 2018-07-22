@@ -480,8 +480,8 @@ void plot3dBlock::Join(const plot3dBlock &blk, const string &dir) {
   plot3dBlock newBlk(iTot, jTot, kTot);
 
   newBlk.coords_.Insert(dir, {coords_.Start(dir), coords_.End(dir)}, coords_);
-
-  newBlk.coords_.Insert(dir, {coords_.End(dir), newBlk.coords_.End(dir)},
+  // lower and upper splits share one plane of nodes
+  newBlk.coords_.Insert(dir, {coords_.End(dir) - 1, newBlk.coords_.End(dir)},
                         blk.coords_);
   (*this) = newBlk;
 }

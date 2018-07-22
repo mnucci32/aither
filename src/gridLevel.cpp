@@ -44,7 +44,7 @@ gridLevel::gridLevel(const vector<plot3dBlock>& mesh,
                      const decomposition& decomp, const physics& phys,
                      const vector<vector3d<int>>& origGridSizes,
                      const string& restartFile, input& inp, residual& first) {
-  auto connections_ = GetConnectionBCs(bcs, mesh, decomp, inp);
+  connections_ = GetConnectionBCs(bcs, mesh, decomp, inp);
   blocks_.reserve(mesh.size());
   for (auto ll = 0U; ll < mesh.size(); ++ll) {
     blocks_.emplace_back(mesh[ll], decomp.ParentBlock(ll), bcs[ll], ll,
@@ -485,4 +485,39 @@ void gridLevel::AuxillaryAndWidths(const physics& phys) {
     block.UpdateAuxillaryVariables(phys, false);
     block.CalcCellWidths();
   }
+}
+
+gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
+                             const physics& phys) const {
+  // get plot3dBlocks and bcs for coarsened grid level
+  vector<plot3dBlock> coarseMesh;
+  coarseMesh.reserve(this->NumBlocks());
+  vector<boundaryConditions> coarseBCs;
+  coarseBCs.reserve(this->NumBlocks());
+  for (const auto& blk : blocks_) {
+    blk.GetCoarseMeshAndBCs(coarseMesh, coarseBCs);
+  }
+
+  gridLevel coarse;
+  coarse.connections_ = GetConnectionBCs(coarseBCs, coarseMesh, decomp, inp);
+  coarse.blocks_.reserve(coarseMesh.size());
+  for (auto ll = 0U; ll < coarseMesh.size(); ++ll) {
+    coarse.blocks_.emplace_back(coarseMesh[ll], blocks_[ll].ParentBlock(),
+                                coarseBCs[ll], ll, blocks_[ll].Rank(),
+                                blocks_[ll].LocalPosition(), inp);
+    coarse.blocks_.back().InitializeStates(inp, phys);
+    coarse.blocks_.back().AssignGhostCellsGeom();
+  }
+
+  // Swap geometry for connection BCs
+  for (auto& conn : coarse.connections_) {
+    SwapGeomSlice(conn, coarse.blocks_[conn.BlockFirst()],
+                  coarse.blocks_[conn.BlockSecond()]);
+  }
+  // Get ghost cell edge data
+  for (auto& block : coarse.blocks_) {
+    block.AssignGhostCellsGeomEdge();
+  }
+
+  return coarse;
 }

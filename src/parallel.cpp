@@ -734,6 +734,57 @@ void decomposition::PrintDiagnostics(const vector<plot3dBlock> &grid) const {
   }
 }
 
+void decomposition::Broadcast() { 
+  // broadcast rank
+  auto vecSize = rank_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  rank_.resize(vecSize);
+  MPI_Bcast(&(*std::begin(rank_)), vecSize, MPI_INT, ROOTP, MPI_COMM_WORLD);
+
+  // broadcast parent block
+  vecSize = parBlock_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  parBlock_.resize(vecSize);
+  MPI_Bcast(&(*std::begin(parBlock_)), vecSize, MPI_INT, ROOTP, MPI_COMM_WORLD);
+
+  // broadcast local position
+  vecSize = localPos_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  localPos_.resize(vecSize);
+  MPI_Bcast(&(*std::begin(localPos_)), vecSize, MPI_INT, ROOTP, MPI_COMM_WORLD);
+
+  // broadcast lower block split history
+  vecSize = splitHistBlkLow_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  splitHistBlkLow_.resize(vecSize);
+  MPI_Bcast(&(*std::begin(splitHistBlkLow_)), vecSize, MPI_INT, ROOTP,
+            MPI_COMM_WORLD);
+
+  // broadcast upper block split history
+  vecSize = splitHistBlkUp_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  splitHistBlkUp_.resize(vecSize);
+  MPI_Bcast(&(*std::begin(splitHistBlkUp_)), vecSize, MPI_INT, ROOTP,
+            MPI_COMM_WORLD);
+
+  // broadcast index split history
+  vecSize = splitHistIndex_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  splitHistIndex_.resize(vecSize);
+  MPI_Bcast(&(*std::begin(splitHistIndex_)), vecSize, MPI_INT, ROOTP,
+            MPI_COMM_WORLD);
+
+  // broadcast direction split history
+  vecSize = splitHistDir_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  splitHistDir_.resize(vecSize);
+  for (auto &dir : splitHistDir_) {
+    BroadcastString(dir);
+  }
+
+  // broadcast number of processors
+  MPI_Bcast(&numProcs_, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+}
 
 void BroadcastViscFaces(const MPI_Datatype &MPI_vec3d,
                         vector<vector3d<double>> &viscFaces) {

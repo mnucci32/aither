@@ -209,16 +209,16 @@ class procBlock {
     }
   }
 
-  int NumGhosts() const {return numGhosts_;}
-  int ParentBlock() const {return parBlock_;}
-  int LocalPosition() const {return localPos_;}
-  int Rank() const {return rank_;}
-  int GlobalPos() const {return globalPos_;}
-  bool IsViscous() const {return isViscous_;}
-  bool IsTurbulent() const {return isTurbulent_;}
-  bool IsRANS() const {return isRANS_;}
+  const int & NumGhosts() const {return numGhosts_;}
+  const int & ParentBlock() const {return parBlock_;}
+  const int & LocalPosition() const {return localPos_;}
+  const int & Rank() const {return rank_;}
+  const int & GlobalPos() const {return globalPos_;}
+  const bool & IsViscous() const {return isViscous_;}
+  const bool & IsTurbulent() const {return isTurbulent_;}
+  const bool & IsRANS() const {return isRANS_;}
 
-  boundaryConditions BC() const {return bc_;}
+  const boundaryConditions & BC() const {return bc_;}
 
   primitiveView State(const int &ii, const int &jj, const int &kk) const {
     return state_(ii, jj, kk);
@@ -246,12 +246,14 @@ class procBlock {
   varArray SolDeltaNm1(const int &, const int &, const int &,
                        const input &) const;
 
-  double Vol(const int &ii, const int &jj, const int &kk) const {
+  const double &Vol(const int &ii, const int &jj, const int &kk) const {
     return vol_(ii, jj, kk);
   }
-  vector3d<double> Node(const int &ii, const int &jj, const int &kk) const {
+  const vector3d<double> &Node(const int &ii, const int &jj,
+                               const int &kk) const {
     return nodes_.Coords(ii, jj, kk);
   }
+  const plot3dBlock &Nodes() const { return nodes_; }
   vector3d<double> Center(const int &ii, const int &jj, const int &kk) const {
     return center_(ii, jj, kk);
   }
@@ -276,36 +278,39 @@ class procBlock {
   double FAreaMagK(const int &ii, const int &jj, const int &kk) const {
     return fAreaK_(ii, jj, kk).Mag();
   }
-  unitVec3dMag<double> FAreaI(const int &ii, const int &jj,
-                              const int &kk) const {
+  const unitVec3dMag<double> &FAreaI(const int &ii, const int &jj,
+                                     const int &kk) const {
     return fAreaI_(ii, jj, kk);
   }
-  unitVec3dMag<double> FAreaJ(const int &ii, const int &jj,
-                              const int &kk) const {
+  const unitVec3dMag<double> &FAreaJ(const int &ii, const int &jj,
+                                     const int &kk) const {
     return fAreaJ_(ii, jj, kk);
   }
-  unitVec3dMag<double> FAreaK(const int &ii, const int &jj,
-                              const int &kk) const {
+  const unitVec3dMag<double> &FAreaK(const int &ii, const int &jj,
+                                     const int &kk) const {
     return fAreaK_(ii, jj, kk);
   }
 
-  vector3d<double> FCenterI(const int &ii, const int &jj, const int &kk) const {
+  const vector3d<double> &FCenterI(const int &ii, const int &jj,
+                                   const int &kk) const {
     return fCenterI_(ii, jj, kk);
   }
-  vector3d<double> FCenterJ(const int &ii, const int &jj, const int &kk) const {
+  const vector3d<double> &FCenterJ(const int &ii, const int &jj,
+                                   const int &kk) const {
     return fCenterJ_(ii, jj, kk);
   }
-  vector3d<double> FCenterK(const int &ii, const int &jj, const int &kk) const {
+  const vector3d<double> &FCenterK(const int &ii, const int &jj,
+                                   const int &kk) const {
     return fCenterK_(ii, jj, kk);
   }
 
-  double CellWidthI(const int &ii, const int &jj, const int &kk) const {
+  const double &CellWidthI(const int &ii, const int &jj, const int &kk) const {
     return cellWidthI_(ii, jj, kk);
   }
-  double CellWidthJ(const int &ii, const int &jj, const int &kk) const {
+  const double &CellWidthJ(const int &ii, const int &jj, const int &kk) const {
     return cellWidthJ_(ii, jj, kk);
   }
-  double CellWidthK(const int &ii, const int &jj, const int &kk) const {
+  const double &CellWidthK(const int &ii, const int &jj, const int &kk) const {
     return cellWidthK_(ii, jj, kk);
   }
   double MaxCellWidth(const int &ii, const int &jj, const int &kk) const {
@@ -317,37 +322,39 @@ class procBlock {
                     cellWidthK_(ii, jj, kk));
   }
 
-  uncoupledScalar SpectralRadius(const int &ii, const int &jj,
-                                 const int &kk) const {
+  const uncoupledScalar &SpectralRadius(const int &ii, const int &jj,
+                                        const int &kk) const {
     return specRadius_(ii, jj, kk);
   }
-  double Dt(const int &ii, const int &jj, const int &kk) const {
+  const double &Dt(const int &ii, const int &jj, const int &kk) const {
     return dt_(ii, jj, kk);
   }
-  double WallDist(const int &ii, const int &jj, const int &kk) const {
+  const double &WallDist(const int &ii, const int &jj, const int &kk) const {
     return wallDist_(ii, jj, kk);
   }
 
   residualView Residual(const int &ii, const int &jj, const int &kk) const {
     return residual_(ii, jj, kk);
   }
-  double Residual(const int &ii, const int &jj, const int &kk,
-                  const int &a) const {
+  const double &Residual(const int &ii, const int &jj, const int &kk,
+                         const int &a) const {
     return residual_(ii, jj, kk)[a];
   }
 
-  tensor<double> VelGrad(const int &ii, const int &jj, const int &kk) const {
+  const tensor<double> &VelGrad(const int &ii, const int &jj,
+                                const int &kk) const {
     return velocityGrad_(ii, jj, kk);
   }
-  vector3d<double> TempGrad(const int &ii, const int &jj, const int &kk) const {
+  const vector3d<double> &TempGrad(const int &ii, const int &jj,
+                                   const int &kk) const {
     return temperatureGrad_(ii, jj, kk);
   }
-  vector3d<double> DensityGrad(const int &ii, const int &jj,
-                               const int &kk) const {
+  const vector3d<double> &DensityGrad(const int &ii, const int &jj,
+                                      const int &kk) const {
     return densityGrad_(ii, jj, kk);
   }
-  vector3d<double> PressureGrad(const int &ii, const int &jj,
-                                const int &kk) const {
+  const vector3d<double> &PressureGrad(const int &ii, const int &jj,
+                                       const int &kk) const {
     return pressureGrad_(ii, jj, kk);
   }
   vector3d<double> TkeGrad(const int &ii, const int &jj, const int &kk) const {
@@ -362,7 +369,7 @@ class procBlock {
     return isMultiSpecies_ ? mixtureGrad_(ii, jj, kk, ll) : vector3d<double>();
   }
 
-  double Temperature(const int &ii, const int &jj, const int &kk) const {
+  const double &Temperature(const int &ii, const int &jj, const int &kk) const {
     return temperature_(ii, jj, kk);
   }
   double Viscosity(const int &ii, const int &jj, const int &kk) const {
@@ -540,6 +547,8 @@ class procBlock {
                  const int &kk) const {
     return wallData_[ss].WallSdr(ii, jj, kk);
   }
+  void GetCoarseMeshAndBCs(vector<plot3dBlock> &mesh,
+                           vector<boundaryConditions> &bcs) const;
 
   // destructor
   ~procBlock() noexcept {}

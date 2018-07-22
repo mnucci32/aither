@@ -45,13 +45,20 @@ mgSolution::mgSolution(const int &numLevels) {
 void mgSolution::ConstructFinestLevel(
     const vector<plot3dBlock>& mesh, const vector<boundaryConditions>& bcs,
     const decomposition& decomp, const physics& phys,
-    const vector<vector3d<int>>& origGridSizes, const string& restartFile,
+   const string& restartFile,
     input& inp, residual& first) {
   MSG_ASSERT(solution_.size() == 0U,
              "should only be called once to initialize");
   // inputs correspond to finest mesh
-  solution_.emplace_back(mesh, bcs, decomp, phys, origGridSizes, restartFile,
-                         inp, first);
+  // get original grid sizes (before decomposition)
+  vector<vector3d<int>> gridSizes;
+  gridSizes.reserve(mesh.size());
+  for (const auto& msh : mesh) {
+    gridSizes.emplace_back(msh.NumCellsI(), msh.NumCellsJ(), msh.NumCellsK());
+  }
+
+  solution_.emplace_back(mesh, bcs, decomp, phys, gridSizes, restartFile, inp,
+                         first);
 }
 
 mgSolution mgSolution::SendFinestGridLevel(const int& rank,
@@ -75,7 +82,13 @@ void mgSolution::GetFinestGridLevel(const mgSolution& local, const int& rank,
                             MPI_vec3d, MPI_tensorDouble, inp);
 }
 
-void mgSolution::ConstructMultigrids() {}
+void mgSolution::ConstructMultigrids(const decomposition& decomp,
+                                     const input& inp, const physics& phys) {
+  const auto numLevels = solution_.capacity();
+  while (solution_.size() < numLevels) {
+    solution_.push_back(solution_.back().Coarsen(decomp, inp, phys));
+  }
+}
 
 void mgSolution::AuxillaryAndWidths(const physics& phys) {
   for (auto& sol : solution_) {

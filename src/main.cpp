@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
   // Nondimensionalize BC & IC data
   inp.NondimensionalizeStateData(phys.EoS());
 
-  mgSolution solution(inp.MultiGridLevels());
+  mgSolution solution(1);  // only keep finest grid level globally
   vector<vector3d<double>> viscFaces;
   // l2 norm residuals to normalize by
   residual residL2First(inp.NumEquations(), inp.NumSpecies());
@@ -126,12 +126,6 @@ int main(int argc, char *argv[]) {
 
     // Read grid
     auto mesh = ReadP3dGrid(inp.GridName(), inp.LRef(), totalCells);
-    vector<vector3d<int>> gridSizes;
-    gridSizes.reserve(mesh.size());
-    for (const auto &msh : mesh) {
-      gridSizes.emplace_back(msh.NumCellsI(), msh.NumCellsJ(), msh.NumCellsK());
-    }
-
     // Get BCs for blocks
     auto bcs = inp.AllBC();
 
@@ -146,9 +140,8 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
 
-    solution.ConstructFinestLevel(mesh, bcs, decomp, phys, gridSizes,
-                                  restartFile, inp, residL2First);
-
+    solution.ConstructFinestLevel(mesh, bcs, decomp, phys, restartFile, inp,
+                                  residL2First);
 
     // Get face centers of faces with viscous wall BC
     viscFaces = GetViscousFaceCenters(solution.Finest().Blocks());
@@ -163,13 +156,16 @@ int main(int argc, char *argv[]) {
   SetDataTypesMPI(MPI_vec3d, MPI_procBlockInts, MPI_connection, MPI_DOUBLE_5INT,
                   MPI_vec3dMag, MPI_uncoupledScalar, MPI_tensorDouble);
 
+  // Broadcast decomposition to all processors
+  decomp.Broadcast();
+
   // Send number of procBlocks to all processors
   SendNumProcBlocks(decomp.NumBlocksOnAllProc(), numProcBlock);
 
   // Send finest gridLevel to appropriate processor
   auto localSolution = solution.SendFinestGridLevel(
       rank, numProcBlock, MPI_vec3d, MPI_vec3dMag, MPI_connection, inp);
-  localSolution.ConstructMultigrids();
+  localSolution.ConstructMultigrids(decomp, inp, phys);
 
   // Update auxillary variables (temperature, viscosity, etc), cell widths
   localSolution.AuxillaryAndWidths(phys);
@@ -254,30 +250,30 @@ int main(int argc, char *argv[]) {
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Get multigrid level
-    const auto ll = 0;  // DEBUG
+    const auto mg = 0;  // DEBUG
 
     // Calculate cfl number
     inp.CalcCFL(nn);
 
     // Store time-n solution, for time integration methods that require it
     if (inp.NeedToStoreTimeN()) {
-      localSolution[ll].AssignSolToTimeN(phys);
+      localSolution[mg].AssignSolToTimeN(phys);
       if (!inp.IsRestart() && inp.IsMultilevelInTime() && nn == 0) {
-        localSolution[ll].AssignSolToTimeNm1();
+        localSolution[mg].AssignSolToTimeNm1();
       }
     }
 
     // loop over nonlinear iterations
     for (auto mm = 0; mm < inp.NonlinearIterations(); mm++) {
       // Get boundary conditions for all blocks
-      localSolution[ll].GetBoundaryConditions(inp, phys, rank);
+      localSolution[mg].GetBoundaryConditions(inp, phys, rank);
 
       // Calculate residual (RHS)
-      localSolution[ll].CalcResidual(phys, inp, rank, MPI_tensorDouble,
+      localSolution[mg].CalcResidual(phys, inp, rank, MPI_tensorDouble,
                                      MPI_vec3d);
 
       // Calculate time step
-      localSolution[ll].CalcTimeStep(inp);
+      localSolution[mg].CalcTimeStep(inp);
 
       // Initialize residual variables
       // l2 norm residuals
@@ -285,10 +281,10 @@ int main(int argc, char *argv[]) {
       resid residLinf;  // linf residuals
       auto matrixResid = 0.0;
       if (inp.IsImplicit()) {
-        matrixResid = localSolution[ll].ImplicitUpdate(inp, phys, mm, residL2,
+        matrixResid = localSolution[mg].ImplicitUpdate(inp, phys, mm, residL2,
                                                        residLinf, rank);
       } else {  // explicit time integration
-        localSolution[ll].ExplicitUpdate(inp, phys, mm, residL2, residLinf);
+        localSolution[mg].ExplicitUpdate(inp, phys, mm, residL2, residLinf);
       }
 
       // ----------------------------------------------------------------------

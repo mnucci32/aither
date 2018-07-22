@@ -102,6 +102,8 @@ class gridLevel {
                     const MPI_Datatype& MPI_tensorDouble,
                     const MPI_Datatype& MPI_vec3d);
   void AuxillaryAndWidths(const physics& phys);
+  gridLevel Coarsen(const decomposition& decomp, const input& inp,
+                    const physics& phys) const;
 
   // Destructor
   ~gridLevel() noexcept {}

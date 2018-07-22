@@ -59,10 +59,10 @@ class mgSolution {
   void ConstructFinestLevel(const vector<plot3dBlock>& mesh,
                             const vector<boundaryConditions>& bcs,
                             const decomposition& decomp, const physics& phys,
-                            const vector<vector3d<int>>& origGridSizes,
                             const string& restartFile, input& inp,
                             residual& first);
-  void ConstructMultigrids();
+  void ConstructMultigrids(const decomposition& decomp, const input& inp,
+                           const physics& phys);
   mgSolution SendFinestGridLevel(const int& rank, const int& numProcBlock,
                                  const MPI_Datatype& MPI_vec3d,
                                  const MPI_Datatype& MPI_vec3dMag,

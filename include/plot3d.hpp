@@ -85,16 +85,17 @@ class plot3dBlock {
   int NumCells() const {
     return this->NumCellsI() * this->NumCellsJ() * this->NumCellsK();
   }
-  double X(const int &ii, const int &jj, const int &kk) const {
+  const double &X(const int &ii, const int &jj, const int &kk) const {
     return coords_(ii, jj, kk)[0];
   }
-  double Y(const int &ii, const int &jj, const int &kk) const {
+  const double &Y(const int &ii, const int &jj, const int &kk) const {
     return coords_(ii, jj, kk)[1];
   }
-  double Z(const int &ii, const int &jj, const int &kk) const {
+  const double &Z(const int &ii, const int &jj, const int &kk) const {
     return coords_(ii, jj, kk)[2];
   }
-  vector3d<double> Coords(const int &ii, const int &jj, const int &kk) const {
+  const vector3d<double> &Coords(const int &ii, const int &jj,
+                                 const int &kk) const {
     return coords_(ii, jj, kk);
   }
 

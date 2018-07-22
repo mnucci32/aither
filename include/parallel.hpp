@@ -105,6 +105,7 @@ class decomposition {
   template <typename T>
   void DecompArray(vector<blkMultiArray3d<T>> &) const;
   void PrintDiagnostics(const vector<plot3dBlock>&) const;
+  void Broadcast();
 
   // Destructor
   ~decomposition() noexcept {}
@@ -130,9 +131,7 @@ void FreeDataTypesMPI(MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
 void MaxLinf(resid*, resid*, int*, MPI_Datatype*);
 
 void BroadcastString(string& str);
-
 void BroadcastViscFaces(const MPI_Datatype&, vector<vector3d<double>> &);
-
 
 template <typename T>
 void decomposition::DecompArray(vector<blkMultiArray3d<T>> &arr) const {

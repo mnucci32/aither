@@ -5529,6 +5529,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
   newBlk.wallData_ = wallData_;
   newBlk.JoinWallData(blk.wallData_, dir);
+  newBlk.nodes_ = nodes_;
   newBlk.nodes_.Join(blk.nodes_, dir);
 
   // assign variables from lower block -----------------------------
@@ -7100,4 +7101,10 @@ void procBlock::JoinWallData(const vector<wallData> &upper, const string &dir) {
       wallData_.push_back(upper[ii]);
     }
   }
+}
+
+void procBlock::GetCoarseMeshAndBCs(vector<plot3dBlock> &mesh,
+                                    vector<boundaryConditions> &bcs) const {
+  mesh.push_back(this->Nodes());
+  bcs.push_back(this->BC());
 }
