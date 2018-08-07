@@ -7105,6 +7105,71 @@ void procBlock::JoinWallData(const vector<wallData> &upper, const string &dir) {
 
 void procBlock::GetCoarseMeshAndBCs(vector<plot3dBlock> &mesh,
                                     vector<boundaryConditions> &bcs) const {
-  mesh.push_back(this->Nodes());
   bcs.push_back(this->BC());
+
+  // determine the i-indices of the fine mesh to keep
+  vector<int> iIndex;
+  auto sinceLastKept = 0;
+  iIndex.reserve(nodes_.NumI() / 2);
+  for (auto ii = 0; ii < nodes_.NumI(); ++ii) {
+    // if index is part of a surface patch, need to keep it
+    if (bc_.IsSurfaceBoundary("i", ii)) {
+      iIndex.push_back(ii);
+      bcs.back().UpdateSurfacesForCoarseMesh("i", ii, iIndex.size() - 1);
+      sinceLastKept = 0;
+    } else if (sinceLastKept > 0) {
+      iIndex.push_back(ii);
+      sinceLastKept = 0;
+    } else {
+      sinceLastKept++;
+    }
+  }
+
+  // determine the j-indices of the fine mesh to keep
+  vector<int> jIndex;
+  sinceLastKept = 0;
+  jIndex.reserve(nodes_.NumJ() / 2);
+  for (auto jj = 0; jj < nodes_.NumJ(); ++jj) {
+    // if index is part of a surface patch, need to keep it
+    if (bc_.IsSurfaceBoundary("j", jj)) {
+      jIndex.push_back(jj);
+      bcs.back().UpdateSurfacesForCoarseMesh("j", jj, jIndex.size() - 1);
+      sinceLastKept = 0;
+    } else if (sinceLastKept > 0) {
+      jIndex.push_back(jj);
+      sinceLastKept = 0;
+    } else {
+      sinceLastKept++;
+    }
+  }
+
+  // determine the k-indices of the fine mesh to keep
+  vector<int> kIndex;
+  sinceLastKept = 0;
+  kIndex.reserve(nodes_.NumK() / 2);
+  for (auto kk = 0; kk < nodes_.NumK(); ++kk) {
+    // if index is part of a surface patch, need to keep it
+    if (bc_.IsSurfaceBoundary("k", kk)) {
+      kIndex.push_back(kk);
+      bcs.back().UpdateSurfacesForCoarseMesh("k", kk, kIndex.size() - 1);
+      sinceLastKept = 0;
+    } else if (sinceLastKept > 0) {
+      kIndex.push_back(kk);
+      sinceLastKept = 0;
+    } else {
+      sinceLastKept++;
+    }
+  }
+
+  multiArray3d<vector3d<double>> coarseNodes(iIndex.size(), jIndex.size(),
+                                             kIndex.size(), 0);
+  for (auto kk = coarseNodes.StartK(); kk < coarseNodes.EndK(); ++kk) {
+    for (auto jj = coarseNodes.StartJ(); jj < coarseNodes.EndJ(); ++jj) {
+      for (auto ii = coarseNodes.StartI(); ii < coarseNodes.EndI(); ++ii) {
+        coarseNodes(ii, jj, kk) =
+            this->Node(iIndex[ii], jIndex[jj], kIndex[kk]);
+      }
+    }
+  }
+  mesh.emplace_back(coarseNodes);
 }

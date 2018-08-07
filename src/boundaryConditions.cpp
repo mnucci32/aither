@@ -1108,6 +1108,38 @@ vector<pair<boundarySurface, boundarySurface>> boundaryConditions::CGridPairs(
   return pairs;
 }
 
+bool boundaryConditions::IsSurfaceBoundary(const string &dir,
+                                           const int &ind) const {
+  MSG_ASSERT(dir == "i" || dir == "j" || dir == "k",
+             "direction not recognized");
+  auto isBoundary = false;
+  if (dir == "i") {
+    isBoundary = std::any_of(std::begin(surfs_), std::end(surfs_),
+                             [&ind](const auto &surf) {
+                               return surf.IMin() == ind || surf.IMax() == ind;
+                             });
+  } else if (dir == "j") {
+    isBoundary = std::any_of(std::begin(surfs_), std::end(surfs_),
+                             [&ind](const auto &surf) {
+                               return surf.JMin() == ind || surf.JMax() == ind;
+                             });
+  } else {
+    isBoundary = std::any_of(std::begin(surfs_), std::end(surfs_),
+                             [&ind](const auto &surf) {
+                               return surf.KMin() == ind || surf.KMax() == ind;
+                             });
+  }
+  return isBoundary;
+}
+
+void boundaryConditions::UpdateSurfacesForCoarseMesh(const string &dir,
+                                                     const int &oldIndex,
+                                                     const int &newIndex) {
+  for (auto &surf : surfs_) {
+    surf.UpdateForCoarseMesh(dir, oldIndex, newIndex);
+  }
+}
+
 /* Member function to split boundary conditions along a given direction at a
    given index. The calling instance retains the lower portion of the split,
    and the returned instance is the upper portion. */
@@ -2347,6 +2379,34 @@ int boundarySurface::PartnerSurface() const {
     }
 
     return surf;
+  }
+}
+
+void boundarySurface::UpdateForCoarseMesh(const string &dir, const int &oldInd,
+                                          const int &newInd) {
+  MSG_ASSERT(dir == "i" || dir == "j" || dir == "k",
+             "direction not recognized");
+  if (dir == "i") {
+    if (this->IMin() == oldInd) {
+      data_[0] = newInd;
+    }
+    if (this->IMax() == oldInd) {
+      data_[1] = newInd;
+    }
+  } else if (dir == "j") {
+    if (this->JMin() == oldInd) {
+      data_[2] = newInd;
+    }
+    if (this->JMax() == oldInd) {
+      data_[3] = newInd;
+    }
+  } else {
+    if (this->KMin() == oldInd) {
+      data_[4] = newInd;
+    }
+    if (this->KMax() == oldInd) {
+      data_[5] = newInd;
+    }
   }
 }
 

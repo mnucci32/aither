@@ -94,6 +94,7 @@ class input {
   int iterationStart_;  // starting number for iterations
   double schmidtNumber_;  // schmidt number for species diffusion
   double freezingTemperature_;  // temperature below which reactions cease
+  int mgLevels_;  // number of multigrid levels
 
   set<string> outputVariables_;  // variables to output
   set<string> wallOutputVariables_;  // wall variables to output
@@ -264,7 +265,7 @@ class input {
   double SchmidtNumber() const { return schmidtNumber_; }
   double FreezingTemperature() const { return freezingTemperature_; }
 
-  int MultiGridLevels() const { return 1; }  // DEBUG -- add real value
+  int MultigridLevels() const { return mgLevels_; }
 
   // destructor
   ~input() noexcept {}

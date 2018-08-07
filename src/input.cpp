@@ -94,6 +94,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   iterationStart_ = 0;  // default to start from iteration zero
   schmidtNumber_ = 0.9;
   freezingTemperature_ = 0.0;
+  mgLevels_ = 1;
 
   // default to primitive variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
@@ -138,6 +139,7 @@ input::input(const string &name, const string &resName) : simName_(name),
            "initialConditions",
            "schmidtNumber",
            "freezingTemperature",
+           "multigridLevels",
            "boundaryStates",
            "boundaryConditions"};
 }
@@ -421,6 +423,11 @@ void input::ReadInput(const int &rank) {
           freezingTemperature_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
             cout << key << ": " << this->FreezingTemperature() << endl;
+          }
+        } else if (key == "multigridLevels") {
+          mgLevels_ = stoi(tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << ": " << this->MultigridLevels() << endl;
           }
         } else if (key == "outputVariables") {
           // clear default variables from set

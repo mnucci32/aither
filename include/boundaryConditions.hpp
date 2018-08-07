@@ -144,6 +144,8 @@ class boundarySurface {
   bool operator!=(const boundarySurface &s) const { return !(*this == s); };
   bool operator<(const boundarySurface &s) const;
 
+  void UpdateForCoarseMesh(const string &, const int &, const int &);
+
   // Destructor
   ~boundarySurface() noexcept {}
 };
@@ -308,6 +310,9 @@ class boundaryConditions {
   void UnpackBC(char*(&), const int&, int&);
 
   vector<pair<boundarySurface, boundarySurface>> CGridPairs(const int &) const;
+
+  bool IsSurfaceBoundary(const string &, const int &) const;
+  void UpdateSurfacesForCoarseMesh(const string &, const int &, const int &);
 
   // Destructor
   ~boundaryConditions() noexcept {}

@@ -67,7 +67,7 @@ mgSolution mgSolution::SendFinestGridLevel(const int& rank,
                                            const MPI_Datatype& MPI_vec3dMag,
                                            const MPI_Datatype& MPI_connection,
                                            const input& inp) const {
-  mgSolution local(inp.MultiGridLevels());
+  mgSolution local(inp.MultigridLevels());
   local.solution_.emplace_back(this->Finest().SendGridLevel(
       rank, numProcBlock, MPI_vec3d, MPI_vec3dMag, MPI_connection, inp));
   return local;
