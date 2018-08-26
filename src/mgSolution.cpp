@@ -40,7 +40,6 @@ mgSolution::mgSolution(const int &numLevels) {
   solution_.reserve(numLevels);
 }
 
-
 // member functions
 void mgSolution::ConstructFinestLevel(
     const vector<plot3dBlock>& mesh, const vector<boundaryConditions>& bcs,
@@ -111,5 +110,48 @@ void mgSolution::SwapWallDist(const int& rank, const int& numGhosts) {
 void mgSolution::ResizeMatrix(const input& inp, const int& numProcBlock) {
   for (auto &sol : solution_) {
     sol.ResizeMatrix(inp, numProcBlock);
+  }
+}
+
+// multigrid restriction - fine grid to coarse grid operator
+void mgSolution::Restriction(const int &fi) {
+  MSG_ASSERT(fi >= 0 && fi < static_cast<int>(solution_.size() - 1),
+             "index for restriction out of range");
+  solution_[fi].Restriction(solution_[fi + 1]);
+}
+
+// multigrid prolongation - coarse grid to fine grid operator
+void mgSolution::Prolongation(const int &ci) {
+  MSG_ASSERT(ci > 0 && ci < static_cast<int>(solution_.size()),
+             "index for prolongation out of range");
+  solution_[ci].Prolongation(solution_[ci - 1]);
+}
+
+void mgSolution::MultigridCycle(const int &sl) {
+  // sl -- index for grid level at which final solution obtained
+  MSG_ASSERT(sl > 0 && sl < static_cast<int>(solution_.size()),
+             "index for multigrid cycle out of range");
+
+  // start with given coarse mesh, prolong to next finest working mesh level
+  this->Prolongation(sl);
+  const auto wl = sl - 1;
+
+  // run relaxation sweeps on working mesh level
+
+  // restrict and run relaxation sweeps on all levels down to coarsest
+  for (auto ii = wl; ii < this->NumGridLevels(); ++ii) {
+    this->Restriction(ii);
+  }
+
+  // prolong and run relaxation sweeps on all levels up to working level
+  for (auto ii = this->NumGridLevels() - 1; ii >= wl; --ii) {
+    this->Prolongation(ii);
+  }
+}
+
+void mgSolution::FullMultigridCycle() {
+  // solve a multigrid cyle at each coarse level for FMG
+  for (auto ii = this->NumGridLevels() - 1; ii > 0; --ii) {
+    this->MultigridCycle(ii);
   }
 }

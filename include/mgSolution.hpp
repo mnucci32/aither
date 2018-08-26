@@ -19,6 +19,8 @@
 
 #include <vector>
 #include "gridLevel.hpp"
+#include "vector3d.hpp"
+#include "multiArray3d.hpp"
 
 using std::vector;
 
@@ -34,6 +36,11 @@ class kdtree;
 
 class mgSolution {
   vector<gridLevel> solution_;
+
+  // private member functions
+  void Restriction(const int&);
+  void Prolongation(const int&);
+  void MultigridCycle(const int&);
 
  public:
   // Constructor
@@ -77,6 +84,7 @@ class mgSolution {
   void CalcWallDistance(const kdtree& tree);
   void SwapWallDist(const int& rank, const int& numGhosts);
   void ResizeMatrix(const input& inp, const int& numProcBlock);
+  void FullMultigridCycle();
 
   // Destructor
   ~mgSolution() noexcept {}

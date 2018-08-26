@@ -548,7 +548,14 @@ class procBlock {
     return wallData_[ss].WallSdr(ii, jj, kk);
   }
   void GetCoarseMeshAndBCs(vector<plot3dBlock> &mesh,
-                           vector<boundaryConditions> &bcs) const;
+                           vector<boundaryConditions> &bcs,
+                           vector<multiArray3d<vector3d<int>>> &toCoarse,
+                           vector<multiArray3d<double>> &volFac) const;
+  void Restriction(procBlock &coarse,
+                   const multiArray3d<vector3d<int>> &toCoarse,
+                   const multiArray3d<double> &volFac) const;
+  void Prolongation(procBlock &fine,
+                    const multiArray3d<vector3d<int>> &toCoarse) const;
 
   // destructor
   ~procBlock() noexcept {}

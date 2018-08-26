@@ -42,6 +42,16 @@ class gridLevel {
   vector<connection> connections_;
   vector<matMultiArray3d> diagonal_;
 
+  // during restriction, traverse fine grid values in lexigraphical order,
+  // applying volume weight factor, and adding to coarse grid, also in
+  // lexigraphical order -- can use multArray3d<>
+  // -----
+  // during prolongation, traverse fine grid values in lexigraphical order,
+  // use multiArray3d<> to get coarse grid index, then can use neighboring
+  // coarse grid cells for trilinear interpolation
+  vector<multiArray3d<vector3d<int>>> toCoarse_;
+  vector<multiArray3d<double>> volWeightFactor_;
+
  public:
   // Constructor
   gridLevel(const vector<plot3dBlock>& mesh,
@@ -103,7 +113,9 @@ class gridLevel {
                     const MPI_Datatype& MPI_vec3d);
   void AuxillaryAndWidths(const physics& phys);
   gridLevel Coarsen(const decomposition& decomp, const input& inp,
-                    const physics& phys) const;
+                    const physics& phys);
+  void Restriction(gridLevel& coarse) const;
+  void Prolongation(gridLevel& fine) const;
 
   // Destructor
   ~gridLevel() noexcept {}

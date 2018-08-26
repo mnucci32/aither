@@ -488,14 +488,16 @@ void gridLevel::AuxillaryAndWidths(const physics& phys) {
 }
 
 gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
-                             const physics& phys) const {
+                             const physics& phys) {
   // get plot3dBlocks and bcs for coarsened grid level
   vector<plot3dBlock> coarseMesh;
   coarseMesh.reserve(this->NumBlocks());
   vector<boundaryConditions> coarseBCs;
   coarseBCs.reserve(this->NumBlocks());
+  toCoarse_.reserve(this->NumBlocks());
+  volWeightFactor_.reserve(this->NumBlocks());
   for (const auto& blk : blocks_) {
-    blk.GetCoarseMeshAndBCs(coarseMesh, coarseBCs);
+    blk.GetCoarseMeshAndBCs(coarseMesh, coarseBCs, toCoarse_, volWeightFactor_);
   }
 
   gridLevel coarse;
@@ -520,4 +522,21 @@ gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
   }
 
   return coarse;
+}
+
+void gridLevel::Restriction(gridLevel& coarse) const {
+  MSG_ASSERT(blocks_.size() == coarse.blocks_.size(),
+             "gridLevel size mismatch");
+  for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
+    blocks_[ii].Restriction(coarse.blocks_[ii], toCoarse_[ii],
+                            volWeightFactor_[ii]);
+  }
+}
+
+void gridLevel::Prolongation(gridLevel& fine) const {
+  MSG_ASSERT(blocks_.size() == fine.blocks_.size(),
+             "gridLevel size mismatch");
+  for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
+    blocks_[ii].Prolongation(fine.blocks_[ii], fine.toCoarse_[ii]);
+  }
 }

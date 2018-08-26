@@ -19,6 +19,8 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <utility>
+#include <map>
 #include "procBlock.hpp"
 #include "plot3d.hpp"              // plot3d
 #include "eos.hpp"                 // equation of state
@@ -7103,8 +7105,10 @@ void procBlock::JoinWallData(const vector<wallData> &upper, const string &dir) {
   }
 }
 
-void procBlock::GetCoarseMeshAndBCs(vector<plot3dBlock> &mesh,
-                                    vector<boundaryConditions> &bcs) const {
+void procBlock::GetCoarseMeshAndBCs(
+    vector<plot3dBlock> &mesh, vector<boundaryConditions> &bcs,
+    vector<multiArray3d<vector3d<int>>> &toCoarse,
+    vector<multiArray3d<double>> &volFac) const {
   bcs.push_back(this->BC());
 
   // determine the i-indices of the fine mesh to keep
@@ -7117,7 +7121,7 @@ void procBlock::GetCoarseMeshAndBCs(vector<plot3dBlock> &mesh,
       iIndex.push_back(ii);
       bcs.back().UpdateSurfacesForCoarseMesh("i", ii, iIndex.size() - 1);
       sinceLastKept = 0;
-    } else if (sinceLastKept > 0) {
+    } else if (sinceLastKept > 0) {  // keep every other index
       iIndex.push_back(ii);
       sinceLastKept = 0;
     } else {
@@ -7135,7 +7139,7 @@ void procBlock::GetCoarseMeshAndBCs(vector<plot3dBlock> &mesh,
       jIndex.push_back(jj);
       bcs.back().UpdateSurfacesForCoarseMesh("j", jj, jIndex.size() - 1);
       sinceLastKept = 0;
-    } else if (sinceLastKept > 0) {
+    } else if (sinceLastKept > 0) {  // keep every other index
       jIndex.push_back(jj);
       sinceLastKept = 0;
     } else {
@@ -7153,7 +7157,7 @@ void procBlock::GetCoarseMeshAndBCs(vector<plot3dBlock> &mesh,
       kIndex.push_back(kk);
       bcs.back().UpdateSurfacesForCoarseMesh("k", kk, kIndex.size() - 1);
       sinceLastKept = 0;
-    } else if (sinceLastKept > 0) {
+    } else if (sinceLastKept > 0) {  // keep every other index
       kIndex.push_back(kk);
       sinceLastKept = 0;
     } else {
@@ -7161,6 +7165,7 @@ void procBlock::GetCoarseMeshAndBCs(vector<plot3dBlock> &mesh,
     }
   }
 
+  // create plot3dBlk of coarse nodes
   multiArray3d<vector3d<double>> coarseNodes(iIndex.size(), jIndex.size(),
                                              kIndex.size(), 0);
   for (auto kk = coarseNodes.StartK(); kk < coarseNodes.EndK(); ++kk) {
@@ -7172,4 +7177,71 @@ void procBlock::GetCoarseMeshAndBCs(vector<plot3dBlock> &mesh,
     }
   }
   mesh.emplace_back(coarseNodes);
+
+  // create map of fine to coarse cells
+  toCoarse.emplace_back(this->NumI(), this->NumJ(), this->NumK(), 0);
+  // DEBUG -- add custom comparator
+  //std::multimap<vector3d<int>, vector3d<int>> fineToCoarse;
+  for (auto fk = this->StartK(); fk < this->EndK(); ++fk) {
+    for (auto fj = this->StartJ(); fj < this->EndJ(); ++fj) {
+      for (auto fi = this->StartI(); fi < this->EndI(); ++fi) {
+        // DEBUG
+        // find first i, j, k index >= fi, fj, fk
+        // auto ci = std::find_first(iIndex >= fi);  // face/node index
+        // if (ci != this->PhysStartI()) {ci--;}  // convert to cell index
+        auto ci = 0;
+        auto cj = 0;
+        auto ck = 0;
+        toCoarse.back()(fi, fj, fk) = {ci, cj, ck};
+        //fineToCoarse.insert(std::make_pair({fi, fj, fk}, {ci, cj, ck}));
+      }
+    }
+  }
+
+  // populate volume weighting factor
+  volFac.emplace_back(this->NumI(), this->NumJ(), this->NumK(), 0);
+  for (auto ck = coarseNodes.StartK(); ck < coarseNodes.EndK() - 1; ++ck) {
+    for (auto cj = coarseNodes.StartJ(); cj < coarseNodes.EndJ() - 1; ++cj) {
+      for (auto ci = coarseNodes.StartI(); ci < coarseNodes.EndI() - 1; ++ci) {
+        //auto range = fineToCoarse.find({ci, cj, ck});
+        // DEBUG -- iterate over range and sum all volumes that map to same
+        // coarse cell
+        auto vol = 1.0;
+        // DEBUG -- iterate over same loops and normalize fine volume by sum
+        //volFac(range.second) = vol_(range.second) / vol;
+      }
+    }
+  }
+}
+
+void procBlock::Restriction(procBlock &coarse,
+                            const multiArray3d<vector3d<int>> &toCoarse,
+                            const multiArray3d<double> &volFac) const {
+  // use volume weighted average
+  for (auto kk = this->StartK(); kk < this->EndK(); ++kk) {
+    for (auto jj = this->StartJ(); jj < this->EndJ(); ++jj) {
+      for (auto ii = this->StartI(); ii < this->EndI(); ++ii) {
+        const auto ci = toCoarse(ii, jj, kk);
+        auto resid = coarse.residual_(ci[0], ci[1], ci[2]) +
+                     volFac(ii, jj, kk) * residual_(ii, jj, kk);
+        coarse.residual_.InsertBlock(ci[0], ci[1], ci[2], resid);
+      }
+    }
+  }
+}
+
+void procBlock::Prolongation(
+    procBlock &fine, const multiArray3d<vector3d<int>> &toCoarse) const {
+  // use trilinear interpolation
+  for (auto kk = fine.StartK(); kk < fine.EndK(); ++kk) {
+    for (auto jj = fine.StartJ(); jj < fine.EndJ(); ++jj) {
+      for (auto ii = fine.StartI(); ii < fine.EndI(); ++ii) {
+        const auto ci = toCoarse(ii, jj, kk);
+        // DEBUG -- do interpolation here
+        auto resid = fine.residual_(ii, jj, kk) * 1.0;
+        fine.residual_.InsertBlock(ii, jj, kk, resid);
+      }
+    }
+  }
+
 }
