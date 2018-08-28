@@ -7180,8 +7180,18 @@ void procBlock::GetCoarseMeshAndBCs(
 
   // create map of fine to coarse cells
   toCoarse.emplace_back(this->NumI(), this->NumJ(), this->NumK(), 0);
-  // DEBUG -- add custom comparator
-  //std::multimap<vector3d<int>, vector3d<int>> fineToCoarse;
+  // custom comparator for vector3d<>
+  auto compareV3d = [](const auto &ll, const auto &rr) {
+    if (ll[0] != rr[0]) {
+      return ll[0] < rr[0];
+    } else if (ll[1] != rr[1]) {
+      return ll[1] < rr[1];
+    } else {
+      return ll[2] < rr[2];
+    }
+  };
+  std::multimap<vector3d<int>, vector3d<int>, decltype(compareV3d)>
+      fineToCoarse(compareV3d);
   for (auto fk = this->StartK(); fk < this->EndK(); ++fk) {
     for (auto fj = this->StartJ(); fj < this->EndJ(); ++fj) {
       for (auto fi = this->StartI(); fi < this->EndI(); ++fi) {
@@ -7193,7 +7203,8 @@ void procBlock::GetCoarseMeshAndBCs(
         auto cj = 0;
         auto ck = 0;
         toCoarse.back()(fi, fj, fk) = {ci, cj, ck};
-        //fineToCoarse.insert(std::make_pair({fi, fj, fk}, {ci, cj, ck}));
+        fineToCoarse.insert(std::make_pair(vector3d<int>(fi, fj, fk),
+                                           vector3d<int>(ci, cj, ck)));
       }
     }
   }
@@ -7203,12 +7214,17 @@ void procBlock::GetCoarseMeshAndBCs(
   for (auto ck = coarseNodes.StartK(); ck < coarseNodes.EndK() - 1; ++ck) {
     for (auto cj = coarseNodes.StartJ(); cj < coarseNodes.EndJ() - 1; ++cj) {
       for (auto ci = coarseNodes.StartI(); ci < coarseNodes.EndI() - 1; ++ci) {
-        //auto range = fineToCoarse.find({ci, cj, ck});
-        // DEBUG -- iterate over range and sum all volumes that map to same
-        // coarse cell
-        auto vol = 1.0;
-        // DEBUG -- iterate over same loops and normalize fine volume by sum
-        //volFac(range.second) = vol_(range.second) / vol;
+        auto range = fineToCoarse.equal_range({ci, cj, ck});
+        // iterate over range and sum all volumes that map to same coarse cell
+        auto volSum = 0.0;
+        for (auto ii = range.first; ii != range.second; ++ii) {
+          volSum += vol_(ii->second[0], ii->second[1], ii->second[2]);
+        }
+        // iterate over same loops and normalize fine volume by sum
+        for (auto ii = range.first; ii != range.second; ++ii) {
+          volFac.back()(ii->second[0], ii->second[1], ii->second[2]) =
+              vol_(ii->second[0], ii->second[1], ii->second[2]) / volSum;
+        }
       }
     }
   }
