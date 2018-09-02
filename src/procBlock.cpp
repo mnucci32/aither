@@ -7192,16 +7192,26 @@ void procBlock::GetCoarseMeshAndBCs(
   };
   std::multimap<vector3d<int>, vector3d<int>, decltype(compareV3d)>
       fineToCoarse(compareV3d);
+
   for (auto fk = this->StartK(); fk < this->EndK(); ++fk) {
     for (auto fj = this->StartJ(); fj < this->EndJ(); ++fj) {
       for (auto fi = this->StartI(); fi < this->EndI(); ++fi) {
-        // DEBUG
         // find first i, j, k index >= fi, fj, fk
-        // auto ci = std::find_first(iIndex >= fi);  // face/node index
-        // if (ci != this->PhysStartI()) {ci--;}  // convert to cell index
-        auto ci = 0;
-        auto cj = 0;
-        auto ck = 0;
+        int ci = std::distance(
+            std::begin(iIndex),
+            std::find_if(std::begin(iIndex), std::end(iIndex),
+                         [&fi](const auto &ind) { return ind >= fi; }));
+        if (ci != this->StartI()) {ci--;}  // convert to cell index
+        int cj = std::distance(
+            std::begin(jIndex),
+            std::find_if(std::begin(jIndex), std::end(jIndex),
+                         [&fj](const auto &ind) { return ind >= fj; }));
+        if (cj != this->StartJ()) {cj--;}  // convert to cell index
+        int ck = std::distance(
+            std::begin(kIndex),
+            std::find_if(std::begin(kIndex), std::end(kIndex),
+                         [&fk](const auto &ind) { return ind >= fk; }));
+        if (ck != this->StartK()) {ck--;}  // convert to cell index
         toCoarse.back()(fi, fj, fk) = {ci, cj, ck};
         fineToCoarse.insert(std::make_pair(vector3d<int>(fi, fj, fk),
                                            vector3d<int>(ci, cj, ck)));
