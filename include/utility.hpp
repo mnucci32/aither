@@ -179,5 +179,168 @@ T1 FindRoot(const T2 &func, T1 x1, T1 x2, const T1 &tol,
   return x4;
 }
 
+template <typename T>
+T CellToNode(const T &cellData) {
+  T nodeData(cellData.NumINoGhosts() + 1, cellData.NumJNoGhosts() + 1,
+             cellData.NumKNoGhosts() + 1, 0, cellData.BlockInfo());
+  if (cellData.GhostLayers() > 0) {
+    for (auto kk = cellData.PhysStartK() - 1; kk <= cellData.PhysEndK(); ++kk) {
+      for (auto jj = cellData.PhysStartJ() - 1; jj <= cellData.PhysEndJ();
+           ++jj) {
+        for (auto ii = cellData.PhysStartI() - 1; ii <= cellData.PhysEndI();
+             ++ii) {
+          if (cellData.IsPhysical(ii, jj, kk)) {
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj, kk, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj + 1, kk + 1, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii + 1, jj, kk, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii + 1, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii + 1, jj + 1, kk + 1, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii + 1, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
+            }
+          } else {
+            if (nodeData.IsInRange(ii, jj, kk)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii, jj, kk, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii, jj + 1, kk)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii, jj, kk + 1)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii, jj + 1, kk + 1)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii, jj + 1, kk + 1, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii + 1, jj, kk)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii + 1, jj, kk, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii + 1, jj + 1, kk)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii + 1, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii + 1, jj, kk + 1)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii + 1, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii + 1, jj + 1, kk + 1)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii + 1, jj + 1, kk + 1, bb) +=
+                    cellData(ii, jj, kk, bb);
+              }
+            }
+          }
+        }
+      }
+    }
+  } else {  // no ghost layers in cell data
+    for (auto kk = cellData.PhysStartK(); kk < cellData.PhysEndK(); ++kk) {
+      for (auto jj = cellData.PhysStartJ(); jj < cellData.PhysEndJ(); ++jj) {
+        for (auto ii = cellData.PhysStartI(); ii < cellData.PhysEndI(); ++ii) {
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii, jj, kk, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii, jj + 1, kk + 1, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii + 1, jj, kk, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii + 1, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii + 1, jj + 1, kk + 1, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii + 1, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
+          }
+        }
+      }
+    }
+  }
+  constexpr auto eighth = 1.0 / 8.0;
+  nodeData *= eighth;
+  return nodeData;
+}
+
+template <typename T>
+T TrilinearInterpolation(const vector3d<double> &il, const vector3d<double> &iu,
+                         const vector3d<double> &jl, const vector3d<double> &ju,
+                         const vector3d<double> &kl, const vector3d<double> &ku,
+                         const vector3d<double> &xc,
+                         const T &d1, const T &d2, const T &d3, const T &d4,
+                         const T &d5, const T &d6, const T &d7, const T &d8,
+                         const vector3d<double> &x) {
+  // 1 - bottom, left, aft
+  // 2 - bottom, left, fore
+  // 3 - bottom, right, aft
+  // 4 - bottom, right, fore
+  // 5 - top, left, aft
+  // 6 - top, left, fore
+  // 7 - top, right, aft
+  // 8 - top, right, fore
+
+  constexpr auto eighth = 1.0 / 8.0;
+  const auto intPt1 = -1.0 / sqrt(3.0);
+  const auto intPt2 = -intPt1;
+
+  // convert x to isoparametric coordinates
+  auto iNorm = 2.0 * (iu - il).Normalize() - 1.0;
+  auto jNorm = 2.0 * (ju - jl).Normalize() - 1.0;
+  auto kNorm = 2.0 * (ku - kl).Normalize() - 1.0;
+  // x = xc + iNorm * zeta + jNorm * eta + kNorm * mu
+  // zeta = (x - xc) / iNorm
+  auto zeta = -1.0;
+  auto eta = -1.0;
+  auto mu = -1.0;
+
+  auto shape =
+      (1.0 + zeta * intPt1) * (1.0 + eta * intPt1) * (1.0 + mu * intPt1) * d1 +
+      (1.0 + zeta * intPt1) * (1.0 + eta * intPt1) * (1.0 + mu * intPt2) * d2 +
+      (1.0 + zeta * intPt1) * (1.0 + eta * intPt2) * (1.0 + mu * intPt1) * d3 +
+      (1.0 + zeta * intPt1) * (1.0 + eta * intPt2) * (1.0 + mu * intPt2) * d4 +
+      (1.0 + zeta * intPt2) * (1.0 + eta * intPt1) * (1.0 + mu * intPt1) * d5 +
+      (1.0 + zeta * intPt2) * (1.0 + eta * intPt1) * (1.0 + mu * intPt2) * d6 +
+      (1.0 + zeta * intPt2) * (1.0 + eta * intPt2) * (1.0 + mu * intPt1) * d7 +
+      (1.0 + zeta * intPt2) * (1.0 + eta * intPt2) * (1.0 + mu * intPt2) * d8;
+  shape *= eighth;
+
+  return shape;
+}
+
 #endif
 

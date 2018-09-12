@@ -63,6 +63,8 @@ void WriteWallFaceCenter(const string &, const vector<procBlock> &,
                          const double &);
 void WriteFun(const vector<procBlock> &, const physics &phys, const int &,
               const decomposition &, const input &);
+void WriteNodeFun(const vector<procBlock> &, const physics &phys, const int &,
+                  const decomposition &, const input &);
 void WriteWallFun(const vector<procBlock> &, const physics &phys, const int &,
                   const input &);
 void WriteMeta(const input &, const int &);

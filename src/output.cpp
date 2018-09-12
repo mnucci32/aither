@@ -406,6 +406,134 @@ void WriteFun(const vector<procBlock> &vars, const physics &phys,
 }
 
 // function to write out variables in function file format
+void WriteNodeFun(const vector<procBlock> &vars, const physics &phys,
+                  const int &solIter, const decomposition &decomp,
+                  const input &inp) {
+  // recombine blocks into original structure
+  auto recombVars = Recombine(vars, decomp);
+  vector<blkMultiArray3d<primitive>> nodeState;
+  vector<blkMultiArray3d<residual>> nodeResid;
+  nodeState.reserve(recombVars.size());
+  nodeResid.reserve(recombVars.size());
+  for (const auto &vars : recombVars) {
+    nodeState.push_back(vars.StateCellToNode());
+    nodeResid.push_back(vars.ResidCellToNode());
+  }
+
+  // open binary plot3d function file
+  const string fPostfix = ".fun";
+  const auto writeName =
+      inp.SimNameRoot() + "_" + to_string(solIter) + fPostfix;
+  ofstream outFile(writeName, ios::out | ios::binary);
+
+  // check to see if file opened correctly
+  if (outFile.fail()) {
+    cerr << "ERROR: Function file " << writeName << " did not open correctly!!!"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  WriteBlockDims(outFile, nodeState, inp.NumVarsOutput());
+
+  // write out variables
+  auto ll = 0;
+  for (auto bb = 0U; bb < nodeState.size(); ++bb) {  // loop over all blocks
+    // loop over the number of variables to write out
+    for (auto &var : inp.OutputVariables()) {
+      // write out dimensional variables -- loop over physical cells
+      for (auto kk = nodeState[bb].StartK(); kk < nodeState[bb].EndK(); kk++) {
+        for (auto jj = nodeState[bb].StartJ(); jj < nodeState[bb].EndJ(); jj++) {
+          for (auto ii = nodeState[bb].StartI(); ii < nodeState[bb].EndI(); ii++) {
+            auto value = 0.0;
+            if (var == "density") {
+              value = nodeState[bb](ii, jj, kk).Rho();
+              value *= inp.RRef();
+            } else if (var == "vel_x") {
+              value = nodeState[bb](ii, jj, kk).U();
+              value *= inp.ARef();
+            } else if (var == "vel_y") {
+              value = nodeState[bb](ii, jj, kk).V();
+              value *= inp.ARef();
+            } else if (var == "vel_z") {
+              value = nodeState[bb](ii, jj, kk).W();
+              value *= inp.ARef();
+            } else if (var == "pressure") {
+              value = nodeState[bb](ii, jj, kk).P();
+              value *= inp.RRef() * inp.ARef() * inp.ARef();
+            } else if (var == "mach") {
+              auto vel = nodeState[bb](ii, jj, kk).Velocity();
+              value = vel.Mag() / nodeState[bb](ii, jj, kk).SoS(phys);
+            } else if (var == "sos") {
+              value = nodeState[bb](ii, jj, kk).SoS(phys);
+              value *= inp.ARef();
+            } else if (var == "energy") {
+              value = nodeState[bb](ii, jj, kk).Energy(phys);
+              value *= inp.ARef() * inp.ARef();
+            } else if (var == "enthalpy") {
+              value = nodeState[bb](ii, jj, kk).Enthalpy(phys);
+              value *= inp.ARef() * inp.ARef();
+            } else if (var == "tke") {
+              value = nodeState[bb](ii, jj, kk).Tke();
+              value *= inp.ARef() * inp.ARef();
+            } else if (var == "sdr") {
+              value = nodeState[bb](ii, jj, kk).Omega();
+              value *= inp.ARef() * inp.ARef() * inp.RRef() /
+                       phys.Transport()->MuRef();
+            } else if (var == "resid_mass") {
+              value = nodeResid[bb](ii, jj, kk, 0);
+              value *= inp.RRef() * inp.ARef() * inp.LRef() * inp.LRef();
+            } else if (var == "resid_mom_x") {
+              value = nodeResid[bb](ii, jj, kk, 1);
+              value *= inp.RRef() * inp.ARef() * inp.ARef() * inp.LRef() *
+                  inp.LRef();
+            } else if (var == "resid_mom_y") {
+              value = nodeResid[bb](ii, jj, kk, 2);
+              value *= inp.RRef() * inp.ARef() * inp.ARef() * inp.LRef() *
+                  inp.LRef();
+            } else if (var == "resid_mom_z") {
+              value = nodeResid[bb](ii, jj, kk, 3);
+              value *= inp.RRef() * inp.ARef() * inp.ARef() * inp.LRef() *
+                  inp.LRef();
+            } else if (var == "resid_energy") {
+              value = nodeResid[bb](ii, jj, kk, 4);
+              value *= inp.RRef() * pow(inp.ARef(), 3.0) * inp.LRef() *
+                  inp.LRef();
+            } else if (var == "resid_tke") {
+              value = nodeResid[bb](ii, jj, kk, 5);
+              value *= inp.RRef() * pow(inp.ARef(), 3.0) * inp.LRef() *
+                  inp.LRef();
+            } else if (var == "resid_sdr") {
+              value = nodeResid[bb](ii, jj, kk, 6);
+              value *= inp.RRef() * inp.RRef() * pow(inp.ARef(), 4.0) *
+                  inp.LRef() * inp.LRef() / phys.Transport()->MuRef();
+            } else if (var.substr(0, 3) == "mf_" &&
+                       inp.HaveSpecies(var.substr(3, string::npos))) {
+              auto ind = inp.SpeciesIndex(var.substr(3, string::npos));
+              value = nodeState[bb](ii, jj, kk).MassFractionN(ind);
+            } else if (var.substr(0, 3) == "vf_" &&
+                       inp.HaveSpecies(var.substr(3, string::npos))) {
+              auto ind = inp.SpeciesIndex(var.substr(3, string::npos));
+              value =
+                  nodeState[bb](ii, jj, kk).VolumeFractions(phys.Transport())[ind];
+            } else {
+              cerr << "ERROR: Variable " << var
+                   << " to write to node function file is not defined!" << endl;
+              exit(EXIT_FAILURE);
+            }
+
+            outFile.write(reinterpret_cast<char *>(&value), sizeof(value));
+          }
+        }
+      }
+    }
+    ll++;
+  }
+
+  // close plot3d function file
+  outFile.close();
+}
+
+// function to write out variables in function file format
 void WriteWallFun(const vector<procBlock> &vars, const physics &phys,
                   const int &solIter, const input &inp) {
   // open binary plot3d function file

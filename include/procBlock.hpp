@@ -37,6 +37,7 @@
 #include "macros.hpp"
 #include "uncoupledScalar.hpp"     // uncoupledScalar
 #include "wallData.hpp"
+#include "utility.hpp"
 
 using std::vector;
 using std::string;
@@ -556,6 +557,12 @@ class procBlock {
                    const multiArray3d<double> &volFac) const;
   void Prolongation(procBlock &fine,
                     const multiArray3d<vector3d<int>> &toCoarse) const;
+  blkMultiArray3d<primitive> StateCellToNode() const {
+    return CellToNode(state_);
+  }
+  blkMultiArray3d<residual> ResidCellToNode() const {
+    return CellToNode(residual_);
+  }
 
   // destructor
   ~procBlock() noexcept {}

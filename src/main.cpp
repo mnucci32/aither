@@ -239,6 +239,8 @@ int main(int argc, char *argv[]) {
     // Write out initial results
     WriteFun(solution.Finest().Blocks(), phys, inp.IterationStart(), decomp,
              inp);
+    WriteNodeFun(solution.Finest().Blocks(), phys, inp.IterationStart(), decomp,
+                 inp);
     WriteMeta(inp, inp.IterationStart());
   }
 
@@ -326,6 +328,8 @@ int main(int argc, char *argv[]) {
         // Write out function file
         WriteFun(solution.Finest().Blocks(), phys,
                  (nn + inp.IterationStart() + 1), decomp, inp);
+        WriteNodeFun(solution.Finest().Blocks(), phys,
+                     (nn + inp.IterationStart() + 1), decomp, inp);
         WriteMeta(inp, (nn + inp.IterationStart() + 1));
       }
       if (rank == ROOTP && inp.WriteRestart(nn)) {
