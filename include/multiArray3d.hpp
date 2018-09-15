@@ -1656,43 +1656,43 @@ bool multiArray3d<T>::AtGhostNonEdge(const int &ii, const int &jj,
 
   // at il ghost cells - i in ghost cell range, j/k in physical cells
   if (ii >= this->StartI() && ii < this->PhysStartI() &&
-      jj >= this->StartJ() && jj < this->EndJ() &&
-      kk >= this->StartK() && kk < this->EndK()) {
+      jj >= this->PhysStartJ() && jj < this->PhysEndJ() &&
+      kk >= this->PhysStartK() && kk < this->PhysEndK()) {
     atGhost = true;
     dir = "il";
     type = 1;
   // at jl - j in ghost cell range, i/k in physical cells
   } else if (jj >= this->StartJ() && jj < this->PhysStartJ() &&
-             ii >= this->StartI() && ii < this->EndI() &&
-             kk >= this->StartK() && kk < this->EndK()) {
+             ii >= this->PhysStartI() && ii < this->PhysEndI() &&
+             kk >= this->PhysStartK() && kk < this->PhysEndK()) {
     atGhost = true;
     dir = "jl";
     type = 3;
   // at kl - k in ghost cell range, i/j in physical cells
   } else if (kk >= this->StartK() && kk < this->PhysStartK() &&
-             jj >= this->StartJ() && jj < this->EndJ() &&
-             ii >= this->StartI() && ii < this->EndI()) {
+             jj >= this->PhysStartJ() && jj < this->PhysEndJ() &&
+             ii >= this->PhysStartI() && ii < this->PhysEndI()) {
     atGhost = true;
     dir = "kl";
     type = 5;
   // at iu ghost cells - i in ghost cell range, j/k in physical cells
   } else if (ii >= this->PhysEndI() && ii < this->EndI() &&
-             jj >= this->StartJ() && jj < this->EndJ() &&
-             kk >= this->StartK() && kk < this->EndK()) {
+             jj >= this->PhysStartJ() && jj < this->PhysEndJ() &&
+             kk >= this->PhysStartK() && kk < this->PhysEndK()) {
     atGhost = true;
     dir = "iu";
     type = 2;
   // at ju - j in ghost cell range, i/k in physical cells
   } else if (jj >= this->PhysEndJ() && jj < this->EndJ() &&
-             ii >= this->StartI() && ii < this->EndI() &&
-             kk >= this->StartK() && kk < this->EndK()) {
+             ii >= this->PhysStartI() && ii < this->PhysEndI() &&
+             kk >= this->PhysStartK() && kk < this->PhysEndK()) {
     atGhost = true;
     dir = "ju";
     type = 4;
   // at ku - k in ghost cell range, i/j in physical cells
   } else if (kk >= this->PhysEndK() && kk < this->EndK() &&
-             jj >= this->StartJ() && jj < this->EndJ() &&
-             ii >= this->StartI() && ii < this->EndI()) {
+             jj >= this->PhysStartJ() && jj < this->PhysEndJ() &&
+             ii >= this->PhysStartI() && ii < this->PhysEndI()) {
     atGhost = true;
     dir = "ku";
     type = 6;

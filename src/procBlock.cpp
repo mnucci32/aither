@@ -6581,6 +6581,8 @@ void procBlock::CalcWallDistance(const kdtree &tree) {
             } else {
               wallDist_(ii, jj, kk) = wallDist_(ii, jj, this->StartK());
             }
+            cerr << ii << ", " << jj << ", " << kk << ", "
+                 << wallDist_(ii, jj, kk) << endl;
           } else if (type == 6) {
             auto bcType = bc_.GetBCName(ii, jj, this->EndK(), type);
             if (bcType == "viscousWall") {
@@ -7126,13 +7128,28 @@ void procBlock::Prolongation(
 
 procBlock procBlock::CellToNode() const {
   procBlock nodeData;
+  // copy flags
+  nodeData.isViscous_ = isViscous_;
+  nodeData.isTurbulent_ = isTurbulent_;
+  nodeData.isRANS_ = isRANS_;
+  nodeData.isMultiSpecies_ = isMultiSpecies_;
+  // solution data
   nodeData.state_ = ConvertCellToNode(state_);
   nodeData.residual_ = ConvertCellToNode(residual_);
   nodeData.dt_ = ConvertCellToNode(dt_);
+  nodeData.wallDist_ = ConvertCellToNode(wallDist_);
   nodeData.temperature_ = ConvertCellToNode(temperature_);
   nodeData.viscosity_ = ConvertCellToNode(viscosity_);
   nodeData.eddyViscosity_ = ConvertCellToNode(eddyViscosity_);
   nodeData.f1_ = ConvertCellToNode(f1_);
   nodeData.f2_ = ConvertCellToNode(f2_);
+  // gradients
+  nodeData.velocityGrad_ = ConvertGradCellToNode(velocityGrad_);
+  nodeData.temperatureGrad_ = ConvertGradCellToNode(temperatureGrad_);
+  nodeData.densityGrad_ = ConvertGradCellToNode(densityGrad_);
+  nodeData.pressureGrad_ = ConvertGradCellToNode(pressureGrad_);
+  nodeData.tkeGrad_ = ConvertGradCellToNode(tkeGrad_);
+  nodeData.omegaGrad_ = ConvertGradCellToNode(omegaGrad_);
+  nodeData.mixtureGrad_ = ConvertGradCellToNode(mixtureGrad_);
   return nodeData;
 }
