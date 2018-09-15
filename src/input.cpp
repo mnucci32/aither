@@ -95,6 +95,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   schmidtNumber_ = 0.9;
   freezingTemperature_ = 0.0;
   mgLevels_ = 1;
+  outputNodalVariables_ = false;
 
   // default to primitive variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
@@ -135,6 +136,7 @@ input::input(const string &name, const string &resName) : simName_(name),
            "equationOfState",
            "transportModel",
            "outputVariables",
+           "outputNodalVariables",
            "wallOutputVariables",
            "initialConditions",
            "schmidtNumber",
@@ -428,6 +430,11 @@ void input::ReadInput(const int &rank) {
           mgLevels_ = stoi(tokens[1]);
           if (rank == ROOTP) {
             cout << key << ": " << this->MultigridLevels() << endl;
+          }
+        } else if (key == "outputNodalVariables") {
+          outputNodalVariables_ = tokens[1] == "yes" || tokens[1] == "true";
+          if (rank == ROOTP) {
+            cout << key << ": " << this->OutputNodalVariables() << endl;
           }
         } else if (key == "outputVariables") {
           // clear default variables from set

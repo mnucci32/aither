@@ -95,6 +95,7 @@ class input {
   double schmidtNumber_;  // schmidt number for species diffusion
   double freezingTemperature_;  // temperature below which reactions cease
   int mgLevels_;  // number of multigrid levels
+  bool outputNodalVariables_;
 
   set<string> outputVariables_;  // variables to output
   set<string> wallOutputVariables_;  // wall variables to output
@@ -187,6 +188,7 @@ class input {
   int OutputFrequency() const {return outputFrequency_;}
   int RestartFrequency() const {return restartFrequency_;}
   set<string> OutputVariables() const {return outputVariables_;}
+  bool OutputNodalVariables() const { return outputNodalVariables_; }
   set<string> WallOutputVariables() const {return wallOutputVariables_;}
 
   bool WriteOutput(const int &nn) const {return (nn + 1) % outputFrequency_ == 0;}

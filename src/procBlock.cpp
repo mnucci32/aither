@@ -3521,194 +3521,6 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
   this->AssignCornerGhostCells();
 }
 
-/* Member function to determine where in padded plot3dBlock an index is located.
-It takes in an i, j, k cell location and returns a boolean indicating
-if the given i, j, k location corresponds to a physical cell location.
- */
-bool procBlock::IsPhysical(const int &ii, const int &jj, const int &kk) const {
-  // ii -- i index of location to test
-  // jj -- j index of location to test
-  // kk -- k index of location to test
-
-  auto isPhysical = true;
-
-  // if any of (i, j, & k) are outside of the limits of physical cells, location
-  // is non-physical
-  if ((ii < 0 || ii >= this->NumI()) ||
-      (jj < 0 || jj >= this->NumJ()) ||
-      (kk < 0 || kk >= this->NumK())) {
-    isPhysical = false;
-  }
-
-  return isPhysical;
-}
-
-/* Member function to determine where in padded plot3dBlock an index is located.
-It takes in an i, j, k cell location and returns a boolean indicating
-if the given i, j, k location corresponds to a corner location. Corner locations
-are not used at all. This function is NOT USED in the code but is useful
-for debugging purposes.
- */
-bool procBlock::AtCorner(const int &ii, const int &jj, const int &kk) const {
-  // ii -- i index of location to test
-  // jj -- j index of location to test
-  // kk -- k index of location to test
-  // includeGhost -- flag to determine if inputs include ghost cells or not
-
-  auto atCorner = false;
-
-  // if all (i, j, & k) are outside of the limits of physical cells, location is
-  // a corner location
-  if ((ii < 0 || ii > this->NumI() - 1) &&
-      (jj < 0 || jj > this->NumJ() - 1) &&
-      (kk < 0 || kk > this->NumK() - 1)) {
-    atCorner = true;
-  }
-
-  return atCorner;
-}
-
-/* Member function to determine where in padded plot3dBlock an index is located.
-It takes in an i, j, k cell location and returns a boolean indicating
-if the given i, j, k location corresponds to a edge location. Edge locations are
-used in the gradient calculations.
- */
-bool procBlock::AtEdge(const int &ii, const int &jj, const int &kk,
-                       string &dir) const {
-  // ii -- i index of location to test
-  // jj -- j index of location to test
-  // kk -- k index of location to test
-  // dir -- direction that edge runs in
-
-  auto atEdge = false;
-
-  // at i-edge - i in physical cell range, j/k at first level of ghost cells
-  if ((ii >= 0 && ii < this->NumI()) &&
-      (jj == -1 || jj == this->NumJ()) &&
-      (kk == -1 || kk == this->NumK())) {
-    atEdge = true;
-    dir = "i";
-  // at j-edge - j in physical cell range, i/k at first level of ghost cells
-  } else if ((ii == -1 || ii == this->NumI()) &&
-             (jj >= 0 && jj < this->NumJ()) &&
-             (kk == -1 || kk == this->NumK())) {
-    atEdge = true;
-    dir = "j";
-  // at k-edge - k in physical cell range, i/j at first level of ghost cells
-  } else if ((ii == -1 || ii == this->NumI()) &&
-             (jj == -1 || jj == this->NumJ()) &&
-             (kk >= 0 && kk < this->NumK())) {
-    atEdge = true;
-    dir = "k";
-  }
-
-  return atEdge;
-}
-
-/* This member function differs from AtEdge in that it returns true for any
-   line of edge cells. In the example below, AtEdge returns true only for 1,
-   whereas AtEdgeInclusive returns true for 0, 1, 2, & 3.
-
-           |
-   ghost   | physical
-    ___ ___|__________
-   | 0 | 1 |
-   |___|___| ghost 
-   | 2 | 3 |
-   |___|___|
-   
-*/
-bool procBlock::AtEdgeInclusive(const int &ii, const int &jj, const int &kk,
-                                string &dir) const {
-  // ii -- i index of location to test
-  // jj -- j index of location to test
-  // kk -- k index of location to test
-  // dir -- direction that edge runs in
-
-  auto atEdge = false;
-
-  // at i-edge - i in physical cell range, j/k in ghost cells
-  if ((ii >= 0 && ii < this->NumI()) &&
-      (jj < 0 || jj >= this->NumJ()) &&
-      (kk < 0 || kk >= this->NumK())) {
-    atEdge = true;
-    dir = "i";
-  // at j-edge - j in physical cell range, i/k in ghost cells
-  } else if ((ii < 0 || ii >= this->NumI()) &&
-             (jj >= 0 && jj < this->NumJ()) &&
-             (kk < 0 || kk >= this->NumK())) {
-    atEdge = true;
-    dir = "j";
-  // at k-edge - k in physical cell range, i/j in ghost cells
-  } else if ((ii < 0 || ii >= this->NumI()) &&
-             (jj < 0 || jj >= this->NumJ()) &&
-             (kk >= 0 && kk < this->NumK())) {
-    atEdge = true;
-    dir = "k";
-  }
-
-  return atEdge;
-}
-
-// returns true if the given indices are for a regular ghost cell, and not an
-// edge ghost cell or physical cell. Also returns surface type of ghost cell
-bool procBlock::AtGhostNonEdge(const int &ii, const int &jj, const int &kk,
-                               string &dir, int &type) const {
-  // ii -- i index of location to test
-  // jj -- j index of location to test
-  // kk -- k index of location to test
-  // dir -- direction that edge runs in
-
-  auto atGhost = false;
-
-  // at il ghost cells - i in ghost cell range, j/k in physical cells
-  if (ii >= this->StartIG() && ii < this->StartI() &&
-      jj >= this->StartJG() && jj < this->EndJG() &&
-      kk >= this->StartKG() && kk < this->EndKG()) {
-    atGhost = true;
-    dir = "il";
-    type = 1;
-  // at jl - j in ghost cell range, i/k in physical cells
-  } else if (jj >= this->StartJG() && jj < this->StartJ() &&
-             ii >= this->StartIG() && ii < this->EndIG() &&
-             kk >= this->StartKG() && kk < this->EndKG()) {
-    atGhost = true;
-    dir = "jl";
-    type = 3;
-  // at kl - k in ghost cell range, i/j in physical cells
-  } else if (kk >= this->StartKG() && kk < this->StartK() &&
-             jj >= this->StartJG() && jj < this->EndJG() &&
-             ii >= this->StartIG() && ii < this->EndIG()) {
-    atGhost = true;
-    dir = "kl";
-    type = 5;
-  // at iu ghost cells - i in ghost cell range, j/k in physical cells
-  } else if (ii >= this->EndI() && ii < this->EndIG() &&
-             jj >= this->StartJG() && jj < this->EndJG() &&
-             kk >= this->StartKG() && kk < this->EndKG()) {
-    atGhost = true;
-    dir = "iu";
-    type = 2;
-  // at ju - j in ghost cell range, i/k in physical cells
-  } else if (jj >= this->EndJ() && jj < this->EndJG() &&
-             ii >= this->StartIG() && ii < this->EndIG() &&
-             kk >= this->StartKG() && kk < this->EndKG()) {
-    atGhost = true;
-    dir = "ju";
-    type = 4;
-  // at ku - k in ghost cell range, i/j in physical cells
-  } else if (kk >= this->EndK() && kk < this->EndKG() &&
-             jj >= this->StartJG() && jj < this->EndJG() &&
-             ii >= this->StartIG() && ii < this->EndIG()) {
-    atGhost = true;
-    dir = "ku";
-    type = 6;
-  }
-  
-  return atGhost;
-}
-
-
 /* Function to swap ghost cells between two blocks at an connection
 boundary. Slices are removed from the physical cells (extending into ghost cells
 at the edges) of one block and inserted into the ghost cells of its partner
@@ -7310,5 +7122,17 @@ void procBlock::Prolongation(
       }
     }
   }
+}
 
+procBlock procBlock::CellToNode() const {
+  procBlock nodeData;
+  nodeData.state_ = ConvertCellToNode(state_);
+  nodeData.residual_ = ConvertCellToNode(residual_);
+  nodeData.dt_ = ConvertCellToNode(dt_);
+  nodeData.temperature_ = ConvertCellToNode(temperature_);
+  nodeData.viscosity_ = ConvertCellToNode(viscosity_);
+  nodeData.eddyViscosity_ = ConvertCellToNode(eddyViscosity_);
+  nodeData.f1_ = ConvertCellToNode(f1_);
+  nodeData.f2_ = ConvertCellToNode(f2_);
+  return nodeData;
 }

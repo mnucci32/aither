@@ -237,11 +237,8 @@ int main(int argc, char *argv[]) {
     WriteCellCenter(inp.GridName(), solution.Finest().Blocks(), decomp, inp);
 
     // Write out initial results
-    WriteFun(solution.Finest().Blocks(), phys, inp.IterationStart(), decomp,
-             inp);
-    WriteNodeFun(solution.Finest().Blocks(), phys, inp.IterationStart(), decomp,
-                 inp);
-    WriteMeta(inp, inp.IterationStart());
+    WriteOutput(solution.Finest().Blocks(), phys, inp.IterationStart(), decomp,
+                inp);
   }
 
   // ----------------------------------------------------------------------
@@ -326,11 +323,8 @@ int main(int argc, char *argv[]) {
         cout << "writing out function file at iteration "
              << nn + inp.IterationStart()<< endl;
         // Write out function file
-        WriteFun(solution.Finest().Blocks(), phys,
-                 (nn + inp.IterationStart() + 1), decomp, inp);
-        WriteNodeFun(solution.Finest().Blocks(), phys,
-                     (nn + inp.IterationStart() + 1), decomp, inp);
-        WriteMeta(inp, (nn + inp.IterationStart() + 1));
+        WriteOutput(solution.Finest().Blocks(), phys,
+                    (nn + inp.IterationStart() + 1), decomp, inp);
       }
       if (rank == ROOTP && inp.WriteRestart(nn)) {
         cout << "writing out restart file at iteration "

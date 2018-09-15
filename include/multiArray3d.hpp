@@ -143,35 +143,14 @@ class multiArray3d {
     const auto kr = this->RangeK();
     return ir.IsInclusive(ii) && jr.IsInclusive(jj) && kr.IsInclusive(kk);
   }
-  bool IsPhysical(const int &ii, const int &jj, const int &kk) const {
-    // ii -- i index of location to test
-    // jj -- j index of location to test
-    // kk -- k index of location to test
-    auto isPhysical = true;
-    // if any of (i, j, & k) are outside of the limits of physical cells,
-    // location is non-physical
-    if ((ii < this->PhysStartI() || ii >= this->PhysEndI()) ||
-        (jj < this->PhysStartJ() || jj >= this->PhysEndJ()) ||
-        (kk < this->PhysStartK() || kk >= this->PhysEndK())) {
-      isPhysical = false;
-    }
-    return isPhysical;
-  }
 
-  bool AtCorner(const int &ii, const int &jj, const int &kk) const {
-    // ii -- i index of location to test
-    // jj -- j index of location to test
-    // kk -- k index of location to test
-    auto atCorner = false;
-    // if all (i, j, & k) are outside of the limits of physical cells, location
-    // is a corner location
-    if ((ii < this->PhysStartI() || ii >= this->PhysEndI()) &&
-        (jj < this->PhysStartJ() || jj >= this->PhysEndJ()) &&
-        (kk < this->PhysStartK() || kk >= this->PhysEndK())) {
-      atCorner = true;
-    }
-    return atCorner;
-  }
+  bool IsPhysical(const int &ii, const int &jj, const int &kk) const;
+  bool AtCorner(const int &ii, const int &jj, const int &kk) const;
+  bool AtEdge(const int &ii, const int &jj, const int &kk, string &dir) const;
+  bool AtEdgeInclusive(const int &ii, const int &jj, const int &kk,
+                       string &dir) const;
+  bool AtGhostNonEdge(const int &ii, const int &jj, const int &kk, string &dir,
+                      int &type) const;
 
   // provide begin and end so std::begin and std::end can be used
   // use lower case to conform with std::begin, std::end
@@ -1539,6 +1518,187 @@ void multiArray3d<T>::SwapSlice(const connection &conn, TT &array) {
   // conn -- connection boundary information
   // array -- second array involved in connection boundary
   SwapSliceLocal((*this), conn, array);
+}
+
+// Function to determine where in an multiArray3d an index is located.
+// It takes in an i, j, k location and returns a boolean indicating
+// if the given i, j, k location corresponds to a physical location.
+template <typename T>
+bool multiArray3d<T>::IsPhysical(const int &ii, const int &jj,
+                                 const int &kk) const {
+  // ii -- i index of location to test
+  // jj -- j index of location to test
+  // kk -- k index of location to test
+  auto isPhysical = true;
+  // if any of (i, j, & k) are outside of the limits of physical cells,
+  // location is non-physical
+  if ((ii < this->PhysStartI() || ii >= this->PhysEndI()) ||
+      (jj < this->PhysStartJ() || jj >= this->PhysEndJ()) ||
+      (kk < this->PhysStartK() || kk >= this->PhysEndK())) {
+    isPhysical = false;
+  }
+  return isPhysical;
+}
+
+// Function to determine where in padded plot3dBlock an index is located.
+// It takes in an i, j, k cell location and returns a boolean indicating
+// if the given i, j, k location corresponds to a corner location.
+template <typename T>
+bool multiArray3d<T>::AtCorner(const int &ii, const int &jj,
+                               const int &kk) const {
+  // ii -- i index of location to test
+  // jj -- j index of location to test
+  // kk -- k index of location to test
+  auto atCorner = false;
+  // if all (i, j, & k) are outside of the limits of physical cells, location
+  // is a corner location
+  if ((ii < this->PhysStartI() || ii >= this->PhysEndI()) &&
+      (jj < this->PhysStartJ() || jj >= this->PhysEndJ()) &&
+      (kk < this->PhysStartK() || kk >= this->PhysEndK())) {
+    atCorner = true;
+  }
+  return atCorner;
+}
+
+// Member function to determine where in multiArray3d an index is
+// located. It takes in an i, j, k cell location and returns a boolean
+// indicating if the given i, j, k location corresponds to a edge location.
+template <typename T>
+bool multiArray3d<T>::AtEdge(const int &ii, const int &jj, const int &kk,
+                             string &dir) const {
+  // ii -- i index of location to test
+  // jj -- j index of location to test
+  // kk -- k index of location to test
+  // dir -- direction that edge runs in
+
+  auto atEdge = false;
+
+  // at i-edge - i in physical cell range, j/k at first level of ghost cells
+  if ((ii >= this->PhysStartI() && ii < this->PhysEndI()) &&
+      (jj == -1 || jj == this->PhysEndJ()) &&
+      (kk == -1 || kk == this->PhysEndK())) {
+    atEdge = true;
+    dir = "i";
+    // at j-edge - j in physical cell range, i/k at first level of ghost cells
+  } else if ((ii == -1 || ii == this->PhysEndI()) &&
+             (jj >= this->PhysStartJ() && jj < this->PhysEndJ()) &&
+             (kk == -1 || kk == this->PhysEndK())) {
+    atEdge = true;
+    dir = "j";
+    // at k-edge - k in physical cell range, i/j at first level of ghost cells
+  } else if ((ii == -1 || ii == this->PhysEndI()) &&
+             (jj == -1 || jj == this->PhysEndJ()) &&
+             (kk >= this->PhysStartK() && kk < this->PhysEndK())) {
+    atEdge = true;
+    dir = "k";
+  }
+  return atEdge;
+}
+
+/* This member function differs from AtEdge in that it returns true for any
+   line of edge cells. In the example below, AtEdge returns true only for 1,
+   whereas AtEdgeInclusive returns true for 0, 1, 2, & 3.
+
+           |
+   ghost   | physical
+    ___ ___|__________
+   | 0 | 1 |
+   |___|___| ghost 
+   | 2 | 3 |
+   |___|___|
+   
+*/
+template <typename T>
+bool multiArray3d<T>::AtEdgeInclusive(const int &ii, const int &jj,
+                                      const int &kk, string &dir) const {
+  // ii -- i index of location to test
+  // jj -- j index of location to test
+  // kk -- k index of location to test
+  // dir -- direction that edge runs in
+
+  auto atEdge = false;
+
+  // at i-edge - i in physical cell range, j/k in ghost cells
+  if ((ii >= this->PhysStartI() && ii < this->PhysEndI()) &&
+      (jj < this->PhysStartJ() || jj >= this->PhysEndJ()) &&
+      (kk < this->PhysStartK() || kk >= this->PhysEndK())) {
+    atEdge = true;
+    dir = "i";
+  // at j-edge - j in physical cell range, i/k in ghost cells
+  } else if ((ii < this->PhysStartI() || ii >= this->PhysEndI()) &&
+             (jj >= this->PhysStartJ() && jj < this->PhysEndJ()) &&
+             (kk < this->PhysStartK() || kk >= this->PhysEndK())) {
+    atEdge = true;
+    dir = "j";
+  // at k-edge - k in physical cell range, i/j in ghost cells
+  } else if ((ii < this->PhysStartI() || ii >= this->PhysEndI()) &&
+             (jj < this->PhysStartJ() || jj >= this->PhysEndJ()) &&
+             (kk >= this->PhysStartK() && kk < this->PhysEndK())) {
+    atEdge = true;
+    dir = "k";
+  }
+
+  return atEdge;
+}
+
+// returns true if the given indices are for a regular ghost cell, and not an
+// edge ghost cell or physical cell. Also returns surface type of ghost cell
+template <typename T>
+bool multiArray3d<T>::AtGhostNonEdge(const int &ii, const int &jj,
+                                     const int &kk, string &dir,
+                                     int &type) const {
+  // ii -- i index of location to test
+  // jj -- j index of location to test
+  // kk -- k index of location to test
+  // dir -- direction that edge runs in
+
+  auto atGhost = false;
+
+  // at il ghost cells - i in ghost cell range, j/k in physical cells
+  if (ii >= this->StartI() && ii < this->PhysStartI() &&
+      jj >= this->StartJ() && jj < this->EndJ() &&
+      kk >= this->StartK() && kk < this->EndK()) {
+    atGhost = true;
+    dir = "il";
+    type = 1;
+  // at jl - j in ghost cell range, i/k in physical cells
+  } else if (jj >= this->StartJ() && jj < this->PhysStartJ() &&
+             ii >= this->StartI() && ii < this->EndI() &&
+             kk >= this->StartK() && kk < this->EndK()) {
+    atGhost = true;
+    dir = "jl";
+    type = 3;
+  // at kl - k in ghost cell range, i/j in physical cells
+  } else if (kk >= this->StartK() && kk < this->PhysStartK() &&
+             jj >= this->StartJ() && jj < this->EndJ() &&
+             ii >= this->StartI() && ii < this->EndI()) {
+    atGhost = true;
+    dir = "kl";
+    type = 5;
+  // at iu ghost cells - i in ghost cell range, j/k in physical cells
+  } else if (ii >= this->PhysEndI() && ii < this->EndI() &&
+             jj >= this->StartJ() && jj < this->EndJ() &&
+             kk >= this->StartK() && kk < this->EndK()) {
+    atGhost = true;
+    dir = "iu";
+    type = 2;
+  // at ju - j in ghost cell range, i/k in physical cells
+  } else if (jj >= this->PhysEndJ() && jj < this->EndJ() &&
+             ii >= this->StartI() && ii < this->EndI() &&
+             kk >= this->StartK() && kk < this->EndK()) {
+    atGhost = true;
+    dir = "ju";
+    type = 4;
+  // at ku - k in ghost cell range, i/j in physical cells
+  } else if (kk >= this->PhysEndK() && kk < this->EndK() &&
+             jj >= this->StartJ() && jj < this->EndJ() &&
+             ii >= this->StartI() && ii < this->EndI()) {
+    atGhost = true;
+    dir = "ku";
+    type = 6;
+  }
+  
+  return atGhost;
 }
 
 

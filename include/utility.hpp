@@ -180,7 +180,7 @@ T1 FindRoot(const T2 &func, T1 x1, T1 x2, const T1 &tol,
 }
 
 template <typename T>
-T CellToNode(const T &cellData) {
+T ConvertCellToNode(const T &cellData) {
   T nodeData(cellData.NumINoGhosts() + 1, cellData.NumJNoGhosts() + 1,
              cellData.NumKNoGhosts() + 1, 0, cellData.BlockInfo());
   if (cellData.GhostLayers() > 0) {

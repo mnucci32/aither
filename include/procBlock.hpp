@@ -450,12 +450,23 @@ class procBlock {
   double DPLUR(blkMultiArray3d<varArray> &, const physics &, const input &,
                const matMultiArray3d &) const;
 
-  bool IsPhysical(const int &, const int &, const int &) const;
-  bool AtCorner(const int &, const int &, const int &) const;
-  bool AtEdge(const int &, const int &, const int &, string &) const;
-  bool AtEdgeInclusive(const int &, const int &, const int &, string &) const;
-  bool AtGhostNonEdge(const int &, const int &, const int &, string &,
-                      int &) const;
+  bool IsPhysical(const int &ii, const int &jj, const int &kk) const {
+    return state_.IsPhysical(ii, jj, kk);
+  }
+  bool AtCorner(const int &ii, const int &jj, const int &kk) const {
+    return state_.AtCorner(ii, jj, kk);
+  }
+  bool AtEdge(const int &ii, const int &jj, const int &kk, string &dir) const {
+    return state_.AtEdge(ii, jj, kk, dir);
+  }
+  bool AtEdgeInclusive(const int &ii, const int &jj, const int &kk,
+                       string &dir) const {
+    return state_.AtEdgeInclusive(ii, jj, kk, dir);
+  }
+  bool AtGhostNonEdge(const int &ii, const int &jj, const int &kk, string &dir,
+                      int &type) const {
+    return state_.AtGhostNonEdge(ii, jj, kk, dir, type);
+  }
 
   vector<bool> PutGeomSlice(const geomSlice &, connection &, const int &);
   void PutStateSlice(const blkMultiArray3d<primitive> &, const connection &,
@@ -557,12 +568,7 @@ class procBlock {
                    const multiArray3d<double> &volFac) const;
   void Prolongation(procBlock &fine,
                     const multiArray3d<vector3d<int>> &toCoarse) const;
-  blkMultiArray3d<primitive> StateCellToNode() const {
-    return CellToNode(state_);
-  }
-  blkMultiArray3d<residual> ResidCellToNode() const {
-    return CellToNode(residual_);
-  }
+  procBlock CellToNode() const;
 
   // destructor
   ~procBlock() noexcept {}

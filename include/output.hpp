@@ -61,13 +61,19 @@ void WriteCellCenter(const string &, const vector<procBlock> &,
                      const decomposition &, const input &);
 void WriteWallFaceCenter(const string &, const vector<procBlock> &,
                          const double &);
-void WriteFun(const vector<procBlock> &, const physics &phys, const int &,
-              const decomposition &, const input &);
+void WriteOutput(const vector<procBlock> &, const physics &, const int &,
+                 const decomposition &, const input &);
+void WriteFunFile(const vector<procBlock> &, const vector<procBlock> &,
+                  const physics &, const decomposition &, const string &,
+                  const input &);
+void WriteCenterFun(const vector<procBlock> &, const vector<procBlock> &,
+                    const physics &, const int &, const decomposition &,
+                    const input &);
 void WriteNodeFun(const vector<procBlock> &, const physics &phys, const int &,
                   const decomposition &, const input &);
 void WriteWallFun(const vector<procBlock> &, const physics &phys, const int &,
                   const input &);
-void WriteMeta(const input &, const int &);
+void WriteMeta(const input &, const int &, const bool &);
 void WriteWallMeta(const input &, const int &);
 
 void WriteRestart(const vector<procBlock> &, const physics &, const int &,
