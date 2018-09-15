@@ -59,6 +59,10 @@ class range {
     return start_ >= r.start_ && start_ < r.end_ && end_ > r.start_ &&
         end_ <= r.end_;
   }
+  bool IsInclusive(const range &r) const {
+    return start_ <= r.start_ && start_ < r.end_ && end_ > r.start_ &&
+        end_ >= r.end_;
+  }
   bool IsValid() const {
     return end_ > start_;
   }

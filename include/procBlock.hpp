@@ -407,7 +407,7 @@ class procBlock {
 
   void AssignInviscidGhostCells(const input &, const physics &);
   void AssignInviscidGhostCellsEdge(const input &, const physics &);
-
+  void AssignCornerGhostCells();
   void AssignViscousGhostCells(const input &, const physics &);
   void AssignViscousGhostCellsEdge(const input &, const physics &);
   blkMultiArray3d<primitive> GetGhostStates(

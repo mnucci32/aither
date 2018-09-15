@@ -141,7 +141,7 @@ class multiArray3d {
     const auto ir = this->RangeI();
     const auto jr = this->RangeJ();
     const auto kr = this->RangeK();
-    return ir.IsInside(ii) && jr.IsInside(jj) && kr.IsInside(kk);
+    return ir.IsInclusive(ii) && jr.IsInclusive(jj) && kr.IsInclusive(kk);
   }
   bool IsPhysical(const int &ii, const int &jj, const int &kk) const {
     // ii -- i index of location to test
@@ -156,6 +156,21 @@ class multiArray3d {
       isPhysical = false;
     }
     return isPhysical;
+  }
+
+  bool AtCorner(const int &ii, const int &jj, const int &kk) const {
+    // ii -- i index of location to test
+    // jj -- j index of location to test
+    // kk -- k index of location to test
+    auto atCorner = false;
+    // if all (i, j, & k) are outside of the limits of physical cells, location
+    // is a corner location
+    if ((ii < this->PhysStartI() || ii >= this->PhysEndI()) &&
+        (jj < this->PhysStartJ() || jj >= this->PhysEndJ()) &&
+        (kk < this->PhysStartK() || kk >= this->PhysEndK())) {
+      atCorner = true;
+    }
+    return atCorner;
   }
 
   // provide begin and end so std::begin and std::end can be used

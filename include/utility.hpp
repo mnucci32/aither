@@ -214,7 +214,7 @@ T CellToNode(const T &cellData) {
             for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
               nodeData(ii + 1, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
             }
-          } else {
+          } else {  // cell data is ghost cell
             if (nodeData.IsInRange(ii, jj, kk)) {
               for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
                 nodeData(ii, jj, kk, bb) += cellData(ii, jj, kk, bb);

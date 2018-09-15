@@ -3202,6 +3202,46 @@ void procBlock::AssignInviscidGhostCellsEdge(
       }
     }
   }
+  this->AssignCornerGhostCells();
+}
+
+void procBlock::AssignCornerGhostCells() {
+  // assign "corner" cells - only used for cell to node interpolation
+  constexpr auto third = 1.0 / 3.0;
+  auto ig = state_.PhysStartI() - 1;
+  auto jg = state_.PhysStartJ() - 1;
+  auto kg = state_.PhysStartK() - 1;
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig + 1, jg, kg) + state_(ig, jg + 1, kg) +
+                              state_(ig, jg, kg + 1)));
+  ig = state_.PhysEndI();
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig - 1, jg, kg) + state_(ig, jg + 1, kg) +
+                              state_(ig, jg, kg + 1)));
+  jg = state_.PhysEndJ();
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig - 1, jg, kg) + state_(ig, jg - 1, kg) +
+                              state_(ig, jg, kg + 1)));
+  ig = state_.PhysStartI() - 1;
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig + 1, jg, kg) + state_(ig, jg - 1, kg) +
+                              state_(ig, jg, kg + 1)));
+  kg = state_.PhysEndK();
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig + 1, jg, kg) + state_(ig, jg - 1, kg) +
+                              state_(ig, jg, kg - 1)));
+  ig = state_.PhysEndI();
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig - 1, jg, kg) + state_(ig, jg - 1, kg) +
+                              state_(ig, jg, kg - 1)));
+  jg = state_.PhysStartJ() - 1;
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig - 1, jg, kg) + state_(ig, jg + 1, kg) +
+                              state_(ig, jg, kg - 1)));
+  ig = state_.PhysStartI() - 1;
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig + 1, jg, kg) + state_(ig, jg + 1, kg) +
+                              state_(ig, jg, kg - 1)));
 }
 
 /* Member function to assign ghost cells for the viscous flow calculation. This
@@ -3478,6 +3518,7 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
       }
     }
   }
+  this->AssignCornerGhostCells();
 }
 
 /* Member function to determine where in padded plot3dBlock an index is located.
