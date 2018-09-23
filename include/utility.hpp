@@ -180,10 +180,12 @@ T1 FindRoot(const T2 &func, T1 x1, T1 x2, const T1 &tol,
 }
 
 template <typename T>
-T ConvertCellToNode(const T &cellData) {
+T ConvertCellToNode(const T &cellData, const bool &ignoreEdge = false) {
   T nodeData(cellData.NumINoGhosts() + 1, cellData.NumJNoGhosts() + 1,
              cellData.NumKNoGhosts() + 1, 0, cellData.BlockInfo());
-  if (cellData.GhostLayers() > 0) {
+  const auto haveGhosts = cellData.GhostLayers() > 0;
+  if (haveGhosts) {
+    string dir = "";
     for (auto kk = cellData.PhysStartK() - 1; kk <= cellData.PhysEndK(); ++kk) {
       for (auto jj = cellData.PhysStartJ() - 1; jj <= cellData.PhysEndJ();
            ++jj) {
@@ -214,7 +216,11 @@ T ConvertCellToNode(const T &cellData) {
             for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
               nodeData(ii + 1, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
             }
-          } else {  // cell data is ghost cell
+          } else if (!(ignoreEdge && (cellData.AtEdge(ii, jj, kk, dir) ||
+                                      cellData.AtCorner(ii, jj, kk)))) {
+            // cell data is ghost cell - or -
+            // we are ignoring edge and corner ghost cells, and not at 
+            // edge/corner
             if (nodeData.IsInRange(ii, jj, kk)) {
               for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
                 nodeData(ii, jj, kk, bb) += cellData(ii, jj, kk, bb);
@@ -293,9 +299,35 @@ T ConvertCellToNode(const T &cellData) {
     }
   }
   constexpr auto eighth = 1.0 / 8.0;
-  nodeData *= eighth;
+  if (ignoreEdge) {
+    const auto edgeFactor = haveGhosts ? 1.0 / 6.0 : 1.0 / 2.0;
+    const auto cornerFactor = haveGhosts ? 1.0 / 4.0 : 1.0;
+    string edge = "";
+    for (auto kk = nodeData.PhysStartK(); kk < nodeData.PhysEndK(); ++kk) {
+      for (auto jj = nodeData.PhysStartJ(); jj < nodeData.PhysEndJ(); ++jj) {
+        for (auto ii = nodeData.PhysStartI(); ii < nodeData.PhysEndI(); ++ii) {
+          if (nodeData.AtInteriorCorner(ii, jj, kk)) {
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj, kk, bb) *= cornerFactor;
+            }
+          } else if (nodeData.AtInteriorEdge(ii, jj, kk, edge)) {
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj, kk, bb) *= edgeFactor;
+            }
+          } else {
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj, kk, bb) *= eighth;
+            }
+          }
+        }
+      }
+    }
+  } else {
+    nodeData *= eighth;
+  }
   return nodeData;
 }
+
 
 template <typename T>
 T ConvertGradCellToNode(const T &cellData) {

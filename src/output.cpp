@@ -410,13 +410,14 @@ void WriteCenterFun(const vector<procBlock> &vars,
 
 // function to write out variables in function file format
 void WriteNodeFun(const vector<procBlock> &vars,
-                  const vector<procBlock> &recombVarsCells, const physics &phys,
+                  vector<procBlock> &recombVarsCells, const physics &phys,
                   const int &solIter, const decomposition &decomp,
                   const input &inp) {
   // interpolate data from cell centers to nodes
   vector<procBlock> recombVars;
   recombVars.reserve(recombVarsCells.size());
-  for (const auto &rvc : recombVarsCells) {
+  for (auto &rvc : recombVarsCells) {
+    rvc.AssignCornerGhostCells();
     recombVars.push_back(rvc.CellToNode());
   }
 

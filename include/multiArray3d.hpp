@@ -151,6 +151,11 @@ class multiArray3d {
                        string &dir) const;
   bool AtGhostNonEdge(const int &ii, const int &jj, const int &kk, string &dir,
                       int &type) const;
+  bool AtInteriorEdge(const int &ii, const int &jj, const int &kk,
+                      string &dir) const;
+  bool AtInteriorCorner(const int &ii, const int &jj, const int &kk) const;
+  bool AtInterior(const int &ii, const int &jj, const int &kk,
+                          string &dir, int &type) const;
 
   // provide begin and end so std::begin and std::end can be used
   // use lower case to conform with std::begin, std::end
@@ -1560,6 +1565,26 @@ bool multiArray3d<T>::AtCorner(const int &ii, const int &jj,
   return atCorner;
 }
 
+// Function to determine if index is at one of the 8 interior corners in a
+// multiArray3d
+template <typename T>
+bool multiArray3d<T>::AtInteriorCorner(const int &ii, const int &jj,
+                                       const int &kk) const {
+  // ii -- i index of location to test
+  // jj -- j index of location to test
+  // kk -- k index of location to test
+  auto atCorner = false;
+  // if all (i, j, & k) are at the limits of physical cells, location
+  // is an interior corner location
+  if ((ii == this->PhysStartI() || ii == this->PhysEndI() - 1) &&
+      (jj == this->PhysStartJ() || jj == this->PhysEndJ() - 1) &&
+      (kk == this->PhysStartK() || kk == this->PhysEndK() - 1)) {
+    atCorner = true;
+  }
+  return atCorner;
+}
+
+
 // Member function to determine where in multiArray3d an index is
 // located. It takes in an i, j, k cell location and returns a boolean
 // indicating if the given i, j, k location corresponds to a edge location.
@@ -1594,6 +1619,41 @@ bool multiArray3d<T>::AtEdge(const int &ii, const int &jj, const int &kk,
   }
   return atEdge;
 }
+
+// Member function to determine if a multiArray3d index is
+// located at an interior edge, and return the direction that edge runs in
+template <typename T>
+bool multiArray3d<T>::AtInteriorEdge(const int &ii, const int &jj,
+                                     const int &kk, string &dir) const {
+  // ii -- i index of location to test
+  // jj -- j index of location to test
+  // kk -- k index of location to test
+  // dir -- direction that edge runs in
+
+  auto atEdge = false;
+
+  // at i-edge - i in physical cell range, j/k at first level of interior cells
+  if ((ii >= this->PhysStartI() && ii < this->PhysEndI()) &&
+      (jj == this->PhysStartJ() || jj == this->PhysEndJ() - 1) &&
+      (kk == this->PhysStartK() || kk == this->PhysEndK() - 1)) {
+    atEdge = true;
+    dir = "i";
+    // at j-edge - j in phys cell range, i/k at first level of interior cells
+  } else if ((ii == this->PhysStartI() || ii == this->PhysEndI() - 1) &&
+             (jj >= this->PhysStartJ() && jj < this->PhysEndJ()) &&
+             (kk == this->PhysStartK() || kk == this->PhysEndK() - 1)) {
+    atEdge = true;
+    dir = "j";
+    // at k-edge - k in physical cell range, i/j at first level of interior cells
+  } else if ((ii == this->PhysStartI() || ii == this->PhysEndI() - 1) &&
+             (jj == this->PhysStartJ() || jj == this->PhysEndJ() - 1) &&
+             (kk >= this->PhysStartK() && kk < this->PhysEndK())) {
+    atEdge = true;
+    dir = "k";
+  }
+  return atEdge;
+}
+
 
 /* This member function differs from AtEdge in that it returns true for any
    line of edge cells. In the example below, AtEdge returns true only for 1,
@@ -1699,6 +1759,66 @@ bool multiArray3d<T>::AtGhostNonEdge(const int &ii, const int &jj,
   }
   
   return atGhost;
+}
+
+// returns true if the given indices are for a regular interior cell adjacent
+// to a boundary, and not an edge interior cell or corner cell. 
+// Also returns surface type of ghost cell
+template <typename T>
+bool multiArray3d<T>::AtInterior(const int &ii, const int &jj, const int &kk,
+                                 string &dir, int &type) const {
+  // ii -- i index of location to test
+  // jj -- j index of location to test
+  // kk -- k index of location to test
+  // dir -- direction that edge runs in
+
+  auto atInterior = false;
+
+  // at il ghost cells - i at physical min, j/k in physical cells
+  if (ii == this->PhysStartI() &&
+      jj >= this->PhysStartJ() && jj < this->PhysEndJ() &&
+      kk >= this->PhysStartK() && kk < this->PhysEndK()) {
+    atInterior = true;
+    dir = "il";
+    type = 1;
+  // at jl - j at physical min, i/k in physical cells
+  } else if (jj == this->PhysStartJ() &&
+             ii >= this->PhysStartI() && ii < this->PhysEndI() &&
+             kk >= this->PhysStartK() && kk < this->PhysEndK()) {
+    atInterior = true;
+    dir = "jl";
+    type = 3;
+  // at kl - k at physical min, i/j in physical cells
+  } else if (kk == this->PhysStartK() &&
+             jj >= this->PhysStartJ() && jj < this->PhysEndJ() &&
+             ii >= this->PhysStartI() && ii < this->PhysEndI()) {
+    atInterior = true;
+    dir = "kl";
+    type = 5;
+  // at iu ghost cells - i at physical max, j/k in physical cells
+  } else if (ii == this->PhysEndI() - 1 &&
+             jj >= this->PhysStartJ() && jj < this->PhysEndJ() &&
+             kk >= this->PhysStartK() && kk < this->PhysEndK()) {
+    atInterior = true;
+    dir = "iu";
+    type = 2;
+  // at ju - j at physical max, i/k in physical cells
+  } else if (jj == this->PhysEndJ() - 1 &&
+             ii >= this->PhysStartI() && ii < this->PhysEndI() &&
+             kk >= this->PhysStartK() && kk < this->PhysEndK()) {
+    atInterior = true;
+    dir = "ju";
+    type = 4;
+  // at ku - k physical max, i/j in physical cells
+  } else if (kk == this->PhysEndK() - 1 &&
+             jj >= this->PhysStartJ() && jj < this->PhysEndJ() &&
+             ii >= this->PhysStartI() && ii < this->PhysEndI()) {
+    atInterior = true;
+    dir = "ku";
+    type = 6;
+  }
+  
+  return atInterior;
 }
 
 

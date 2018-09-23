@@ -69,8 +69,9 @@ void WriteFunFile(const vector<procBlock> &, const vector<procBlock> &,
 void WriteCenterFun(const vector<procBlock> &, const vector<procBlock> &,
                     const physics &, const int &, const decomposition &,
                     const input &);
-void WriteNodeFun(const vector<procBlock> &, const physics &phys, const int &,
-                  const decomposition &, const input &);
+void WriteNodeFun(const vector<procBlock> &, vector<procBlock> &,
+                  const physics &phys, const int &, const decomposition &,
+                  const input &);
 void WriteWallFun(const vector<procBlock> &, const physics &phys, const int &,
                   const input &);
 void WriteMeta(const input &, const int &, const bool &);

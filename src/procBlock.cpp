@@ -3202,7 +3202,6 @@ void procBlock::AssignInviscidGhostCellsEdge(
       }
     }
   }
-  this->AssignCornerGhostCells();
 }
 
 void procBlock::AssignCornerGhostCells() {
@@ -3518,7 +3517,6 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
       }
     }
   }
-  this->AssignCornerGhostCells();
 }
 
 /* Function to swap ghost cells between two blocks at an connection
@@ -6581,8 +6579,6 @@ void procBlock::CalcWallDistance(const kdtree &tree) {
             } else {
               wallDist_(ii, jj, kk) = wallDist_(ii, jj, this->StartK());
             }
-            cerr << ii << ", " << jj << ", " << kk << ", "
-                 << wallDist_(ii, jj, kk) << endl;
           } else if (type == 6) {
             auto bcType = bc_.GetBCName(ii, jj, this->EndK(), type);
             if (bcType == "viscousWall") {
@@ -7135,9 +7131,9 @@ procBlock procBlock::CellToNode() const {
   nodeData.isMultiSpecies_ = isMultiSpecies_;
   // solution data
   nodeData.state_ = ConvertCellToNode(state_);
-  nodeData.residual_ = ConvertCellToNode(residual_);
-  nodeData.dt_ = ConvertCellToNode(dt_);
-  nodeData.wallDist_ = ConvertCellToNode(wallDist_);
+  nodeData.residual_ = ConvertCellToNode(residual_, true);
+  nodeData.dt_ = ConvertCellToNode(dt_, true);
+  nodeData.wallDist_ = ConvertCellToNode(wallDist_, true);
   nodeData.temperature_ = ConvertCellToNode(temperature_);
   nodeData.viscosity_ = ConvertCellToNode(viscosity_);
   nodeData.eddyViscosity_ = ConvertCellToNode(eddyViscosity_);
