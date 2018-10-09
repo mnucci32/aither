@@ -330,50 +330,6 @@ T ConvertCellToNode(const T &cellData, const bool &ignoreEdge = false) {
 
 
 template <typename T>
-T ConvertGradCellToNode(const T &cellData) {
-  T nodeData(cellData.NumINoGhosts() + 1, cellData.NumJNoGhosts() + 1,
-             cellData.NumKNoGhosts() + 1, 0, cellData.BlockInfo());
-
-  // convert interior data with standard averaging
-  for (auto kk = cellData.PhysStartK(); kk < cellData.PhysEndK(); ++kk) {
-    for (auto jj = cellData.PhysStartJ(); jj < cellData.PhysEndJ(); ++jj) {
-      for (auto ii = cellData.PhysStartI(); ii < cellData.PhysEndI(); ++ii) {
-        for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
-          nodeData(ii, jj, kk, bb) += cellData(ii, jj, kk, bb);
-        }
-        for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
-          nodeData(ii, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
-        }
-        for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
-          nodeData(ii, jj + 1, kk + 1, bb) += cellData(ii, jj, kk, bb);
-        }
-        for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
-          nodeData(ii, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
-        }
-        for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
-          nodeData(ii + 1, jj, kk, bb) += cellData(ii, jj, kk, bb);
-        }
-        for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
-          nodeData(ii + 1, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
-        }
-        for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
-          nodeData(ii + 1, jj + 1, kk + 1, bb) += cellData(ii, jj, kk, bb);
-        }
-        for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
-          nodeData(ii + 1, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
-        }
-      }
-    }
-  }
-  constexpr auto eighth = 1.0 / 8.0;
-  nodeData *= eighth;
-
-  // recalculate gradients on the boundary and reassign
-
-  return nodeData;
-}
-
-template <typename T>
 T TrilinearInterpolation(const vector3d<double> &il, const vector3d<double> &iu,
                          const vector3d<double> &jl, const vector3d<double> &ju,
                          const vector3d<double> &kl, const vector3d<double> &ku,

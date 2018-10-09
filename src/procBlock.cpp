@@ -1896,7 +1896,7 @@ void procBlock::CalcViscFluxI(const physics &phys, const input &inp,
           }
           if (isMultiSpecies_) {
             for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-              mixtureGrad_(ii - 1, jj, kk, ss) += sixth * mixGrad[ii];
+              mixtureGrad_(ii - 1, jj, kk, ss) += sixth * mixGrad[ss];
             }
           }
 
@@ -1931,7 +1931,7 @@ void procBlock::CalcViscFluxI(const physics &phys, const input &inp,
           }
           if (isMultiSpecies_) {
             for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ii];
+              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ss];
             }
           }
 
@@ -2219,7 +2219,7 @@ void procBlock::CalcViscFluxJ(const physics &phys, const input &inp,
           }
           if (isMultiSpecies_) {
             for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-              mixtureGrad_(ii, jj - 1, kk, ss) += sixth * mixGrad[ii];
+              mixtureGrad_(ii, jj - 1, kk, ss) += sixth * mixGrad[ss];
             }
           }
 
@@ -2254,7 +2254,7 @@ void procBlock::CalcViscFluxJ(const physics &phys, const input &inp,
           }
           if (isMultiSpecies_) {
             for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ii];
+              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ss];
             }
           }
 
@@ -2548,7 +2548,7 @@ void procBlock::CalcViscFluxK(const physics &phys, const input &inp,
           }
           if (isMultiSpecies_) {
             for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-              mixtureGrad_(ii, jj, kk - 1, ss) += sixth * mixGrad[ii];
+              mixtureGrad_(ii, jj, kk - 1, ss) += sixth * mixGrad[ss];
             }
           }
 
@@ -2583,7 +2583,7 @@ void procBlock::CalcViscFluxK(const physics &phys, const input &inp,
           }
           if (isMultiSpecies_) {
             for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ii];
+              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ss];
             }
           }
 
@@ -7123,12 +7123,10 @@ void procBlock::Prolongation(
 }
 
 procBlock procBlock::CellToNode() const {
-  procBlock nodeData;
-  // copy flags
-  nodeData.isViscous_ = isViscous_;
-  nodeData.isTurbulent_ = isTurbulent_;
-  nodeData.isRANS_ = isRANS_;
-  nodeData.isMultiSpecies_ = isMultiSpecies_;
+  procBlock nodeData(this->NumI() + 1, this->NumJ() + 1, this->NumK() + 1, 0, 
+                     this->NumEquations(), this->NumSpecies(), 
+                     isViscous_, isTurbulent_, isRANS_,
+                     storeTimeN_, isMultiLevelTime_, isMultiSpecies_);
   // solution data
   nodeData.state_ = ConvertCellToNode(state_);
   nodeData.residual_ = ConvertCellToNode(residual_, true);
@@ -7139,13 +7137,227 @@ procBlock procBlock::CellToNode() const {
   nodeData.eddyViscosity_ = ConvertCellToNode(eddyViscosity_);
   nodeData.f1_ = ConvertCellToNode(f1_);
   nodeData.f2_ = ConvertCellToNode(f2_);
-  // gradients
-  nodeData.velocityGrad_ = ConvertGradCellToNode(velocityGrad_);
-  nodeData.temperatureGrad_ = ConvertGradCellToNode(temperatureGrad_);
-  nodeData.densityGrad_ = ConvertGradCellToNode(densityGrad_);
-  nodeData.pressureGrad_ = ConvertGradCellToNode(pressureGrad_);
-  nodeData.tkeGrad_ = ConvertGradCellToNode(tkeGrad_);
-  nodeData.omegaGrad_ = ConvertGradCellToNode(omegaGrad_);
-  nodeData.mixtureGrad_ = ConvertGradCellToNode(mixtureGrad_);
+
+  // gradients -------------------
+  // i-faces
+  for (auto kk = fAreaI_.PhysStartK(); kk < fAreaI_.PhysEndK(); ++kk) {
+    for (auto jj = fAreaI_.PhysStartJ(); jj < fAreaI_.PhysEndJ(); ++jj) {
+      for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ++ii) {
+        // calculate gradients
+        tensor<double> velGrad;
+        vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        vector<vector3d<double>> mixGrad;
+        this->CalcGradsI(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
+                         tkeGrad, omegaGrad, mixGrad);
+
+        nodeData.velocityGrad_(ii, jj, kk) += velGrad;
+        nodeData.velocityGrad_(ii, jj + 1, kk) += velGrad;
+        nodeData.velocityGrad_(ii, jj, kk + 1) += velGrad;
+        nodeData.velocityGrad_(ii, jj + 1, kk + 1) += velGrad;
+
+        nodeData.temperatureGrad_(ii, jj, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii, jj + 1, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii, jj, kk + 1) += tempGrad;
+        nodeData.temperatureGrad_(ii, jj + 1, kk + 1) += tempGrad;
+
+        nodeData.densityGrad_(ii, jj, kk) += denGrad;
+        nodeData.densityGrad_(ii, jj + 1, kk) += denGrad;
+        nodeData.densityGrad_(ii, jj, kk + 1) += denGrad;
+        nodeData.densityGrad_(ii, jj + 1, kk + 1) += denGrad;
+
+        nodeData.pressureGrad_(ii, jj, kk) += pressGrad;
+        nodeData.pressureGrad_(ii, jj + 1, kk) += pressGrad;
+        nodeData.pressureGrad_(ii, jj, kk + 1) += pressGrad;
+        nodeData.pressureGrad_(ii, jj + 1, kk + 1) += pressGrad;
+
+        nodeData.tkeGrad_(ii, jj, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii, jj + 1, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii, jj, kk + 1) += tkeGrad;
+        nodeData.tkeGrad_(ii, jj + 1, kk + 1) += tkeGrad;
+
+        nodeData.omegaGrad_(ii, jj, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii, jj + 1, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii, jj, kk + 1) += omegaGrad;
+        nodeData.omegaGrad_(ii, jj + 1, kk + 1) += omegaGrad;
+
+        if (isMultiSpecies_) {
+          for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+            nodeData.mixtureGrad_(ii, jj, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii, jj + 1, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii, jj, kk + 1, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii, jj + 1, kk + 1, ss) += mixGrad[ss];
+          }
+        }
+      }
+    }
+  }
+
+  // j-faces
+  for (auto kk = fAreaJ_.PhysStartK(); kk < fAreaJ_.PhysEndK(); ++kk) {
+    for (auto jj = fAreaJ_.PhysStartJ(); jj < fAreaJ_.PhysEndJ(); ++jj) {
+      for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ++ii) {
+        // calculate gradients
+        tensor<double> velGrad;
+        vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        vector<vector3d<double>> mixGrad;
+        this->CalcGradsJ(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
+                         tkeGrad, omegaGrad, mixGrad);
+
+        nodeData.velocityGrad_(ii, jj, kk) += velGrad;
+        nodeData.velocityGrad_(ii + 1, jj, kk) += velGrad;
+        nodeData.velocityGrad_(ii, jj, kk + 1) += velGrad;
+        nodeData.velocityGrad_(ii + 1, jj, kk + 1) += velGrad;
+
+        nodeData.temperatureGrad_(ii, jj, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii + 1, jj, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii, jj, kk + 1) += tempGrad;
+        nodeData.temperatureGrad_(ii + 1, jj, kk + 1) += tempGrad;
+
+        nodeData.densityGrad_(ii, jj, kk) += denGrad;
+        nodeData.densityGrad_(ii + 1, jj, kk) += denGrad;
+        nodeData.densityGrad_(ii, jj, kk + 1) += denGrad;
+        nodeData.densityGrad_(ii + 1, jj, kk + 1) += denGrad;
+
+        nodeData.pressureGrad_(ii, jj, kk) += pressGrad;
+        nodeData.pressureGrad_(ii + 1, jj, kk) += pressGrad;
+        nodeData.pressureGrad_(ii, jj, kk + 1) += pressGrad;
+        nodeData.pressureGrad_(ii + 1, jj, kk + 1) += pressGrad;
+
+        nodeData.tkeGrad_(ii, jj, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii + 1, jj, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii, jj, kk + 1) += tkeGrad;
+        nodeData.tkeGrad_(ii + 1, jj, kk + 1) += tkeGrad;
+
+        nodeData.omegaGrad_(ii, jj, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii + 1, jj, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii, jj, kk + 1) += omegaGrad;
+        nodeData.omegaGrad_(ii + 1, jj, kk + 1) += omegaGrad;
+
+        if (isMultiSpecies_) {
+          for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+            nodeData.mixtureGrad_(ii, jj, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii + 1, jj, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii, jj, kk + 1, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii + 1, jj, kk + 1, ss) += mixGrad[ss];
+          }
+        }
+      }
+    }
+  }
+
+  // k-faces
+  for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); ++kk) {
+    for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); ++jj) {
+      for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ++ii) {
+        // calculate gradients
+        tensor<double> velGrad;
+        vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        vector<vector3d<double>> mixGrad;
+        this->CalcGradsK(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
+                         tkeGrad, omegaGrad, mixGrad);
+
+        nodeData.velocityGrad_(ii, jj, kk) += velGrad;
+        nodeData.velocityGrad_(ii + 1, jj, kk) += velGrad;
+        nodeData.velocityGrad_(ii, jj + 1, kk) += velGrad;
+        nodeData.velocityGrad_(ii + 1, jj + 1, kk) += velGrad;
+
+        nodeData.temperatureGrad_(ii, jj, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii + 1, jj, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii, jj + 1, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii + 1, jj + 1, kk) += tempGrad;
+
+        nodeData.densityGrad_(ii, jj, kk) += denGrad;
+        nodeData.densityGrad_(ii + 1, jj, kk) += denGrad;
+        nodeData.densityGrad_(ii, jj + 1, kk) += denGrad;
+        nodeData.densityGrad_(ii + 1, jj + 1, kk) += denGrad;
+
+        nodeData.pressureGrad_(ii, jj, kk) += pressGrad;
+        nodeData.pressureGrad_(ii + 1, jj, kk) += pressGrad;
+        nodeData.pressureGrad_(ii, jj + 1, kk) += pressGrad;
+        nodeData.pressureGrad_(ii + 1, jj + 1, kk) += pressGrad;
+
+        nodeData.tkeGrad_(ii, jj, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii + 1, jj, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii, jj + 1, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii + 1, jj + 1, kk) += tkeGrad;
+
+        nodeData.omegaGrad_(ii, jj, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii + 1, jj, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii, jj + 1, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii + 1, jj + 1, kk) += omegaGrad;
+        if (isMultiSpecies_) {
+          for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+            nodeData.mixtureGrad_(ii, jj, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii + 1, jj, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii, jj + 1, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii + 1, jj + 1, kk, ss) += mixGrad[ss];
+          }
+        }
+      }
+    }
+  }
+
+  constexpr auto interiorFactor = 1.0 / 12.0;
+  constexpr auto boundaryFactor = 1.0 / 8.0;
+  constexpr auto edgeFactor = 1.0 / 5.0;
+  constexpr auto cornerFactor = 1.0 / 3.0;
+  string edge = "";
+  auto bnd = 0;
+  for (auto kk = nodeData.StartK(); kk < nodeData.EndK(); ++kk) {
+    for (auto jj = nodeData.StartJ(); jj < nodeData.EndJ(); ++jj) {
+      for (auto ii = nodeData.StartI(); ii < nodeData.EndI(); ++ii) {
+        if (nodeData.velocityGrad_.AtInteriorCorner(ii, jj, kk)) {
+          nodeData.velocityGrad_(ii, jj, kk) *= cornerFactor;
+          nodeData.temperatureGrad_(ii, jj, kk) *= cornerFactor;
+          nodeData.densityGrad_(ii, jj, kk) *= cornerFactor;
+          nodeData.pressureGrad_(ii, jj, kk) *= cornerFactor;
+          nodeData.tkeGrad_(ii, jj, kk) *= cornerFactor;
+          nodeData.omegaGrad_(ii, jj, kk) *= cornerFactor;
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              nodeData.mixtureGrad_(ii, jj, kk, ss) *= cornerFactor;
+            }
+          }
+        } else if (nodeData.velocityGrad_.AtInteriorEdge(ii, jj, kk, edge)) {
+          nodeData.velocityGrad_(ii, jj, kk) *= edgeFactor;
+          nodeData.temperatureGrad_(ii, jj, kk) *= edgeFactor;
+          nodeData.densityGrad_(ii, jj, kk) *= edgeFactor;
+          nodeData.pressureGrad_(ii, jj, kk) *= edgeFactor;
+          nodeData.tkeGrad_(ii, jj, kk) *= edgeFactor;
+          nodeData.omegaGrad_(ii, jj, kk) *= edgeFactor;
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              nodeData.mixtureGrad_(ii, jj, kk, ss) *= edgeFactor;
+            }
+          }
+        } else if (nodeData.velocityGrad_.AtInterior(ii, jj, kk, edge, bnd)) {
+          nodeData.velocityGrad_(ii, jj, kk) *= boundaryFactor;
+          nodeData.temperatureGrad_(ii, jj, kk) *= boundaryFactor;
+          nodeData.densityGrad_(ii, jj, kk) *= boundaryFactor;
+          nodeData.pressureGrad_(ii, jj, kk) *= boundaryFactor;
+          nodeData.tkeGrad_(ii, jj, kk) *= boundaryFactor;
+          nodeData.omegaGrad_(ii, jj, kk) *= boundaryFactor;
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              nodeData.mixtureGrad_(ii, jj, kk, ss) *= boundaryFactor;
+            }
+          }
+        } else {
+          nodeData.velocityGrad_(ii, jj, kk) *= interiorFactor;
+          nodeData.temperatureGrad_(ii, jj, kk) *= interiorFactor;
+          nodeData.densityGrad_(ii, jj, kk) *= interiorFactor;
+          nodeData.pressureGrad_(ii, jj, kk) *= interiorFactor;
+          nodeData.tkeGrad_(ii, jj, kk) *= interiorFactor;
+          nodeData.omegaGrad_(ii, jj, kk) *= interiorFactor;
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              nodeData.mixtureGrad_(ii, jj, kk, ss) *= interiorFactor;
+            }
+          }
+        }
+      }
+    }
+  }
+
   return nodeData;
 }
