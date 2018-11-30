@@ -62,6 +62,22 @@ set(sources
   wallData.cpp
   wallLaw.cpp
   )
+  
+#specify MPI manually
+option(SPECIFY_MPI "switch ON to specify the detail properties MPI library" ON)
+
+if(SPECIFY_MPI)
+	set(MPI_HEADER_DIR "/path/to/mpi/headers" CACHE PATH "path to mpi headers")
+	include_directories(${MPI_HEADER_DIR})
+
+	set(MPI_LIBRARY_DIR "/path/to/mpi/library" CACHE PATH "path to mpi library")
+	link_directories(${MPI_LIBRARY_DIR})
+
+	set(MPI_LIBRARY_NAME "mpi" CACHE STRING "name of mpi libraries")
+	link_libraries(${MPI_LIBRARY_NAME})
+else()
+
+endif()
 
 # create targets for executable and libraries
 add_executable (aither ${sources})
@@ -126,18 +142,24 @@ else ()
    message (STATUS "C++ flags: " ${CMAKE_CXX_FLAGS})
 endif ()
 
-# determine if MPI_DIR has been set
-if (MPI_DIR)
-   message (STATUS "Looking for MPI here: ${MPI_DIR}")
-   set (CMAKE_PREFIX_PATH ${MPI_DIR})
-endif ()
+if(SPECIFY_MPI)
+	message (STATUS "mpi headers" ${MPI_HEADER_DIR})
+	message (STATUS "mpi library path" ${MPI_LIBRARY_DIR})
+	message (STATUS "mpi library name" ${MPI_LIBRARY_NAME})
+else()
+	# determine if MPI_DIR has been set
+	if (MPI_DIR)
+	   message (STATUS "Looking for MPI here: ${MPI_DIR}")
+	   set (CMAKE_PREFIX_PATH ${MPI_DIR})
+	endif ()
 
-# get mpi and link to all targets
-find_package (MPI REQUIRED)
-include_directories (SYSTEM "${MPI_INCLUDE_PATH}")
-target_link_libraries (aither ${MPI_C_LIBRARIES})
-target_link_libraries (aitherStatic ${MPI_C_LIBRARIES})
-target_link_libraries (aitherShared ${MPI_C_LIBRARIES})
+	# get mpi and link to all targets
+	find_package (MPI REQUIRED)
+	include_directories (SYSTEM "${MPI_INCLUDE_PATH}")
+	target_link_libraries (aither ${MPI_C_LIBRARIES})
+	target_link_libraries (aitherStatic ${MPI_C_LIBRARIES})
+	target_link_libraries (aitherShared ${MPI_C_LIBRARIES})
+endif()
 
 # install executable, libraries, and includes
 install (TARGETS aither aitherStatic aitherShared
