@@ -21,6 +21,7 @@
 #include <vector>                  // vector
 #include <memory>
 #include <cmath>
+#include <array>
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
 #include "multiArray3d.hpp"        // multiArray3d
@@ -328,50 +329,37 @@ T ConvertCellToNode(const T &cellData, const bool &ignoreEdge = false) {
   return nodeData;
 }
 
+double LinearInterpCoeff(const vector3d<double> &x0, const vector3d<double> &x1,
+                         const vector3d<double> &x);
 
 template <typename T>
-T TrilinearInterpolation(const vector3d<double> &il, const vector3d<double> &iu,
-                         const vector3d<double> &jl, const vector3d<double> &ju,
-                         const vector3d<double> &kl, const vector3d<double> &ku,
-                         const vector3d<double> &xc,
-                         const T &d1, const T &d2, const T &d3, const T &d4,
-                         const T &d5, const T &d6, const T &d7, const T &d8,
-                         const vector3d<double> &x) {
-  // 1 - bottom, left, aft
-  // 2 - bottom, left, fore
-  // 3 - bottom, right, aft
-  // 4 - bottom, right, fore
-  // 5 - top, left, aft
-  // 6 - top, left, fore
-  // 7 - top, right, aft
-  // 8 - top, right, fore
+T LinearInterp(const T &d0, const T &d1, const double &coeff) {
+  return (1.0 - coeff) * d0 + coeff * d1;
+}
 
-  constexpr auto eighth = 1.0 / 8.0;
-  const auto intPt1 = -1.0 / sqrt(3.0);
-  const auto intPt2 = -intPt1;
+std::array<double, 7> TrilinearInterpCoeff(
+    const vector3d<double> &x0, const vector3d<double> &x1,
+    const vector3d<double> &x2, const vector3d<double> &x3,
+    const vector3d<double> &x4, const vector3d<double> &x5,
+    const vector3d<double> &x6, const vector3d<double> &x7,
+    const vector3d<double> &x);
 
-  // convert x to isoparametric coordinates
-  auto iNorm = 2.0 * (iu - il).Normalize() - 1.0;
-  auto jNorm = 2.0 * (ju - jl).Normalize() - 1.0;
-  auto kNorm = 2.0 * (ku - kl).Normalize() - 1.0;
-  // x = xc + iNorm * zeta + jNorm * eta + kNorm * mu
-  // zeta = (x - xc) / iNorm
-  auto zeta = -1.0;
-  auto eta = -1.0;
-  auto mu = -1.0;
+template <typename T>
+T TrilinearInterp(const std::array<double, 7> &coeffs, const T &d0, const T &d1,
+                  const T &d2, const T &d3, const T &d4, const T &d5,
+                  const T &d6, const T &d7) {
+  // 4 linear interpolations to convert to 2D
+  const auto d04 = LinearInterp(d0, d4, coeffs[0]);
+  const auto d15 = LinearInterp(d1, d5, coeffs[1]);
+  const auto d26 = LinearInterp(d2, d6, coeffs[2]);
+  const auto d37 = LinearInterp(d3, d7, coeffs[3]);
 
-  auto shape =
-      (1.0 + zeta * intPt1) * (1.0 + eta * intPt1) * (1.0 + mu * intPt1) * d1 +
-      (1.0 + zeta * intPt1) * (1.0 + eta * intPt1) * (1.0 + mu * intPt2) * d2 +
-      (1.0 + zeta * intPt1) * (1.0 + eta * intPt2) * (1.0 + mu * intPt1) * d3 +
-      (1.0 + zeta * intPt1) * (1.0 + eta * intPt2) * (1.0 + mu * intPt2) * d4 +
-      (1.0 + zeta * intPt2) * (1.0 + eta * intPt1) * (1.0 + mu * intPt1) * d5 +
-      (1.0 + zeta * intPt2) * (1.0 + eta * intPt1) * (1.0 + mu * intPt2) * d6 +
-      (1.0 + zeta * intPt2) * (1.0 + eta * intPt2) * (1.0 + mu * intPt1) * d7 +
-      (1.0 + zeta * intPt2) * (1.0 + eta * intPt2) * (1.0 + mu * intPt2) * d8;
-  shape *= eighth;
+  // 2 linear interpolations to convert to 1D
+  const auto d0415 = LinearInterp(d04, d15, coeffs[4]);
+  const auto d2637 = LinearInterp(d26, d37, coeffs[5]);
 
-  return shape;
+  // 1 linear interpolation to complete trilinear interpolation
+  return LinearInterp(d0415, d2637, coeffs[6]);
 }
 
 #endif

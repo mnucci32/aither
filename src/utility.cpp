@@ -572,3 +572,38 @@ string GetEnvironmentVariable(const string &var) {
 double Kronecker(const int &ii, const int &jj) {
   return (ii == jj) ? 1.0 : 0.0;
 }
+
+double LinearInterpCoeff(const vector3d<double> &x0, const vector3d<double> &x1,
+                         const vector3d<double> &x) {
+  const auto dir = (x1 - x0).Normalize();
+  const auto dist = x0.Distance(x1);
+  return (x - x0).DotProd(dir) / dist;
+}
+
+std::array<double, 7> TrilinearInterpCoeff(
+    const vector3d<double> &x0, const vector3d<double> &x1,
+    const vector3d<double> &x2, const vector3d<double> &x3,
+    const vector3d<double> &x4, const vector3d<double> &x5,
+    const vector3d<double> &x6, const vector3d<double> &x7,
+    const vector3d<double> &x) {
+  std::array<double, 7> coeffs;
+  // 4 linear interpolations to convert to 2D
+  coeffs[0] = LinearInterpCoeff(x0, x4, x);
+  const auto x04 = LinearInterp(x0, x4, coeffs[0]);
+  coeffs[1] = LinearInterpCoeff(x1, x5, x);
+  const auto x15 = LinearInterp(x1, x5, coeffs[1]);
+  coeffs[2] = LinearInterpCoeff(x2, x6, x);
+  const auto x26 = LinearInterp(x2, x6, coeffs[2]);
+  coeffs[3] = LinearInterpCoeff(x3, x7, x);
+  const auto x37 = LinearInterp(x3, x7, coeffs[3]);
+
+  // 2 linear interpolations to convert to 1D
+  coeffs[4] = LinearInterpCoeff(x04, x15, x);
+  const auto x0415 = LinearInterp(x04, x15, coeffs[4]);
+  coeffs[5] = LinearInterpCoeff(x26, x37, x);
+  const auto x2637 = LinearInterp(x26, x37, coeffs[5]);
+
+  // 1 linear interpolation to complete trilinear interpolation
+  coeffs[6] = LinearInterpCoeff(x0415, x2637, x);
+  return coeffs;
+}

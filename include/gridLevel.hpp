@@ -18,6 +18,7 @@
 #define GRIDLEVEL_HEADER_DEF
 
 #include <vector>
+#include <array>
 #include <string>
 #include "procBlock.hpp"
 #include "boundaryConditions.hpp"
@@ -51,6 +52,8 @@ class gridLevel {
   // coarse grid cells for trilinear interpolation
   vector<multiArray3d<vector3d<int>>> toCoarse_;
   vector<multiArray3d<double>> volWeightFactor_;
+  vector<multiArray3d<std::array<double, 7>>> prolongCoeffs_;
+  vector<blkMultiArray3d<varArray>> mgForcing_;
 
  public:
   // Constructor
@@ -115,10 +118,77 @@ class gridLevel {
   gridLevel Coarsen(const decomposition& decomp, const input& inp,
                     const physics& phys);
   void Restriction(gridLevel& coarse) const;
-  void Prolongation(gridLevel& fine) const;
+  template <typename T>
+  void Prolongation(const vector<T>& coarseCorrection, gridLevel& fine) const;
 
   // Destructor
   ~gridLevel() noexcept {}
 };
+
+// function declarations
+template <typename T>
+void BlockRestriction(const T& fine,
+                      const multiArray3d<vector3d<int>>& toCoarse,
+                      const multiArray3d<double>& volFac,
+                      blkMultiArray3d<varArray>& coarse) {
+  // use volume weighted average
+  coarse.Zero();
+  for (auto kk = fine.StartK(); kk < fine.EndK(); ++kk) {
+    for (auto jj = fine.StartJ(); jj < fine.EndJ(); ++jj) {
+      for (auto ii = fine.StartI(); ii < fine.EndI(); ++ii) {
+        const auto ci = toCoarse(ii, jj, kk);
+        varArray restricted = coarse(ci[0], ci[1], ci[2]) +
+                          volFac(ii, jj, kk) * fine(ii, jj, kk);
+        coarse.InsertBlock(ci[0], ci[1], ci[2], restricted);
+      }
+    }
+  }
+}
+
+template <typename T>
+void BlockProlongation(const T& coarse,
+                       const multiArray3d<vector3d<int>>& toCoarse,
+                       const multiArray3d<std::array<double, 7>>& coeffs,
+                       T& fine) {
+  // get coarse data at nodes
+  const auto coarseNodes = ConvertCellToNode(coarse, true);
+  // use trilinear interpolation
+  for (auto kk = fine.StartK(); kk < fine.EndK(); ++kk) {
+    for (auto jj = fine.StartJ(); jj < fine.EndJ(); ++jj) {
+      for (auto ii = fine.StartI(); ii < fine.EndI(); ++ii) {
+        const auto ci = toCoarse(ii, jj, kk);
+        // data at coarse cell nodes
+        const auto d0 = coarseNodes(ci.X()    , ci.Y()    , ci.Z());
+        const auto d1 = coarseNodes(ci.X() + 1, ci.Y()    , ci.Z());
+        const auto d2 = coarseNodes(ci.X()    , ci.Y() + 1, ci.Z());
+        const auto d3 = coarseNodes(ci.X() + 1, ci.Y() + 1, ci.Z());
+        const auto d4 = coarseNodes(ci.X()    , ci.Y()    , ci.Z() + 1);
+        const auto d5 = coarseNodes(ci.X() + 1, ci.Y()    , ci.Z() + 1);
+        const auto d6 = coarseNodes(ci.X()    , ci.Y() + 1, ci.Z() + 1);
+        const auto d7 = coarseNodes(ci.X() + 1, ci.Y() + 1, ci.Z() + 1);
+        const auto prolong =
+            TrilinearInterp(coeffs(ii, jj, kk), d0, d1, d2, d3, d4, d5, d6, d7);
+        fine.InsertBlock(ii, jj, kk, prolong);
+      }
+    }
+  }
+}
+
+// member functions
+template <typename T>
+void gridLevel::Prolongation(const vector<T>& coarseCorrection,
+                             gridLevel& fine) const {
+  MSG_ASSERT(blocks_.size() == fine.blocks_.size(), "gridLevel size mismatch");
+  for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
+    T fineCorrection(fine.blocks_[ii].NumI(), fine.blocks_[ii].NumJ(),
+                     fine.blocks_[ii].NumK(), 0,
+                     fine.blocks_[ii].NumEquations(),
+                     fine.blocks_[ii].NumSpecies());
+    BlockProlongation(coarseCorrection[ii], fine.toCoarse_[ii],
+                      prolongCoeffs_[ii], fineCorrection);
+    // fine.blocks_[ii].state_ += fineCorrection;
+  }
+}
+
 
 #endif

@@ -341,6 +341,7 @@ class procBlock {
                          const int &a) const {
     return residual_(ii, jj, kk)[a];
   }
+  const blkMultiArray3d<residual> &Residuals() const { return residual_; }
 
   const tensor<double> &VelGrad(const int &ii, const int &jj,
                                 const int &kk) const {
@@ -563,12 +564,7 @@ class procBlock {
                            vector<boundaryConditions> &bcs,
                            vector<multiArray3d<vector3d<int>>> &toCoarse,
                            vector<multiArray3d<double>> &volFac) const;
-  void Restriction(procBlock &coarse,
-                   const multiArray3d<vector3d<int>> &toCoarse,
-                   const multiArray3d<double> &volFac) const;
-  void Prolongation(procBlock &fine,
-                    const multiArray3d<vector3d<int>> &toCoarse) const;
-  procBlock CellToNode() const;
+    procBlock CellToNode() const;
 
   // destructor
   ~procBlock() noexcept {}

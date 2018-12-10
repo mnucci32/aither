@@ -66,6 +66,8 @@ class arrayView {
         momentumIndex_(numSpecies),
         energyIndex_(momentumIndex_ + 3),
         turbulenceIndex_(energyIndex_ + 1) {}
+  arrayView(const T1 &arr)
+      : arrayView(arr.begin(), arr.end(), arr.NumSpecies()) {}
 
   // move constructor and assignment operator
   arrayView(arrayView&&) noexcept = default;

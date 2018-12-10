@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
   // Nondimensionalize BC & IC data
   inp.NondimensionalizeStateData(phys.EoS());
 
-  mgSolution solution(1);  // only keep finest grid level globally
+  mgSolution solution;  // only keep finest grid level globally
   vector<vector3d<double>> viscFaces;
   // l2 norm residuals to normalize by
   residual residL2First(inp.NumEquations(), inp.NumSpecies());

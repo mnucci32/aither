@@ -46,11 +46,15 @@ gridLevel::gridLevel(const vector<plot3dBlock>& mesh,
                      const string& restartFile, input& inp, residual& first) {
   connections_ = GetConnectionBCs(bcs, mesh, decomp, inp);
   blocks_.reserve(mesh.size());
+  mgForcing_.reserve(mesh.size());
   for (auto ll = 0U; ll < mesh.size(); ++ll) {
     blocks_.emplace_back(mesh[ll], decomp.ParentBlock(ll), bcs[ll], ll,
                          decomp.Rank(ll), decomp.LocalPosition(ll), inp);
     blocks_.back().InitializeStates(inp, phys);
     blocks_.back().AssignGhostCellsGeom();
+    mgForcing_.emplace_back(
+        blocks_.back().NumI(), blocks_.back().NumJ(), blocks_.back().NumK(), 0,
+        blocks_.back().NumEquations(), blocks_.back().NumSpecies(), 0);
   }
 
   // if restart, get data from restart file
@@ -521,6 +525,39 @@ gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
     block.AssignGhostCellsGeomEdge();
   }
 
+  // Calculate prolongation coefficients
+  coarse.prolongCoeffs_.reserve(this->NumBlocks());
+  for (auto ll = 0; ll < this->NumBlocks(); ++ll) {
+    // size coeffs for fine grid
+    coarse.prolongCoeffs_.emplace_back(blocks_[ll].NumI(), blocks_[ll].NumJ(),
+                                       blocks_[ll].NumK(), 0);
+    // loop over fine grid cells
+    for (auto kk = blocks_[ll].StartK(); kk < blocks_[ll].EndK(); ++kk) {
+      for (auto jj = blocks_[ll].StartJ(); jj < blocks_[ll].EndJ(); ++jj) {
+        for (auto ii = blocks_[ll].StartI(); ii < blocks_[ll].EndI(); ++ii) {
+          const auto ci = toCoarse_[ll](ii, jj, kk);
+          // coordinates of fine cell center
+          const auto fc = blocks_[ll].Center(ii, jj, kk);
+          // nodal coordinates of bounding coarse cell
+          const auto c0 = coarse.blocks_[ll].Node(ci.X(), ci.Y(), ci.Z());
+          const auto c1 = coarse.blocks_[ll].Node(ci.X() + 1, ci.Y(), ci.Z());
+          const auto c2 = coarse.blocks_[ll].Node(ci.X(), ci.Y() + 1, ci.Z());
+          const auto c3 =
+              coarse.blocks_[ll].Node(ci.X() + 1, ci.Y() + 1, ci.Z());
+          const auto c4 = coarse.blocks_[ll].Node(ci.X(), ci.Y(), ci.Z() + 1);
+          const auto c5 =
+              coarse.blocks_[ll].Node(ci.X() + 1, ci.Y(), ci.Z() + 1);
+          const auto c6 =
+              coarse.blocks_[ll].Node(ci.X(), ci.Y() + 1, ci.Z() + 1);
+          const auto c7 =
+              coarse.blocks_[ll].Node(ci.X() + 1, ci.Y() + 1, ci.Z() + 1);
+          coarse.prolongCoeffs_.back()(ii, jj, kk) =
+              TrilinearInterpCoeff(c0, c1, c2, c3, c4, c5, c6, c7, fc);
+        }
+      }
+    }
+  }
+
   return coarse;
 }
 
@@ -528,15 +565,8 @@ void gridLevel::Restriction(gridLevel& coarse) const {
   MSG_ASSERT(blocks_.size() == coarse.blocks_.size(),
              "gridLevel size mismatch");
   for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
-    blocks_[ii].Restriction(coarse.blocks_[ii], toCoarse_[ii],
-                            volWeightFactor_[ii]);
+    BlockRestriction(blocks_[ii].Residuals(), toCoarse_[ii],
+                     volWeightFactor_[ii], coarse.mgForcing_[ii]);
   }
 }
 
-void gridLevel::Prolongation(gridLevel& fine) const {
-  MSG_ASSERT(blocks_.size() == fine.blocks_.size(),
-             "gridLevel size mismatch");
-  for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
-    blocks_[ii].Prolongation(fine.blocks_[ii], fine.toCoarse_[ii]);
-  }
-}

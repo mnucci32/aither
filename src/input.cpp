@@ -96,6 +96,9 @@ input::input(const string &name, const string &resName) : simName_(name),
   freezingTemperature_ = 0.0;
   mgLevels_ = 1;
   outputNodalVariables_ = false;
+  mgPreSweeps_ = 2;
+  mgPostSweeps_ = 1;
+  mgCycle_ = "V";
 
   // default to primitive variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
@@ -142,6 +145,9 @@ input::input(const string &name, const string &resName) : simName_(name),
            "schmidtNumber",
            "freezingTemperature",
            "multigridLevels",
+           "multigridPreSweeps",
+           "multigridPostSweeps",
+           "multigridCycle",
            "boundaryStates",
            "boundaryConditions"};
 }
@@ -431,6 +437,21 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->MultigridLevels() << endl;
           }
+        } else if (key == "multigridPreSweeps") {
+          mgPreSweeps_ = stoi(tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << ": " << this->MultigridPreSweeps() << endl;
+          }
+        } else if (key == "multigridPostSweeps") {
+          mgPostSweeps_ = stoi(tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << ": " << this->MultigridPostSweeps() << endl;
+          }
+        } else if (key == "multigridCycle") {
+          mgCycle_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->MultigridCycleType() << endl;
+          }
         } else if (key == "outputNodalVariables") {
           outputNodalVariables_ = tokens[1] == "yes" || tokens[1] == "true";
           if (rank == ROOTP) {
@@ -607,6 +628,7 @@ void input::ReadInput(const int &rank) {
   this->CheckSpecies();
   this->CheckNonreflecting();
   this->CheckChemistryMechanism();
+  this->CheckMultigrid();
 
   if (rank == ROOTP) {
     cout << endl;
@@ -995,6 +1017,18 @@ void input::CheckNonreflecting() const {
         exit(EXIT_FAILURE);
       }
     }
+  }
+}
+
+// check that multigrid parameters make sense
+void input::CheckMultigrid() const {
+  if (mgLevels_ < 1) {
+    cerr << "ERROR: multigridLevels must be >= 1!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (mgCycle_ != "V" || mgCycle_ != "W") {
+    cerr << "ERROR: multigridCycle must be 'V' or 'W'" << endl;
+    exit(EXIT_FAILURE);
   }
 }
 

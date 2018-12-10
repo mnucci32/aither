@@ -96,6 +96,9 @@ class input {
   double freezingTemperature_;  // temperature below which reactions cease
   int mgLevels_;  // number of multigrid levels
   bool outputNodalVariables_;
+  int mgPreSweeps_;  // pre-relaxation sweeps
+  int mgPostSweeps_;  // post-relaxation sweeps
+  string mgCycle_;  // multigrid cycle type
 
   set<string> outputVariables_;  // variables to output
   set<string> wallOutputVariables_;  // wall variables to output
@@ -111,6 +114,7 @@ class input {
   void CheckSpecies() const;
   void CheckNonreflecting() const;
   void CheckChemistryMechanism() const;
+  void CheckMultigrid() const;
   unique_ptr<turbModel> AssignTurbulenceModel() const;
   unique_ptr<eos> AssignEquationOfState() const;
   unique_ptr<transport> AssignTransportModel() const;
@@ -268,6 +272,16 @@ class input {
   double FreezingTemperature() const { return freezingTemperature_; }
 
   int MultigridLevels() const { return mgLevels_; }
+  int MultigridPreSweeps() const { return mgPreSweeps_; }
+  int MultigridPostSweeps() const { return mgPostSweeps_; }
+  string MultigridCycleType() const { return mgCycle_; }
+  int MultigridCycleIndex() const {
+    if (mgCycle_ == "W") {
+      return 2;
+    } else {
+      return 1;
+    }
+  }
 
   // destructor
   ~input() noexcept {}

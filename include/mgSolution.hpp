@@ -36,16 +36,20 @@ class kdtree;
 
 class mgSolution {
   vector<gridLevel> solution_;
+  int mgCycleIndex_;
 
   // private member functions
   void Restriction(const int&);
-  void Prolongation(const int&);
-  void MultigridCycle(const int&);
+  template<typename T>
+  void Prolongation(const int&, const vector<T>&);
+  void CycleAtLevel(const int&, const input &inp);
 
  public:
   // Constructor
-  mgSolution(const int& numLevels);
-  mgSolution() : mgSolution(1) {}
+  mgSolution(const int& numLevels, const int& cycle);
+  mgSolution() : mgSolution(1, 1) {}
+  mgSolution(const input& inp)
+      : mgSolution(inp.MultigridLevels(), inp.MultigridCycleIndex()) {}
 
   // move constructor and assignment operator
   mgSolution(mgSolution&&) noexcept = default;
@@ -89,5 +93,13 @@ class mgSolution {
   // Destructor
   ~mgSolution() noexcept {}
 };
+
+// multigrid prolongation - coarse grid to fine grid operator
+template <typename T>
+void mgSolution::Prolongation(const int &ci, const vector<T> &correction) {
+  MSG_ASSERT(ci > 0 && ci < static_cast<int>(solution_.size()),
+             "index for prolongation out of range");
+  solution_[ci].Prolongation(correction, solution_[ci - 1]);
+}
 
 #endif

@@ -35,9 +35,9 @@ using std::endl;
 using std::string;
 
 // constructor
-mgSolution::mgSolution(const int &numLevels) {
-  MSG_ASSERT(numLevels > 0, "must at least have 1 multigrid level");
+mgSolution::mgSolution(const int &numLevels, const int &cycle) {
   solution_.reserve(numLevels);
+  mgCycleIndex_ = cycle;
 }
 
 // member functions
@@ -66,7 +66,7 @@ mgSolution mgSolution::SendFinestGridLevel(const int& rank,
                                            const MPI_Datatype& MPI_vec3dMag,
                                            const MPI_Datatype& MPI_connection,
                                            const input& inp) const {
-  mgSolution local(inp.MultigridLevels());
+  mgSolution local(inp);
   local.solution_.emplace_back(this->Finest().SendGridLevel(
       rank, numProcBlock, MPI_vec3d, MPI_vec3dMag, MPI_connection, inp));
   return local;
@@ -120,38 +120,43 @@ void mgSolution::Restriction(const int &fi) {
   solution_[fi].Restriction(solution_[fi + 1]);
 }
 
-// multigrid prolongation - coarse grid to fine grid operator
-void mgSolution::Prolongation(const int &ci) {
-  MSG_ASSERT(ci > 0 && ci < static_cast<int>(solution_.size()),
-             "index for prolongation out of range");
-  solution_[ci].Prolongation(solution_[ci - 1]);
-}
-
-void mgSolution::MultigridCycle(const int &sl) {
-  // sl -- index for grid level at which final solution obtained
-  MSG_ASSERT(sl > 0 && sl < static_cast<int>(solution_.size()),
+void mgSolution::CycleAtLevel(const int &fl, const input &inp) {
+  // fl -- index for fine grid level
+  MSG_ASSERT(fl >= 0 && fl < static_cast<int>(solution_.size()),
              "index for multigrid cycle out of range");
 
-  // start with given coarse mesh, prolong to next finest working mesh level
-  this->Prolongation(sl);
-  const auto wl = sl - 1;
+  if (fl == this->NumGridLevels() - 1) {  // recursive base case
 
-  // run relaxation sweeps on working mesh level
+  } else {
+    // pre-relaxation sweeps
 
-  // restrict and run relaxation sweeps on all levels down to coarsest
-  for (auto ii = wl; ii < this->NumGridLevels(); ++ii) {
-    this->Restriction(ii);
+
+    // coarse grid correction
+    auto cl = fl + 1;
+    // calc residual, restrict to forcing term of coarse grid
+    this->Restriction(fl);
+
+    // recursive call to next coarse level
+    this->CycleAtLevel(cl, inp);
+
+    // interpolate coarse level correction and add to solution
+    vector<blkMultiArray3d<varArray>> correction;
+    correction.reserve(solution_[cl].NumBlocks());
+    for (const auto &blk : solution_[cl].Blocks()) {
+      correction.emplace_back(blk.NumI(), blk.NumJ(), blk.NumK(), 0,
+                              blk.NumEquations(), blk.NumSpecies());
+    }
+    this->Prolongation(cl, correction);
+
+    // post-relaxation sweeps
+
   }
 
-  // prolong and run relaxation sweeps on all levels up to working level
-  for (auto ii = this->NumGridLevels() - 1; ii >= wl; --ii) {
-    this->Prolongation(ii);
-  }
 }
 
 void mgSolution::FullMultigridCycle() {
   // solve a multigrid cyle at each coarse level for FMG
   for (auto ii = this->NumGridLevels() - 1; ii > 0; --ii) {
-    this->MultigridCycle(ii);
+    //this->CycleAtLevel(ii);
   }
 }
