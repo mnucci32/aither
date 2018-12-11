@@ -42,7 +42,8 @@ class mgSolution {
   void Restriction(const int&);
   template<typename T>
   void Prolongation(const int&, const vector<T>&);
-  void CycleAtLevel(const int&, const input &inp);
+  template <typename T>
+  void CycleAtLevel(const int&, const input &inp, T &sol);
 
  public:
   // Constructor
@@ -101,5 +102,43 @@ void mgSolution::Prolongation(const int &ci, const vector<T> &correction) {
              "index for prolongation out of range");
   solution_[ci].Prolongation(correction, solution_[ci - 1]);
 }
+
+template <typename T>
+void mgSolution::CycleAtLevel(const int &fl, const input &inp, T &sol) {
+  // fl -- index for fine grid level
+  MSG_ASSERT(fl >= 0 && fl < static_cast<int>(solution_.size()),
+             "index for multigrid cycle out of range");
+
+  if (fl == this->NumGridLevels() - 1) {  // recursive base case
+
+  } else {
+    // pre-relaxation sweeps
+
+
+    // coarse grid correction
+    auto cl = fl + 1;
+    // calc residual, restrict to forcing term of coarse grid
+    this->Restriction(fl);
+
+    // recursive call to next coarse level
+    vector<blkMultiArray3d<varArray>> correction;
+    correction.reserve(solution_[cl].NumBlocks());
+    for (const auto &blk : solution_[cl].Blocks()) {
+      correction.emplace_back(blk.NumI(), blk.NumJ(), blk.NumK(), 0,
+                              blk.NumEquations(), blk.NumSpecies());
+    }
+    for (auto ii = 0; ii < mgCycleIndex_; ++ii) {
+      this->CycleAtLevel(cl, inp, correction);
+    }
+
+    // interpolate coarse level correction and add to solution
+    this->Prolongation(cl, correction);
+
+    // post-relaxation sweeps
+
+  }
+
+}
+
 
 #endif

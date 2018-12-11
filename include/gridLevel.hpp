@@ -137,8 +137,8 @@ void BlockRestriction(const T& fine,
     for (auto jj = fine.StartJ(); jj < fine.EndJ(); ++jj) {
       for (auto ii = fine.StartI(); ii < fine.EndI(); ++ii) {
         const auto ci = toCoarse(ii, jj, kk);
-        varArray restricted = coarse(ci[0], ci[1], ci[2]) +
-                          volFac(ii, jj, kk) * fine(ii, jj, kk);
+        varArray restricted =
+            coarse(ci[0], ci[1], ci[2]) + volFac(ii, jj, kk) * fine(ii, jj, kk);
         coarse.InsertBlock(ci[0], ci[1], ci[2], restricted);
       }
     }
@@ -186,7 +186,7 @@ void gridLevel::Prolongation(const vector<T>& coarseCorrection,
                      fine.blocks_[ii].NumSpecies());
     BlockProlongation(coarseCorrection[ii], fine.toCoarse_[ii],
                       prolongCoeffs_[ii], fineCorrection);
-    // fine.blocks_[ii].state_ += fineCorrection;
+    fine.blocks_[ii].AddCoarseGridCorrection(fineCorrection);
   }
 }
 

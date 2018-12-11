@@ -120,40 +120,6 @@ void mgSolution::Restriction(const int &fi) {
   solution_[fi].Restriction(solution_[fi + 1]);
 }
 
-void mgSolution::CycleAtLevel(const int &fl, const input &inp) {
-  // fl -- index for fine grid level
-  MSG_ASSERT(fl >= 0 && fl < static_cast<int>(solution_.size()),
-             "index for multigrid cycle out of range");
-
-  if (fl == this->NumGridLevels() - 1) {  // recursive base case
-
-  } else {
-    // pre-relaxation sweeps
-
-
-    // coarse grid correction
-    auto cl = fl + 1;
-    // calc residual, restrict to forcing term of coarse grid
-    this->Restriction(fl);
-
-    // recursive call to next coarse level
-    this->CycleAtLevel(cl, inp);
-
-    // interpolate coarse level correction and add to solution
-    vector<blkMultiArray3d<varArray>> correction;
-    correction.reserve(solution_[cl].NumBlocks());
-    for (const auto &blk : solution_[cl].Blocks()) {
-      correction.emplace_back(blk.NumI(), blk.NumJ(), blk.NumK(), 0,
-                              blk.NumEquations(), blk.NumSpecies());
-    }
-    this->Prolongation(cl, correction);
-
-    // post-relaxation sweeps
-
-  }
-
-}
-
 void mgSolution::FullMultigridCycle() {
   // solve a multigrid cyle at each coarse level for FMG
   for (auto ii = this->NumGridLevels() - 1; ii > 0; --ii) {

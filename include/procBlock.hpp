@@ -564,7 +564,10 @@ class procBlock {
                            vector<boundaryConditions> &bcs,
                            vector<multiArray3d<vector3d<int>>> &toCoarse,
                            vector<multiArray3d<double>> &volFac) const;
-    procBlock CellToNode() const;
+  procBlock CellToNode() const;
+  void AddCoarseGridCorrection(const blkMultiArray3d<varArray> &correction) {
+    state_ += correction;
+  }
 
   // destructor
   ~procBlock() noexcept {}
