@@ -1322,6 +1322,113 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
   }  // end forward sweep
 }
 
+varArray procBlock::ImplicitLower(const int &ii, const int &jj, const int &kk,
+                                  const blkMultiArray3d<varArray> &du,
+                                  const physics &phys, const input &inp) const {
+  // initialize term for contribution from lower triangular matrix
+  varArray L(inp.NumEquations(), inp.NumSpecies());
+
+  // if i lower diagonal cell is in physical location there is a contribution
+  // from it
+  if (this->IsPhysical(ii - 1, jj, kk) || bc_.BCIsConnection(ii, jj, kk, 1)) {
+    // calculate projected center to center distance along face area
+    const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
+
+    // update L matrix
+    L += OffDiagonal(
+        state_(ii - 1, jj, kk), state_(ii, jj, kk), du(ii - 1, jj, kk),
+        fAreaI_(ii, jj, kk), this->Viscosity(ii - 1, jj, kk),
+        this->EddyViscosity(ii - 1, jj, kk), this->F1(ii - 1, jj, kk), projDist,
+        this->VelGrad(ii - 1, jj, kk), phys, inp, true);
+  }
+
+  // if j lower diagonal cell is in physical location there is a contribution
+  // from it
+  if (this->IsPhysical(ii, jj - 1, kk) || bc_.BCIsConnection(ii, jj, kk, 3)) {
+    // calculate projected center to center distance along face area
+    const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
+
+    // update L matrix
+    L += OffDiagonal(
+        state_(ii, jj - 1, kk), state_(ii, jj, kk), du(ii, jj - 1, kk),
+        fAreaJ_(ii, jj, kk), this->Viscosity(ii, jj - 1, kk),
+        this->EddyViscosity(ii, jj - 1, kk), this->F1(ii, jj - 1, kk), projDist,
+        this->VelGrad(ii, jj - 1, kk), phys, inp, true);
+  }
+
+  // if k lower diagonal cell is in physical location there is a contribution
+  // from it
+  if (this->IsPhysical(ii, jj, kk - 1) || bc_.BCIsConnection(ii, jj, kk, 5)) {
+    // calculate projected center to center distance along face area
+    const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
+
+    // update L matrix
+    L += OffDiagonal(
+        state_(ii, jj, kk - 1), state_(ii, jj, kk), du(ii, jj, kk - 1),
+        fAreaK_(ii, jj, kk), this->Viscosity(ii, jj, kk - 1),
+        this->EddyViscosity(ii, jj, kk - 1), this->F1(ii, jj, kk - 1), projDist,
+        this->VelGrad(ii, jj, kk - 1), phys, inp, true);
+  }
+  return L;
+}
+
+varArray procBlock::ImplicitUpper(const int &ii, const int &jj, const int &kk,
+                                  const blkMultiArray3d<varArray> &du,
+                                  const physics &phys, const input &inp) const {
+  // initialize term for contribution from upper/lower triangular matrix
+  varArray U(inp.NumEquations(), inp.NumSpecies());
+
+  // -----------------------------------------------------------------------
+  // if i upper diagonal cell is in physical location there is a contribution
+  // from it
+  if (this->IsPhysical(ii + 1, jj, kk) ||
+      bc_.BCIsConnection(ii + 1, jj, kk, 2)) {
+    // calculate projected center to center distance along face area
+    const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
+
+    // update U matrix
+    U += OffDiagonal(
+        state_(ii + 1, jj, kk), state_(ii, jj, kk), du(ii + 1, jj, kk),
+        fAreaI_(ii + 1, jj, kk), this->Viscosity(ii + 1, jj, kk),
+        this->EddyViscosity(ii + 1, jj, kk), this->F1(ii + 1, jj, kk), projDist,
+        this->VelGrad(ii + 1, jj, kk), phys, inp, false);
+  }
+
+  // -----------------------------------------------------------------------
+  // if j upper diagonal cell is in physical location there is a contribution
+  // from it
+  if (this->IsPhysical(ii, jj + 1, kk) ||
+      bc_.BCIsConnection(ii, jj + 1, kk, 4)) {
+    // calculate projected center to center distance along face area
+    const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
+
+    // update U matrix
+    U += OffDiagonal(
+        state_(ii, jj + 1, kk), state_(ii, jj, kk), du(ii, jj + 1, kk),
+        fAreaJ_(ii, jj + 1, kk), this->Viscosity(ii, jj + 1, kk),
+        this->EddyViscosity(ii, jj + 1, kk), this->F1(ii, jj + 1, kk), projDist,
+        this->VelGrad(ii, jj + 1, kk), phys, inp, false);
+  }
+
+  // -----------------------------------------------------------------------
+  // if k upper diagonal cell is in physical location there is a contribution
+  // from it
+  if (this->IsPhysical(ii, jj, kk + 1) ||
+      bc_.BCIsConnection(ii, jj, kk + 1, 6)) {
+    // calculate projected center to center distance along face area
+    const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
+
+    // update U matrix
+    U += OffDiagonal(
+        state_(ii, jj, kk + 1), state_(ii, jj, kk), du(ii, jj, kk + 1),
+        fAreaK_(ii, jj, kk + 1), this->Viscosity(ii, jj, kk + 1),
+        this->EddyViscosity(ii, jj, kk + 1), this->F1(ii, jj, kk + 1), projDist,
+        this->VelGrad(ii, jj, kk + 1), phys, inp, false);
+  }
+
+  return U;
+}
+
 double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
                                  blkMultiArray3d<varArray> &x,
                                  const physics &phys, const input &inp,
@@ -1613,6 +1720,7 @@ double procBlock::DPLUR(blkMultiArray3d<varArray> &x, const physics &phys,
 
   return l2Error.Sum();
 }
+
 
 blkMultiArray3d<varArray> procBlock::InitializeMatrixUpdate(
     const input &inp, const physics &phys, const matMultiArray3d &aInv) const {

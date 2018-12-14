@@ -43,7 +43,9 @@ class mgSolution {
   template<typename T>
   void Prolongation(const int&, const vector<T>&);
   template <typename T>
-  void CycleAtLevel(const int&, const input &inp, T &sol);
+  void CycleAtLevel(const int&, const input &, T &);
+  template <typename T>
+  void Relax(const int&, T&) const;
 
  public:
   // Constructor
@@ -101,6 +103,12 @@ void mgSolution::Prolongation(const int &ci, const vector<T> &correction) {
   MSG_ASSERT(ci > 0 && ci < static_cast<int>(solution_.size()),
              "index for prolongation out of range");
   solution_[ci].Prolongation(correction, solution_[ci - 1]);
+}
+
+// relax solution
+template <typename T>
+void mgSolution::Relax(const int& sweeps, T& data) const {
+  
 }
 
 template <typename T>

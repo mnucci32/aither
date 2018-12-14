@@ -41,6 +41,7 @@ set(sources
   inviscidFlux.cpp
   kdtree.cpp
   limiter.cpp
+  linearSolver.cpp
   matMultiArray3d.cpp
   matrix.cpp
   mgSolution.cpp

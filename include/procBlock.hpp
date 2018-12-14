@@ -450,6 +450,12 @@ class procBlock {
 
   double DPLUR(blkMultiArray3d<varArray> &, const physics &, const input &,
                const matMultiArray3d &) const;
+  varArray ImplicitLower(const int &, const int &, const int &,
+                         const blkMultiArray3d<varArray> &, const physics &,
+                         const input &) const;
+  varArray ImplicitUpper(const int &, const int &, const int &,
+                         const blkMultiArray3d<varArray> &, const physics &,
+                         const input &) const;
 
   bool IsPhysical(const int &ii, const int &jj, const int &kk) const {
     return state_.IsPhysical(ii, jj, kk);

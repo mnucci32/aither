@@ -1026,7 +1026,7 @@ void input::CheckMultigrid() const {
     cerr << "ERROR: multigridLevels must be >= 1!" << endl;
     exit(EXIT_FAILURE);
   }
-  if (mgCycle_ != "V" || mgCycle_ != "W") {
+  if (mgCycle_ != "V" && mgCycle_ != "W") {
     cerr << "ERROR: multigridCycle must be 'V' or 'W'" << endl;
     exit(EXIT_FAILURE);
   }
