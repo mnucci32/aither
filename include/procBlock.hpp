@@ -440,16 +440,6 @@ class procBlock {
 
   blkMultiArray3d<varArray> InitializeMatrixUpdate(
       const input &, const physics &, const matMultiArray3d &) const;
-  void LUSGS_Forward(const vector<vector3d<int>> &, blkMultiArray3d<varArray> &,
-                     const physics &, const input &, const matMultiArray3d &,
-                     const int &) const;
-  double LUSGS_Backward(const vector<vector3d<int>> &,
-                        blkMultiArray3d<varArray> &, const physics &,
-                        const input &, const matMultiArray3d &,
-                        const int &) const;
-
-  double DPLUR(blkMultiArray3d<varArray> &, const physics &, const input &,
-               const matMultiArray3d &) const;
   varArray ImplicitLower(const int &, const int &, const int &,
                          const blkMultiArray3d<varArray> &, const physics &,
                          const input &) const;

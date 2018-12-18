@@ -416,8 +416,6 @@ double gridLevel::ImplicitUpdate(const input& inp, const physics& phys,
   // initialize matrix error
   auto matrixError = 0.0;
 
-  const auto numG = this->Block(0).NumGhosts();
-
   // add volume and time term and calculate inverse of main diagonal
   this->InvertDiagonal(inp);
 
@@ -429,52 +427,12 @@ double gridLevel::ImplicitUpdate(const input& inp, const physics& phys,
 
   // Solve Ax=b with supported solver
   linearSolver solver(inp.MatrixSolver());
-  if (inp.MatrixSolver() == "lusgs" || inp.MatrixSolver() == "blusgs") { 
-
-    solver.LUSGS_Relax((*this), phys, inp, rank, inp.MatrixSweeps(), du);
-
-    /*   
-    // calculate order by hyperplanes for each block
-    vector<vector<vector3d<int>>> reorder(this->NumBlocks());
-    for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
-      reorder[bb] = HyperplaneReorder(blocks_[bb].NumI(), blocks_[bb].NumJ(),
-                                      blocks_[bb].NumK());
-    }
-
-    // start sweeps through domain
-    for (auto ii = 0; ii < inp.MatrixSweeps(); ii++) {
-      // swap updates for ghost cells
-      SwapImplicitUpdate(du, this->Connections(), rank, numG);
-
-      // forward lu-sgs sweep
-      for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
-        blocks_[bb].LUSGS_Forward(reorder[bb], du[bb], phys, inp,
-                                  diagonal_[bb], ii);
-      }
-
-      // swap updates for ghost cells
-      SwapImplicitUpdate(du, this->Connections(), rank, numG);
-
-      // backward lu-sgs sweep
-      for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
-        matrixError += blocks_[bb].LUSGS_Backward(reorder[bb], du[bb], phys,
-                                                  inp, diagonal_[bb], ii);
-      }
-    }
-    */
+  if (inp.MatrixSolver() == "lusgs" || inp.MatrixSolver() == "blusgs") {
+    matrixError =
+        solver.LUSGS_Relax((*this), phys, inp, rank, inp.MatrixSweeps(), du);
   } else if (inp.MatrixSolver() == "dplur" || inp.MatrixSolver() == "bdplur") {
-    solver.DPLUR_Relax((*this), phys, inp, rank, inp.MatrixSweeps(), du);
-    /*
-    for (auto ii = 0; ii < inp.MatrixSweeps(); ii++) {
-      // swap updates for ghost cells
-      SwapImplicitUpdate(du, this->Connections(), rank, numG);
-
-      for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
-        // Calculate correction (du)
-        matrixError += blocks_[bb].DPLUR(du[bb], phys, inp, diagonal_[bb]);
-      }
-    }
-    */
+    matrixError =
+        solver.DPLUR_Relax((*this), phys, inp, rank, inp.MatrixSweeps(), du);
   } else {
     cerr << "ERROR: Matrix solver " << inp.MatrixSolver() <<
         " is not recognized!" << endl;
