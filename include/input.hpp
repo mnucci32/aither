@@ -42,6 +42,8 @@ class thermodynamic;
 class diffusion;
 class physics;
 class chemistry;
+class linearSolver;
+class gridLevel;
 
 class input {
   string simName_;  // simulation name
@@ -206,6 +208,7 @@ class input {
   int MatrixSweeps() const {return matrixSweeps_;}
   double MatrixRelaxation() const {return matrixRelaxation_;}
   bool MatrixRequiresInitialization() const;
+  unique_ptr<linearSolver> AssignLinearSolver(const gridLevel &) const;
 
   double Theta() const {return timeIntTheta_;}
   double Zeta() const {return timeIntZeta_;}

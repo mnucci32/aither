@@ -30,6 +30,8 @@
 #include "inputStates.hpp"
 #include "physicsModels.hpp"
 #include "fluid.hpp"
+#include "linearSolver.hpp"
+#include "gridLevel.hpp"
 #include "macros.hpp"
 
 using std::cout;
@@ -837,6 +839,23 @@ unique_ptr<chemistry> input::AssignChemistryModel() const {
   return chem;
 }
 
+// member function to get linear solver
+unique_ptr<linearSolver> input::AssignLinearSolver(
+    const gridLevel &level) const {
+  // define linear solver
+  unique_ptr<linearSolver> solver(nullptr);
+  if (matrixSolver_ == "lusgs" || matrixSolver_ == "blusgs") {
+    solver =
+        unique_ptr<linearSolver>{std::make_unique<lusgs>(matrixSolver_, level)};
+  } else if (matrixSolver_ == "dplur" || matrixSolver_ == "bdplur") {
+    solver = unique_ptr<linearSolver>{std::make_unique<dplur>(matrixSolver_)};
+  } else {
+    cerr << "ERROR: Error in input::AssignLinearSolver(). Linear "
+         << "solver " << matrixSolver_ << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return solver;
+}
 
 physics input::AssignPhysicsModels() const {
   auto eqnState = this->AssignEquationOfState();

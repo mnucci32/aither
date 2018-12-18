@@ -20,6 +20,7 @@
 #include <vector>
 #include <array>
 #include <string>
+#include <memory>
 #include "procBlock.hpp"
 #include "boundaryConditions.hpp"
 #include "vector3d.hpp"
@@ -27,6 +28,7 @@
 #include "mpi.h"
 
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 // forward class declaration
@@ -101,7 +103,8 @@ class gridLevel {
   void CalcTimeStep(const input& inp);
   void ExplicitUpdate(const input& inp, const physics& phys, const int& mm,
                       residual& residL2, resid& residLinf);
-  double ImplicitUpdate(const input& inp, const physics& phys, const int& mm,
+  double ImplicitUpdate(const input& inp, const physics& phys,
+                        const unique_ptr<linearSolver>& solver, const int& mm,
                         residual& residL2, resid& residLinf, const int& rank);
   void ResizeMatrix(const input& inp, const int& numProcBlock);
 

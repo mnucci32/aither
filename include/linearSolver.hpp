@@ -30,13 +30,15 @@ class procBlock;
 class input;
 class gridLevel;
 
-// class to solve system of linear equations Ax=b
+// classes to solve system of linear equations Ax=b
+
+// abstract base class
 class linearSolver {
   string solverType_;
 
  public:
   // constructors
-  linearSolver(const string &type) : solverType_(type) {
+  explicit linearSolver(const string &type) : solverType_(type) {
     MSG_ASSERT(type == "lusgs" || type == "blusgs" || type == "dplur" ||
                    type == "bdplur",
                "linear solver type not supported");
@@ -57,24 +59,71 @@ class linearSolver {
       const procBlock &, const input &, const physics &,
       const matMultiArray3d &) const;
 
+  virtual double Relax(const gridLevel &, const physics &, const input &,
+                       const int &, const int &,
+                       vector<blkMultiArray3d<varArray>> &) const = 0;
+
+  // destructor
+  virtual ~linearSolver() noexcept {}
+};
+
+// --------------------------------------------------------------------------
+class lusgs : public linearSolver {
+  vector<vector<vector3d<int>>> reorder_;
+
+  // private member functions
   void LUSGS_Forward(const procBlock &, const vector<vector3d<int>> &,
                      const physics &, const input &, const matMultiArray3d &,
                      const int &, blkMultiArray3d<varArray> &) const;
   double LUSGS_Backward(const procBlock &, const vector<vector3d<int>> &,
                         const physics &, const input &, const matMultiArray3d &,
                         const int &, blkMultiArray3d<varArray> &) const;
-  double LUSGS_Relax(const gridLevel &, const physics &, const input &,
-                     const int &, const int &,
-                     vector<blkMultiArray3d<varArray>> &) const;
 
-  double DPLUR(const procBlock &, const physics &, const input &,
-               const matMultiArray3d &, blkMultiArray3d<varArray> &) const;
-  double DPLUR_Relax(const gridLevel &, const physics &, const input &,
-                     const int &, const int &,
-                     vector<blkMultiArray3d<varArray>> &) const;
+ public:
+  // constructors
+  lusgs(const string &type, const gridLevel &level);
+
+  // move constructor and assignment operator
+  lusgs(lusgs &&solver) noexcept : linearSolver(std::move(solver)) {}
+  lusgs &operator=(lusgs &&) noexcept = default;
+
+  // copy constructor and assignment operator
+  lusgs(const lusgs &solver) : linearSolver(solver) {}
+  lusgs &operator=(const lusgs &) = default;
+
+  // member functions
+  double Relax(const gridLevel &, const physics &, const input &, const int &,
+               const int &, vector<blkMultiArray3d<varArray>> &) const override;
 
   // destructor
-  ~linearSolver() noexcept {}
+  virtual ~lusgs() noexcept {}
+};
+
+// --------------------------------------------------------------------------
+class dplur : public linearSolver {
+
+  // private member functions
+  double DPLUR(const procBlock &, const physics &, const input &,
+               const matMultiArray3d &, blkMultiArray3d<varArray> &) const;
+
+ public:
+  // constructors
+  explicit dplur(const string &type) : linearSolver(type) {}
+
+  // move constructor and assignment operator
+  dplur(dplur &&solver) noexcept : linearSolver(std::move(solver)) {}
+  dplur &operator=(dplur &&) noexcept = default;
+
+  // copy constructor and assignment operator
+  dplur(const dplur &solver) : linearSolver(solver) {}
+  dplur &operator=(const dplur &) = default;
+
+  // member functions
+  double Relax(const gridLevel &, const physics &, const input &, const int &,
+               const int &, vector<blkMultiArray3d<varArray>> &) const override;
+
+  // destructor
+  virtual ~dplur() noexcept {}
 };
 
 // ----------------------------------------------------------------------------

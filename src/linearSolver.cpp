@@ -22,6 +22,7 @@
 #include "matMultiArray3d.hpp"
 #include "physicsModels.hpp"
 #include "gridLevel.hpp"
+#include "utility.hpp"
 
 using std::cout;
 using std::endl;
@@ -86,6 +87,16 @@ void linearSolver::InvertDiagonal(const procBlock &blk, const input &inp,
         mainDiagonal.Inverse(ii, jj, kk);
       }
     }
+  }
+}
+
+lusgs::lusgs(const string &type, const gridLevel &level) : linearSolver(type) {
+  // calculate order by hyperplanes for each block
+  reorder_.resize(level.NumBlocks());
+  for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
+    reorder_[bb] =
+        HyperplaneReorder(level.Block(bb).NumI(), level.Block(bb).NumJ(),
+                          level.Block(bb).NumK());
   }
 }
 
@@ -194,11 +205,11 @@ variabes (FD(Unj)) which is known due to sweeping along hyperplanes.
 For viscous simulations, the viscous contribution to the spectral radius K is
 used, and everything else remains the same.
  */
-void linearSolver::LUSGS_Forward(const procBlock &blk,
-                                 const vector<vector3d<int>> &reorder,
-                                 const physics &phys, const input &inp,
-                                 const matMultiArray3d &aInv, const int &sweep,
-                                 blkMultiArray3d<varArray> &x) const {
+void lusgs::LUSGS_Forward(const procBlock &blk,
+                          const vector<vector3d<int>> &reorder,
+                          const physics &phys, const input &inp,
+                          const matMultiArray3d &aInv, const int &sweep,
+                          blkMultiArray3d<varArray> &x) const {
   // blk -- block to solve on
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // phys -- physics models
@@ -236,12 +247,11 @@ void linearSolver::LUSGS_Forward(const procBlock &blk,
   }  // end forward sweep
 }
 
-double linearSolver::LUSGS_Backward(const procBlock &blk,
-                                    const vector<vector3d<int>> &reorder,
-                                    const physics &phys, const input &inp,
-                                    const matMultiArray3d &aInv,
-                                    const int &sweep,
-                                    blkMultiArray3d<varArray> &x) const {
+double lusgs::LUSGS_Backward(const procBlock &blk,
+                             const vector<vector3d<int>> &reorder,
+                             const physics &phys, const input &inp,
+                             const matMultiArray3d &aInv, const int &sweep,
+                             blkMultiArray3d<varArray> &x) const {
   // blk -- block to solve on
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // phys -- physics models
@@ -284,10 +294,9 @@ double linearSolver::LUSGS_Backward(const procBlock &blk,
   return l2Error.Sum();
 }
 
-double linearSolver::LUSGS_Relax(const gridLevel &level, const physics &phys,
-                                 const input &inp, const int &rank,
-                                 const int &sweeps,
-                                 vector<blkMultiArray3d<varArray>> &du) const {
+double lusgs::Relax(const gridLevel &level, const physics &phys,
+                    const input &inp, const int &rank, const int &sweeps,
+                    vector<blkMultiArray3d<varArray>> &du) const {
   MSG_ASSERT(level.NumBlocks() == static_cast<int>(du.size()),
              "number of blocks mismatch");
 
@@ -295,13 +304,6 @@ double linearSolver::LUSGS_Relax(const gridLevel &level, const physics &phys,
   auto matrixError = 0.0;
 
   const auto numG = level.Block(0).NumGhosts();
-  // calculate order by hyperplanes for each block
-  vector<vector<vector3d<int>>> reorder(level.NumBlocks());
-  for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
-    reorder[bb] =
-        HyperplaneReorder(level.Block(bb).NumI(), level.Block(bb).NumJ(),
-                          level.Block(bb).NumK());
-  }
 
   // start sweeps through domain
   for (auto ii = 0; ii < sweeps; ++ii) {
@@ -310,7 +312,7 @@ double linearSolver::LUSGS_Relax(const gridLevel &level, const physics &phys,
 
     // forward lu-sgs sweep
     for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
-      this->LUSGS_Forward(level.Block(bb), reorder[bb], phys, inp,
+      this->LUSGS_Forward(level.Block(bb), reorder_[bb], phys, inp,
                           level.Diagonal(bb), ii, du[bb]);
     }
 
@@ -319,7 +321,7 @@ double linearSolver::LUSGS_Relax(const gridLevel &level, const physics &phys,
 
     // backward lu-sgs sweep
     for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
-      matrixError += this->LUSGS_Backward(level.Block(bb), reorder[bb], phys,
+      matrixError += this->LUSGS_Backward(level.Block(bb), reorder_[bb], phys,
                                           inp, level.Diagonal(bb), ii, du[bb]);
     }
   }
@@ -327,9 +329,9 @@ double linearSolver::LUSGS_Relax(const gridLevel &level, const physics &phys,
 }
 
 // function to calculate the implicit update via the DP-LUR method
-double linearSolver::DPLUR(const procBlock &blk, const physics &phys,
-                           const input &inp, const matMultiArray3d &aInv,
-                           blkMultiArray3d<varArray> &x) const {
+double dplur::DPLUR(const procBlock &blk, const physics &phys, const input &inp,
+                    const matMultiArray3d &aInv,
+                    blkMultiArray3d<varArray> &x) const {
   // blk -- block to solve on
   // phys --  physics models
   // inp -- all input variables
@@ -367,10 +369,9 @@ double linearSolver::DPLUR(const procBlock &blk, const physics &phys,
   return l2Error.Sum();
 }
 
-double linearSolver::DPLUR_Relax(const gridLevel &level, const physics &phys,
-                                 const input &inp, const int &rank,
-                                 const int &sweeps,
-                                 vector<blkMultiArray3d<varArray>> &du) const {
+double dplur::Relax(const gridLevel &level, const physics &phys,
+                    const input &inp, const int &rank, const int &sweeps,
+                    vector<blkMultiArray3d<varArray>> &du) const {
   MSG_ASSERT(level.NumBlocks() == static_cast<int>(du.size()),
              "number of blocks mismatch");
 

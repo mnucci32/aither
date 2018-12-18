@@ -405,10 +405,12 @@ void gridLevel::InvertDiagonal(const input &inp) {
 }
 
 double gridLevel::ImplicitUpdate(const input& inp, const physics& phys,
+                                 const unique_ptr<linearSolver>& solver,
                                  const int& mm, residual& residL2,
                                  resid& residLinf, const int& rank) {
   // inp -- input variables
   // phys -- physics models
+  // solver -- linear solver
   // mm -- nonlinear iteration
   // residL2 -- L2 residual
   // residLinf -- L infinity residual
@@ -426,19 +428,7 @@ double gridLevel::ImplicitUpdate(const input& inp, const physics& phys,
   }
 
   // Solve Ax=b with supported solver
-  linearSolver solver(inp.MatrixSolver());
-  if (inp.MatrixSolver() == "lusgs" || inp.MatrixSolver() == "blusgs") {
-    matrixError =
-        solver.LUSGS_Relax((*this), phys, inp, rank, inp.MatrixSweeps(), du);
-  } else if (inp.MatrixSolver() == "dplur" || inp.MatrixSolver() == "bdplur") {
-    matrixError =
-        solver.DPLUR_Relax((*this), phys, inp, rank, inp.MatrixSweeps(), du);
-  } else {
-    cerr << "ERROR: Matrix solver " << inp.MatrixSolver() <<
-        " is not recognized!" << endl;
-    cerr << "Please choose lusgs, blusgs, dplur, or bdplur." << endl;
-    exit(EXIT_FAILURE);
-  }
+  matrixError = solver->Relax((*this), phys, inp, rank, inp.MatrixSweeps(), du);
 
   // Update blocks and reset main diagonal
   for (auto bb = 0; bb < this->NumBlocks(); ++bb) {

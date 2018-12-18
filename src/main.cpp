@@ -45,6 +45,7 @@
 #include "utility.hpp"
 #include "matMultiArray3d.hpp"
 #include "mgSolution.hpp"
+#include "linearSolver.hpp"
 
 using std::cout;
 using std::cerr;
@@ -170,6 +171,9 @@ int main(int argc, char *argv[]) {
   // Update auxillary variables (temperature, viscosity, etc), cell widths
   localSolution.AuxillaryAndWidths(phys);
 
+  // Get linear solver for finest level
+  const auto solver = inp.AssignLinearSolver(localSolution.Finest());
+
   // Broadcast viscous face centers to all processors
   BroadcastViscFaces(MPI_vec3d, viscFaces);
 
@@ -280,8 +284,8 @@ int main(int argc, char *argv[]) {
       resid residLinf;  // linf residuals
       auto matrixResid = 0.0;
       if (inp.IsImplicit()) {
-        matrixResid = localSolution[mg].ImplicitUpdate(inp, phys, mm, residL2,
-                                                       residLinf, rank);
+        matrixResid = localSolution[mg].ImplicitUpdate(
+            inp, phys, solver, mm, residL2, residLinf, rank);
       } else {  // explicit time integration
         localSolution[mg].ExplicitUpdate(inp, phys, mm, residL2, residLinf);
       }
