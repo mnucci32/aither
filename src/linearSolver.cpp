@@ -21,6 +21,7 @@
 #include "input.hpp"
 #include "matMultiArray3d.hpp"
 #include "physicsModels.hpp"
+#include "gridLevel.hpp"
 
 using std::cout;
 using std::endl;
@@ -220,7 +221,9 @@ void linearSolver::LUSGS_Forward(const procBlock &blk,
     // normal at lower boundaries needs to be reversed, so add instead
     // of subtract L
     auto offDiagonal = blk.ImplicitLower(ii, jj, kk, x, phys, inp);
-    offDiagonal -= blk.ImplicitUpper(ii, jj, kk, x, phys, inp);
+    if (sweep > 0 || inp.MatrixRequiresInitialization()) {
+      offDiagonal -= blk.ImplicitUpper(ii, jj, kk, x, phys, inp);
+    }
 
     // calculate 'b' terms - these change at subiteration level
     const auto solDeltaNm1 = blk.SolDeltaNm1(ii, jj, kk, inp);
@@ -281,6 +284,47 @@ double linearSolver::LUSGS_Backward(const procBlock &blk,
   return l2Error.Sum();
 }
 
+double linearSolver::LUSGS_Relax(const gridLevel &level, const physics &phys,
+                                 const input &inp, const int &rank,
+                                 const int &sweeps,
+                                 vector<blkMultiArray3d<varArray>> &du) const {
+  MSG_ASSERT(level.NumBlocks() == static_cast<int>(du.size()),
+             "number of blocks mismatch");
+
+  // initialize matrix error
+  auto matrixError = 0.0;
+
+  const auto numG = level.Block(0).NumGhosts();
+  // calculate order by hyperplanes for each block
+  vector<vector<vector3d<int>>> reorder(level.NumBlocks());
+  for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
+    reorder[bb] =
+        HyperplaneReorder(level.Block(bb).NumI(), level.Block(bb).NumJ(),
+                          level.Block(bb).NumK());
+  }
+
+  // start sweeps through domain
+  for (auto ii = 0; ii < sweeps; ++ii) {
+    // swap updates for ghost cells
+    SwapImplicitUpdate(du, level.Connections(), rank, numG);
+
+    // forward lu-sgs sweep
+    for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
+      this->LUSGS_Forward(level.Block(bb), reorder[bb], phys, inp,
+                          level.Diagonal(bb), ii, du[bb]);
+    }
+
+    // swap updates for ghost cells
+    SwapImplicitUpdate(du, level.Connections(), rank, numG);
+
+    // backward lu-sgs sweep
+    for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
+      matrixError += this->LUSGS_Backward(level.Block(bb), reorder[bb], phys,
+                                          inp, level.Diagonal(bb), ii, du[bb]);
+    }
+  }
+  return matrixError;
+}
 
 // function to calculate the implicit update via the DP-LUR method
 double linearSolver::DPLUR(const procBlock &blk, const physics &phys,
@@ -323,3 +367,27 @@ double linearSolver::DPLUR(const procBlock &blk, const physics &phys,
   return l2Error.Sum();
 }
 
+double linearSolver::DPLUR_Relax(const gridLevel &level, const physics &phys,
+                                 const input &inp, const int &rank,
+                                 const int &sweeps,
+                                 vector<blkMultiArray3d<varArray>> &du) const {
+  MSG_ASSERT(level.NumBlocks() == static_cast<int>(du.size()),
+             "number of blocks mismatch");
+
+  // initialize matrix error
+  auto matrixError = 0.0;
+
+  const auto numG = level.Block(0).NumGhosts();
+
+  // start sweeps through domain
+  for (auto ii = 0; ii < sweeps; ++ii) {
+    // swap updates for ghost cells
+    SwapImplicitUpdate(du, level.Connections(), rank, numG);
+
+    // dplur sweep
+    for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
+      this->DPLUR(level.Block(bb), phys, inp, level.Diagonal(bb), du[bb]);
+    }
+  }
+  return matrixError;
+}

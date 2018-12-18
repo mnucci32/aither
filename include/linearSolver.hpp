@@ -28,6 +28,7 @@ using std::vector;
 // forward class declarations
 class procBlock;
 class input;
+class gridLevel;
 
 // class to solve system of linear equations Ax=b
 class linearSolver {
@@ -62,9 +63,15 @@ class linearSolver {
   double LUSGS_Backward(const procBlock &, const vector<vector3d<int>> &,
                         const physics &, const input &, const matMultiArray3d &,
                         const int &, blkMultiArray3d<varArray> &) const;
+  double LUSGS_Relax(const gridLevel &, const physics &, const input &,
+                     const int &, const int &,
+                     vector<blkMultiArray3d<varArray>> &) const;
 
   double DPLUR(const procBlock &, const physics &, const input &,
                const matMultiArray3d &, blkMultiArray3d<varArray> &) const;
+  double DPLUR_Relax(const gridLevel &, const physics &, const input &,
+                     const int &, const int &,
+                     vector<blkMultiArray3d<varArray>> &) const;
 
   // destructor
   ~linearSolver() noexcept {}

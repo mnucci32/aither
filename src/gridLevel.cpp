@@ -30,6 +30,7 @@
 #include "vector3d.hpp"
 #include "kdtree.hpp"
 #include "matMultiArray3d.hpp"
+#include "linearSolver.hpp"
 #include "macros.hpp"
 
 using std::cerr;
@@ -396,6 +397,13 @@ void gridLevel::CalcResidual(const physics& phys, const input& inp,
   }
 }
 
+void gridLevel::InvertDiagonal(const input &inp) {
+// add volume and time term and calculate inverse of main diagonal
+  for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
+    blocks_[bb].InvertDiagonal(diagonal_[bb], inp);
+  }
+}
+
 double gridLevel::ImplicitUpdate(const input& inp, const physics& phys,
                                  const int& mm, residual& residL2,
                                  resid& residLinf, const int& rank) {
@@ -411,9 +419,7 @@ double gridLevel::ImplicitUpdate(const input& inp, const physics& phys,
   const auto numG = this->Block(0).NumGhosts();
 
   // add volume and time term and calculate inverse of main diagonal
-  for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
-    blocks_[bb].InvertDiagonal(diagonal_[bb], inp);
-  }
+  this->InvertDiagonal(inp);
 
   // initialize matrix update
   vector<blkMultiArray3d<varArray>> du(this->NumBlocks());
@@ -422,7 +428,12 @@ double gridLevel::ImplicitUpdate(const input& inp, const physics& phys,
   }
 
   // Solve Ax=b with supported solver
-  if (inp.MatrixSolver() == "lusgs" || inp.MatrixSolver() == "blusgs") {
+  linearSolver solver(inp.MatrixSolver());
+  if (inp.MatrixSolver() == "lusgs" || inp.MatrixSolver() == "blusgs") { 
+
+    solver.LUSGS_Relax((*this), phys, inp, rank, inp.MatrixSweeps(), du);
+
+    /*   
     // calculate order by hyperplanes for each block
     vector<vector<vector3d<int>>> reorder(this->NumBlocks());
     for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
@@ -450,7 +461,10 @@ double gridLevel::ImplicitUpdate(const input& inp, const physics& phys,
                                                   inp, diagonal_[bb], ii);
       }
     }
+    */
   } else if (inp.MatrixSolver() == "dplur" || inp.MatrixSolver() == "bdplur") {
+    solver.DPLUR_Relax((*this), phys, inp, rank, inp.MatrixSweeps(), du);
+    /*
     for (auto ii = 0; ii < inp.MatrixSweeps(); ii++) {
       // swap updates for ghost cells
       SwapImplicitUpdate(du, this->Connections(), rank, numG);
@@ -460,6 +474,7 @@ double gridLevel::ImplicitUpdate(const input& inp, const physics& phys,
         matrixError += blocks_[bb].DPLUR(du[bb], phys, inp, diagonal_[bb]);
       }
     }
+    */
   } else {
     cerr << "ERROR: Matrix solver " << inp.MatrixSolver() <<
         " is not recognized!" << endl;

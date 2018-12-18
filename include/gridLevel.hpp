@@ -77,11 +77,13 @@ class gridLevel {
   const vector<procBlock>& Blocks() const { return blocks_; }
   const procBlock& Block(const int &ii) const { return blocks_[ii]; }
   procBlock& Block(const int &ii) { return blocks_[ii]; }
+  const matMultiArray3d& Diagonal(const int &ii) const { return diagonal_[ii]; }
 
   int NumConnections() const { return connections_.size(); }
   const vector<connection>& Connections() const { return connections_; }
   const connection& Connection(const int& ii) const { return connections_[ii]; }
   connection& Connection(const int& ii) { return connections_[ii]; }
+  void InvertDiagonal(const input &);
 
   gridLevel SendGridLevel(const int& rank, const int& numProcBlock,
                           const MPI_Datatype& MPI_vec3d,
