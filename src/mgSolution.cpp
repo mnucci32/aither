@@ -114,15 +114,89 @@ void mgSolution::ResizeMatrix(const input& inp, const int& numProcBlock) {
 }
 
 // multigrid restriction - fine grid to coarse grid operator
-void mgSolution::Restriction(const int &fi) {
+vector<blkMultiArray3d<varArray>> mgSolution::Restriction(
+    const int& fi, const vector<blkMultiArray3d<varArray>>& du) {
   MSG_ASSERT(fi >= 0 && fi < static_cast<int>(solution_.size() - 1),
              "index for restriction out of range");
-  solution_[fi].Restriction(solution_[fi + 1]);
+  return solution_[fi].Restriction(solution_[fi + 1], du);
 }
 
-void mgSolution::FullMultigridCycle() {
-  // solve a multigrid cyle at each coarse level for FMG
-  for (auto ii = this->NumGridLevels() - 1; ii > 0; --ii) {
-    //this->CycleAtLevel(ii);
+double mgSolution::Relax(const int& ll, const int& sweeps, const physics& phys,
+                       const input& inp, const int& rank,
+                       const unique_ptr<linearSolver>& solver,
+                       vector<blkMultiArray3d<varArray>>& du) const {
+  return solver->Relax(solution_[ll], phys, inp, rank, sweeps, du);
+}
+
+double mgSolution::CycleAtLevel(const int& fl, const physics& phys,
+                                const input& inp, const int& rank,
+                                const unique_ptr<linearSolver>& solver,
+                                vector<blkMultiArray3d<varArray>>& du) {
+  // fl -- index for fine grid level
+  MSG_ASSERT(fl >= 0 && fl < static_cast<int>(solution_.size()),
+             "index for multigrid cycle out of range");
+  auto matrixResid = 0.0;
+  if (fl == this->NumGridLevels() - 1) {  // recursive base case
+    matrixResid =
+        this->Relax(fl, inp.MatrixSweeps(), phys, inp, rank, solver, du);
+  } else {
+    // pre-relaxation sweeps
+    this->Relax(fl, 1, phys, inp, rank, solver, du);
+
+    // coarse grid correction
+    // restrict solution, residual, and implicit update to coarse grid
+    auto cl = fl + 1;
+    auto coarseDu = this->Restriction(fl, du);
+
+    // recursive call to next coarse level
+    for (auto ii = 0; ii < mgCycleIndex_; ++ii) {
+      matrixResid = this->CycleAtLevel(cl, phys, inp, rank, solver, coarseDu);
+    }
+    for (auto ii = 0U; ii < du.size(); ++ii) {
+      du[ii] -= coarseDu[ii];
+    }
+
+    // interpolate coarse level correction and add to solution
+    this->Prolongation(cl, du);
+
+    // post-relaxation sweeps
+    matrixResid = this->Relax(fl, 1, phys, inp, rank, solver, du);
   }
+  return matrixResid;
+}
+
+double mgSolution::MultigridCycle(const physics& phys, const input& inp,
+                                  const int& rank,
+                                  const unique_ptr<linearSolver>& solver) {
+  auto du = this->Finest().InitializeMatrixUpdate(inp, phys);
+  return this->CycleAtLevel(0, phys, inp, rank, solver, du);
+}
+
+double mgSolution::ImplicitUpdate(const input& inp, const physics& phys,
+                                  const unique_ptr<linearSolver>& solver,
+                                  const int& mm, residual& residL2,
+                                  resid& residLinf, const int& rank) {
+  // inp -- input variables
+  // phys -- physics models
+  // solver -- linear solver
+  // mm -- nonlinear iteration
+  // residL2 -- L2 residual
+  // residLinf -- L infinity residual
+
+  // initialize matrix error
+  auto matrixError = 0.0;
+
+  // add volume and time term and calculate inverse of main diagonal
+  solution_[0].InvertDiagonal(inp);
+
+  // initialize matrix update
+  auto du = solution_[0].InitializeMatrixUpdate(inp, phys);
+
+  // Solve Ax=b with supported solver and multigrid
+  matrixError = this->CycleAtLevel(0, phys, inp, rank, solver, du);
+
+  // Update blocks and reset main diagonal
+  solution_[0].UpdateBlocks(inp, phys, mm, du, residL2, residLinf);
+
+  return matrixError;
 }

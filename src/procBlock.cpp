@@ -6901,3 +6901,9 @@ procBlock procBlock::CellToNode() const {
 
   return nodeData;
 }
+
+void procBlock::RestrictState(const procBlock &fine,
+                              const multiArray3d<vector3d<int>> &toCoarse,
+                              const multiArray3d<double> &volWeightFactor) {
+  BlockRestriction(fine.state_, toCoarse, volWeightFactor, state_);
+}

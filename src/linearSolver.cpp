@@ -299,6 +299,7 @@ double lusgs::Relax(const gridLevel &level, const physics &phys,
                     vector<blkMultiArray3d<varArray>> &du) const {
   MSG_ASSERT(level.NumBlocks() == static_cast<int>(du.size()),
              "number of blocks mismatch");
+  MSG_ASSERT(du.size() == reorder_.size(), "reorder block size mismatch");
 
   // initialize matrix error
   auto matrixError = 0.0;

@@ -21,6 +21,8 @@
 #include "gridLevel.hpp"
 #include "vector3d.hpp"
 #include "multiArray3d.hpp"
+#include "physicsModels.hpp"
+#include "linearSolver.hpp"
 
 using std::vector;
 
@@ -39,13 +41,16 @@ class mgSolution {
   int mgCycleIndex_;
 
   // private member functions
-  void Restriction(const int&);
-  template<typename T>
+  vector<blkMultiArray3d<varArray>> Restriction(
+      const int&, const vector<blkMultiArray3d<varArray>>&);
+  template <typename T>
   void Prolongation(const int&, const vector<T>&);
-  template <typename T>
-  void CycleAtLevel(const int&, const input &, T &);
-  template <typename T>
-  void Relax(const int&, T&) const;
+  double CycleAtLevel(const int&, const physics&, const input&, const int&,
+                    const unique_ptr<linearSolver>&,
+                    vector<blkMultiArray3d<varArray>>& du);
+  double Relax(const int&, const int&, const physics&, const input&, const int&,
+               const unique_ptr<linearSolver>&,
+               vector<blkMultiArray3d<varArray>>&) const;
 
  public:
   // Constructor
@@ -64,6 +69,7 @@ class mgSolution {
 
   // Member functions
   int NumGridLevels() const { return solution_.size(); }
+  int NumBlocks() const { return this->Finest().NumBlocks(); }
 
   const gridLevel& operator[](const int &a) const { return solution_[a]; }
   gridLevel& operator[](const int &a) { return solution_[a]; }
@@ -91,7 +97,11 @@ class mgSolution {
   void CalcWallDistance(const kdtree& tree);
   void SwapWallDist(const int& rank, const int& numGhosts);
   void ResizeMatrix(const input& inp, const int& numProcBlock);
-  void FullMultigridCycle();
+  double MultigridCycle(const physics& phys, const input& inp, const int& rank,
+                        const unique_ptr<linearSolver>& solver);
+  double ImplicitUpdate(const input& inp, const physics& phys,
+                        const unique_ptr<linearSolver>& solver, const int& mm,
+                        residual& residL2, resid& residLinf, const int& rank);
 
   // Destructor
   ~mgSolution() noexcept {}
@@ -104,49 +114,5 @@ void mgSolution::Prolongation(const int &ci, const vector<T> &correction) {
              "index for prolongation out of range");
   solution_[ci].Prolongation(correction, solution_[ci - 1]);
 }
-
-// relax solution
-template <typename T>
-void mgSolution::Relax(const int& sweeps, T& data) const {
-  
-}
-
-template <typename T>
-void mgSolution::CycleAtLevel(const int &fl, const input &inp, T &sol) {
-  // fl -- index for fine grid level
-  MSG_ASSERT(fl >= 0 && fl < static_cast<int>(solution_.size()),
-             "index for multigrid cycle out of range");
-
-  if (fl == this->NumGridLevels() - 1) {  // recursive base case
-
-  } else {
-    // pre-relaxation sweeps
-
-
-    // coarse grid correction
-    auto cl = fl + 1;
-    // calc residual, restrict to forcing term of coarse grid
-    this->Restriction(fl);
-
-    // recursive call to next coarse level
-    vector<blkMultiArray3d<varArray>> correction;
-    correction.reserve(solution_[cl].NumBlocks());
-    for (const auto &blk : solution_[cl].Blocks()) {
-      correction.emplace_back(blk.NumI(), blk.NumJ(), blk.NumK(), 0,
-                              blk.NumEquations(), blk.NumSpecies());
-    }
-    for (auto ii = 0; ii < mgCycleIndex_; ++ii) {
-      this->CycleAtLevel(cl, inp, correction);
-    }
-
-    // interpolate coarse level correction and add to solution
-    this->Prolongation(cl, correction);
-
-    // post-relaxation sweeps
-
-  }
-
-}
-
 
 #endif

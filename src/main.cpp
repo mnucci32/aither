@@ -245,16 +245,15 @@ int main(int argc, char *argv[]) {
                 inp);
   }
 
+  // Get multigrid finest level
+  constexpr auto mg = 0;
+
   // ----------------------------------------------------------------------
   // ----------------------- Start Main Loop ------------------------------
   // ----------------------------------------------------------------------
   // loop over time
   for (auto nn = 0; nn < inp.Iterations(); nn++) {
     MPI_Barrier(MPI_COMM_WORLD);
-
-    // Get multigrid level
-    const auto mg = 0;  // DEBUG
-
     // Calculate cfl number
     inp.CalcCFL(nn);
 
@@ -284,7 +283,7 @@ int main(int argc, char *argv[]) {
       resid residLinf;  // linf residuals
       auto matrixResid = 0.0;
       if (inp.IsImplicit()) {
-        matrixResid = localSolution[mg].ImplicitUpdate(
+        matrixResid = localSolution.ImplicitUpdate(
             inp, phys, solver, mm, residL2, residLinf, rank);
       } else {  // explicit time integration
         localSolution[mg].ExplicitUpdate(inp, phys, mm, residL2, residLinf);

@@ -86,6 +86,8 @@ class gridLevel {
   const connection& Connection(const int& ii) const { return connections_[ii]; }
   connection& Connection(const int& ii) { return connections_[ii]; }
   void InvertDiagonal(const input &);
+  vector<blkMultiArray3d<varArray>> InitializeMatrixUpdate(
+      const input&, const physics&) const;
 
   gridLevel SendGridLevel(const int& rank, const int& numProcBlock,
                           const MPI_Datatype& MPI_vec3d,
@@ -106,6 +108,10 @@ class gridLevel {
   double ImplicitUpdate(const input& inp, const physics& phys,
                         const unique_ptr<linearSolver>& solver, const int& mm,
                         residual& residL2, resid& residLinf, const int& rank);
+  void UpdateBlocks(const input& inp, const physics& phys, const int& mm,
+                    const vector<blkMultiArray3d<varArray>>& du,
+                    residual& residL2, resid& residLinf);
+
   void ResizeMatrix(const input& inp, const int& numProcBlock);
 
   void GetBoundaryConditions(const input& inp, const physics& phys,
@@ -122,7 +128,8 @@ class gridLevel {
   void AuxillaryAndWidths(const physics& phys);
   gridLevel Coarsen(const decomposition& decomp, const input& inp,
                     const physics& phys);
-  void Restriction(gridLevel& coarse) const;
+  vector<blkMultiArray3d<varArray>> Restriction(
+      gridLevel& coarse, const vector<blkMultiArray3d<varArray>>& fineDu) const;
   template <typename T>
   void Prolongation(const vector<T>& coarseCorrection, gridLevel& fine) const;
 
@@ -131,25 +138,6 @@ class gridLevel {
 };
 
 // function declarations
-template <typename T>
-void BlockRestriction(const T& fine,
-                      const multiArray3d<vector3d<int>>& toCoarse,
-                      const multiArray3d<double>& volFac,
-                      blkMultiArray3d<varArray>& coarse) {
-  // use volume weighted average
-  coarse.Zero();
-  for (auto kk = fine.StartK(); kk < fine.EndK(); ++kk) {
-    for (auto jj = fine.StartJ(); jj < fine.EndJ(); ++jj) {
-      for (auto ii = fine.StartI(); ii < fine.EndI(); ++ii) {
-        const auto ci = toCoarse(ii, jj, kk);
-        varArray restricted =
-            coarse(ci[0], ci[1], ci[2]) + volFac(ii, jj, kk) * fine(ii, jj, kk);
-        coarse.InsertBlock(ci[0], ci[1], ci[2], restricted);
-      }
-    }
-  }
-}
-
 template <typename T>
 void BlockProlongation(const T& coarse,
                        const multiArray3d<vector3d<int>>& toCoarse,

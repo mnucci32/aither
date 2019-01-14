@@ -224,6 +224,9 @@ class procBlock {
   primitiveView State(const int &ii, const int &jj, const int &kk) const {
     return state_(ii, jj, kk);
   }
+  void RestrictState(const procBlock &fine,
+                     const multiArray3d<vector3d<int>> &toCoarse,
+                     const multiArray3d<double> &volWeightFactor);
   conservedView ConsVarsN(const int &ii, const int &jj, const int &kk) const {
     return consVarsN_(ii, jj, kk);
   }
@@ -628,6 +631,25 @@ T PadWithGhosts(const T &var, const int &numGhosts) {
 
   padBlk.Insert(var.RangeI(), var.RangeJ(), var.RangeK(), var);
   return padBlk;
+}
+
+
+template <typename T1, typename T2>
+void BlockRestriction(const blkMultiArray3d<T1>& fine,
+                      const multiArray3d<vector3d<int>>& toCoarse,
+                      const multiArray3d<double>& volFac,
+                      blkMultiArray3d<T2>& coarse) {
+  // use volume weighted average
+  for (auto kk = fine.StartK(); kk < fine.EndK(); ++kk) {
+    for (auto jj = fine.StartJ(); jj < fine.EndJ(); ++jj) {
+      for (auto ii = fine.StartI(); ii < fine.EndI(); ++ii) {
+        const auto ci = toCoarse(ii, jj, kk);
+        T2 restricted =
+            coarse(ci[0], ci[1], ci[2]) + volFac(ii, jj, kk) * fine(ii, jj, kk);
+        coarse.InsertBlock(ci[0], ci[1], ci[2], restricted);
+      }
+    }
+  }
 }
 
 #endif
