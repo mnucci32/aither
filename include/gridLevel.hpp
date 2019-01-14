@@ -105,9 +105,6 @@ class gridLevel {
   void CalcTimeStep(const input& inp);
   void ExplicitUpdate(const input& inp, const physics& phys, const int& mm,
                       residual& residL2, resid& residLinf);
-  double ImplicitUpdate(const input& inp, const physics& phys,
-                        const unique_ptr<linearSolver>& solver, const int& mm,
-                        residual& residL2, resid& residLinf, const int& rank);
   void UpdateBlocks(const input& inp, const physics& phys, const int& mm,
                     const vector<blkMultiArray3d<varArray>>& du,
                     residual& residL2, resid& residLinf);

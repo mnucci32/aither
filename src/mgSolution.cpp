@@ -165,13 +165,6 @@ double mgSolution::CycleAtLevel(const int& fl, const physics& phys,
   return matrixResid;
 }
 
-double mgSolution::MultigridCycle(const physics& phys, const input& inp,
-                                  const int& rank,
-                                  const unique_ptr<linearSolver>& solver) {
-  auto du = this->Finest().InitializeMatrixUpdate(inp, phys);
-  return this->CycleAtLevel(0, phys, inp, rank, solver, du);
-}
-
 double mgSolution::ImplicitUpdate(const input& inp, const physics& phys,
                                   const unique_ptr<linearSolver>& solver,
                                   const int& mm, residual& residL2,

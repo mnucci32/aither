@@ -97,8 +97,6 @@ class mgSolution {
   void CalcWallDistance(const kdtree& tree);
   void SwapWallDist(const int& rank, const int& numGhosts);
   void ResizeMatrix(const input& inp, const int& numProcBlock);
-  double MultigridCycle(const physics& phys, const input& inp, const int& rank,
-                        const unique_ptr<linearSolver>& solver);
   double ImplicitUpdate(const input& inp, const physics& phys,
                         const unique_ptr<linearSolver>& solver, const int& mm,
                         residual& residL2, resid& residLinf, const int& rank);

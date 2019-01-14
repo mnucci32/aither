@@ -413,46 +413,6 @@ vector<blkMultiArray3d<varArray>> gridLevel::InitializeMatrixUpdate(
   return du;
 }
 
-double gridLevel::ImplicitUpdate(const input& inp, const physics& phys,
-                                 const unique_ptr<linearSolver>& solver,
-                                 const int& mm, residual& residL2,
-                                 resid& residLinf, const int& rank) {
-  // inp -- input variables
-  // phys -- physics models
-  // solver -- linear solver
-  // mm -- nonlinear iteration
-  // residL2 -- L2 residual
-  // residLinf -- L infinity residual
-
-  // initialize matrix error
-  auto matrixError = 0.0;
-
-  // add volume and time term and calculate inverse of main diagonal
-  this->InvertDiagonal(inp);
-
-  // initialize matrix update
-  auto du = this->InitializeMatrixUpdate(inp, phys);
-
-  // Solve Ax=b with supported solver
-  matrixError = solver->Relax((*this), phys, inp, rank, inp.MatrixSweeps(), du);
-
-  // Update blocks and reset main diagonal
-  for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
-    // Update solution
-    blocks_[bb].UpdateBlock(inp, phys, du[bb], mm, residL2, residLinf);
-
-    // Assign time n to time n-1 at end of nonlinear iterations
-    if (inp.IsMultilevelInTime() && mm == inp.NonlinearIterations() - 1) {
-      blocks_[bb].AssignSolToTimeNm1();
-    }
-
-    // zero flux jacobians
-    diagonal_[bb].Zero();
-  }
-
-  return matrixError;
-}
-
 void gridLevel::UpdateBlocks(const input& inp, const physics& phys,
                              const int& mm,
                              const vector<blkMultiArray3d<varArray>>& du,
