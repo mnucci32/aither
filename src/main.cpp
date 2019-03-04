@@ -45,7 +45,6 @@
 #include "utility.hpp"
 #include "matMultiArray3d.hpp"
 #include "mgSolution.hpp"
-#include "linearSolver.hpp"
 
 using std::cout;
 using std::cerr;
@@ -171,9 +170,6 @@ int main(int argc, char *argv[]) {
   // Update auxillary variables (temperature, viscosity, etc), cell widths
   localSolution.AuxillaryAndWidths(phys);
 
-  // Get linear solver for finest level
-  const auto solver = inp.AssignLinearSolver(localSolution.Finest());
-
   // Broadcast viscous face centers to all processors
   BroadcastViscFaces(MPI_vec3d, viscFaces);
 
@@ -217,9 +213,6 @@ int main(int argc, char *argv[]) {
   }
 
   //-----------------------------------------------------------------------
-  // Allocate array for flux jacobian if necessary
-  localSolution.ResizeMatrix(inp, numProcBlock);
-
   // Send/recv solutions - necessary to get wall distances
   solution.GetFinestGridLevel(localSolution, rank, MPI_uncoupledScalar,
                               MPI_vec3d, MPI_tensorDouble, inp);
@@ -283,8 +276,8 @@ int main(int argc, char *argv[]) {
       resid residLinf;  // linf residuals
       auto matrixResid = 0.0;
       if (inp.IsImplicit()) {
-        matrixResid = localSolution.ImplicitUpdate(
-            inp, phys, solver, mm, residL2, residLinf, rank);
+        matrixResid = localSolution.ImplicitUpdate(inp, phys, mm, residL2,
+                                                   residLinf, rank);
       } else {  // explicit time integration
         localSolution[mg].ExplicitUpdate(inp, phys, mm, residL2, residLinf);
       }

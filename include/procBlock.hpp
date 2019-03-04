@@ -439,10 +439,6 @@ class procBlock {
 
   void CalcWallDistance(const kdtree &);
 
-  void InvertDiagonal(matMultiArray3d &, const input &) const;
-
-  blkMultiArray3d<varArray> InitializeMatrixUpdate(
-      const input &, const physics &, const matMultiArray3d &) const;
   varArray ImplicitLower(const int &, const int &, const int &,
                          const blkMultiArray3d<varArray> &, const physics &,
                          const input &) const;

@@ -20,6 +20,7 @@
 #include <vector>                  // vector
 #include <string>                  // string
 #include "matMultiArray3d.hpp"
+#include "blkMultiArray3d.hpp"
 #include "macros.hpp"
 
 using std::string;
@@ -35,14 +36,13 @@ class gridLevel;
 // abstract base class
 class linearSolver {
   string solverType_;
+  vector<matMultiArray3d> a_;
+  vector<matMultiArray3d> aInv_;
+  vector<blkMultiArray3d<varArray>> x_;
 
  public:
   // constructors
-  explicit linearSolver(const string &type) : solverType_(type) {
-    MSG_ASSERT(type == "lusgs" || type == "blusgs" || type == "dplur" ||
-                   type == "bdplur",
-               "linear solver type not supported");
-  }
+  linearSolver(const input &inp, const gridLevel &level);
 
   // move constructor and assignment operator
   linearSolver(linearSolver&&) noexcept = default;
@@ -53,15 +53,26 @@ class linearSolver {
   linearSolver& operator=(const linearSolver&) = default;
 
   // member functions
-  void InvertDiagonal(const procBlock &, const input &,
-                      matMultiArray3d &) const;
-  blkMultiArray3d<varArray> InitializeMatrixUpdate(
-      const procBlock &, const input &, const physics &,
-      const matMultiArray3d &) const;
+  int NumBlocks() const { return a_.size(); }
+  const vector<blkMultiArray3d<varArray>> &X() const { return x_; }
+  const blkMultiArray3d<varArray> &X(const int &bb) const { return x_[bb]; }
+  blkMultiArray3d<varArray> &X(const int &bb) { return x_[bb]; }
+
+  const vector<matMultiArray3d> &A() const { return a_; }
+  const matMultiArray3d &A(const int &bb) const { return a_[bb]; }
+  matMultiArray3d &A(const int &bb) { return a_[bb]; }
+
+  const matMultiArray3d &AInv(const int &bb) const { return aInv_[bb]; }
+
+  void InvertDiagonal(const gridLevel &, const input &);
+  void InitializeMatrixUpdate(const gridLevel &, const input &,
+                              const physics &);
+  void SwapUpdate(const vector<connection> &, const int &, const int &);
+  void SubtractFromUpdate(const vector<blkMultiArray3d<varArray>>& coarseDu);
+  void AddToUpdate(const vector<blkMultiArray3d<varArray>>& correction);
 
   virtual double Relax(const gridLevel &, const physics &, const input &,
-                       const int &, const int &,
-                       vector<blkMultiArray3d<varArray>> &) const = 0;
+                       const int &, const int &) = 0;
 
   // destructor
   virtual ~linearSolver() noexcept {}
@@ -81,7 +92,7 @@ class lusgs : public linearSolver {
 
  public:
   // constructors
-  lusgs(const string &type, const gridLevel &level);
+  lusgs(const input &inp, const gridLevel &level);
 
   // move constructor and assignment operator
   lusgs(lusgs &&solver) noexcept : linearSolver(std::move(solver)) {}
@@ -93,7 +104,7 @@ class lusgs : public linearSolver {
 
   // member functions
   double Relax(const gridLevel &, const physics &, const input &, const int &,
-               const int &, vector<blkMultiArray3d<varArray>> &) const override;
+               const int &) override;
 
   // destructor
   virtual ~lusgs() noexcept {}
@@ -108,7 +119,7 @@ class dplur : public linearSolver {
 
  public:
   // constructors
-  explicit dplur(const string &type) : linearSolver(type) {}
+  dplur(const input &inp, const gridLevel &level) : linearSolver(inp, level) {}
 
   // move constructor and assignment operator
   dplur(dplur &&solver) noexcept : linearSolver(std::move(solver)) {}
@@ -120,7 +131,7 @@ class dplur : public linearSolver {
 
   // member functions
   double Relax(const gridLevel &, const physics &, const input &, const int &,
-               const int &, vector<blkMultiArray3d<varArray>> &) const override;
+               const int &) override;
 
   // destructor
   virtual ~dplur() noexcept {}

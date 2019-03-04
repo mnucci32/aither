@@ -25,6 +25,7 @@
 #include "boundaryConditions.hpp"
 #include "vector3d.hpp"
 #include "matMultiArray3d.hpp"
+#include "linearSolver.hpp"
 #include "mpi.h"
 
 using std::string;
@@ -43,7 +44,7 @@ class kdtree;
 class gridLevel {
   vector<procBlock> blocks_;
   vector<connection> connections_;
-  vector<matMultiArray3d> diagonal_;
+  std::unique_ptr<linearSolver> solver_;
 
   // during restriction, traverse fine grid values in lexigraphical order,
   // applying volume weight factor, and adding to coarse grid, also in
@@ -79,15 +80,17 @@ class gridLevel {
   const vector<procBlock>& Blocks() const { return blocks_; }
   const procBlock& Block(const int &ii) const { return blocks_[ii]; }
   procBlock& Block(const int &ii) { return blocks_[ii]; }
-  const matMultiArray3d& Diagonal(const int &ii) const { return diagonal_[ii]; }
 
   int NumConnections() const { return connections_.size(); }
   const vector<connection>& Connections() const { return connections_; }
   const connection& Connection(const int& ii) const { return connections_[ii]; }
   connection& Connection(const int& ii) { return connections_[ii]; }
   void InvertDiagonal(const input &);
-  vector<blkMultiArray3d<varArray>> InitializeMatrixUpdate(
-      const input&, const physics&) const;
+  void InitializeMatrixUpdate(const input&, const physics&);
+  double Relax(const physics& phys, const input& inp, const int& rank,
+             const int& sweeps) {
+    return solver_->Relax(*this, phys, inp, rank, sweeps);
+  }
 
   gridLevel SendGridLevel(const int& rank, const int& numProcBlock,
                           const MPI_Datatype& MPI_vec3d,
@@ -106,10 +109,7 @@ class gridLevel {
   void ExplicitUpdate(const input& inp, const physics& phys, const int& mm,
                       residual& residL2, resid& residLinf);
   void UpdateBlocks(const input& inp, const physics& phys, const int& mm,
-                    const vector<blkMultiArray3d<varArray>>& du,
                     residual& residL2, resid& residLinf);
-
-  void ResizeMatrix(const input& inp, const int& numProcBlock);
 
   void GetBoundaryConditions(const input& inp, const physics& phys,
                              const int& rank);
@@ -125,10 +125,10 @@ class gridLevel {
   void AuxillaryAndWidths(const physics& phys);
   gridLevel Coarsen(const decomposition& decomp, const input& inp,
                     const physics& phys);
-  vector<blkMultiArray3d<varArray>> Restriction(
-      gridLevel& coarse, const vector<blkMultiArray3d<varArray>>& fineDu) const;
-  template <typename T>
-  void Prolongation(const vector<T>& coarseCorrection, gridLevel& fine) const;
+  void Restriction(gridLevel& coarse) const;
+  void Prolongation(gridLevel& fine) const;
+  void SubtractFromUpdate(const vector<blkMultiArray3d<varArray>>& coarseDu);
+  vector<blkMultiArray3d<varArray>> Update() const { return solver_->X(); }
 
   // Destructor
   ~gridLevel() noexcept {}
@@ -165,20 +165,5 @@ void BlockProlongation(const T& coarse,
 }
 
 // member functions
-template <typename T>
-void gridLevel::Prolongation(const vector<T>& coarseCorrection,
-                             gridLevel& fine) const {
-  MSG_ASSERT(blocks_.size() == fine.blocks_.size(), "gridLevel size mismatch");
-  for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
-    T fineCorrection(fine.blocks_[ii].NumI(), fine.blocks_[ii].NumJ(),
-                     fine.blocks_[ii].NumK(), 0,
-                     fine.blocks_[ii].NumEquations(),
-                     fine.blocks_[ii].NumSpecies());
-    BlockProlongation(coarseCorrection[ii], fine.toCoarse_[ii],
-                      prolongCoeffs_[ii], fineCorrection);
-    fine.blocks_[ii].AddCoarseGridCorrection(fineCorrection);
-  }
-}
-
 
 #endif

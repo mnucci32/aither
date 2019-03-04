@@ -1032,31 +1032,6 @@ varArray procBlock::SolDeltaNm1(const int &ii, const int &jj, const int &kk,
   }
 }
 
-void procBlock::InvertDiagonal(matMultiArray3d &mainDiagonal,
-                               const input &inp) const {
-  // mainDiagonal -- main diagonal in implicit operator
-  // inp -- input variables
-
-  // loop over physical cells
-  for (auto kk = 0; kk < this->NumK(); kk++) {
-    for (auto jj = 0; jj < this->NumJ(); jj++) {
-      for (auto ii = 0; ii < this->NumI(); ii++) {
-        auto diagVolTime = this->SolDeltaNCoeff(ii, jj, kk, inp);
-        if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
-          // equal to volume / tau
-          diagVolTime += specRadius_(ii, jj, kk).Max() /
-              inp.DualTimeCFL();
-        }
-
-        // add volume and time term
-        mainDiagonal.MultiplyOnDiagonal(ii, jj, kk, inp.MatrixRelaxation());
-        mainDiagonal.AddOnDiagonal(ii, jj, kk, diagVolTime);
-        mainDiagonal.Inverse(ii, jj, kk);
-      }
-    }
-  }
-}
-
 // assign current solution held in state_ to time n solution held in consVarsN_
 void procBlock::AssignSolToTimeN(const physics &phys) {
   // loop over physical cells
@@ -1184,39 +1159,6 @@ varArray procBlock::ImplicitUpper(const int &ii, const int &jj, const int &kk,
 
   return U;
 }
-
-blkMultiArray3d<varArray> procBlock::InitializeMatrixUpdate(
-    const input &inp, const physics &phys, const matMultiArray3d &aInv) const {
-  // inp -- input variables
-  // phys -- physics models
-  // aInv -- inverse of main diagonal
-
-  // allocate multiarray for update
-  blkMultiArray3d<varArray> x(this->NumI(), this->NumJ(), this->NumK(),
-                              numGhosts_, inp.NumEquations(), inp.NumSpecies(),
-                              0.0);
-
-  if (inp.MatrixRequiresInitialization()) {
-    const auto thetaInv = 1.0 / inp.Theta();
-
-    for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-      for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-        for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-          // calculate update
-          x.InsertBlock(
-              ii, jj, kk,
-              aInv.ArrayMult(ii, jj, kk,
-                             -thetaInv * residual_(ii, jj, kk) +
-                                 this->SolDeltaNm1(ii, jj, kk, inp) -
-                                 this->SolDeltaMmN(ii, jj, kk, inp, phys)));
-        }
-      }
-    }
-  }
-
-  return x;
-}
-
 
 /* Function to calculate the viscous fluxes on the i-faces. All phyiscal
 (non-ghost) i-faces are looped over. The left and right states are

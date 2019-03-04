@@ -45,6 +45,7 @@ gridLevel::gridLevel(const vector<plot3dBlock>& mesh,
                      const decomposition& decomp, const physics& phys,
                      const vector<vector3d<int>>& origGridSizes,
                      const string& restartFile, input& inp, residual& first) {
+  MSG_ASSERT(mesh.size() == bcs.size(), "block size mismatch");
   connections_ = GetConnectionBCs(bcs, mesh, decomp, inp);
   blocks_.reserve(mesh.size());
   mgForcing_.reserve(mesh.size());
@@ -71,6 +72,11 @@ gridLevel::gridLevel(const vector<plot3dBlock>& mesh,
   // Get ghost cell edge data
   for (auto& block : blocks_) {
     block.AssignGhostCellsGeomEdge();
+  }
+
+  // Setup linear solver
+  if (inp.IsImplicit()) {
+    solver_ = inp.AssignLinearSolver(*this);
   }
 }
 
@@ -137,6 +143,9 @@ gridLevel gridLevel::SendGridLevel(const int& rank, const int& numProcBlock,
   // broadcast all connections to all processors
   MPI_Bcast(&(*std::begin(local.connections_)), local.connections_.size(),
             MPI_connection, ROOTP, MPI_COMM_WORLD);
+
+  // now allocate memory for linear solver
+  local.solver_ = inp.AssignLinearSolver(local);
 
   return local;
 }
@@ -236,23 +245,6 @@ void gridLevel::ExplicitUpdate(const input& inp, const physics& phys,
   // loop over all blocks and update
   for (auto &block : blocks_) {
     block.UpdateBlock(inp, phys, du, mm, residL2, residLinf);
-  }
-}
-
-void gridLevel::ResizeMatrix(const input& inp, const int &numProcBlock) {
-  MSG_ASSERT(diagonal_.size() == 0,
-             "only call when matrix diagonal hasn't been allocated");
-  if (inp.IsImplicit()) {
-    const auto fluxJac =
-        inp.IsBlockMatrix()
-            ? fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations())
-            : fluxJacobian(1, std::min(1, inp.NumTurbEquations()));
-
-    diagonal_.reserve(numProcBlock);
-    for (const auto& block : blocks_) {
-      diagonal_.emplace_back(block.NumI(), block.NumJ(), block.NumK(), 0,
-                             fluxJac);
-    }
   }
 }
 
@@ -379,7 +371,7 @@ void gridLevel::CalcResidual(const physics& phys, const input& inp,
 
   for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
     // calculate residual
-    blocks_[bb].CalcResidualNoSource(phys, inp, diagonal_[bb]);
+    blocks_[bb].CalcResidualNoSource(phys, inp, solver_->A(bb));
   }
   // swap mut & gradients calculated during residual calculation
   this->SwapEddyViscAndGradients(rank, MPI_tensorDouble, MPI_vec3d,
@@ -392,35 +384,27 @@ void gridLevel::CalcResidual(const physics& phys, const input& inp,
   if (inp.IsRANS() || phys.Chemistry()->IsReacting()) {
     for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
       // calculate source terms for residual
-      blocks_[bb].CalcSrcTerms(phys, inp, diagonal_[bb]);
+      blocks_[bb].CalcSrcTerms(phys, inp, solver_->A(bb));
     }
   }
 }
 
-void gridLevel::InvertDiagonal(const input &inp) {
-// add volume and time term and calculate inverse of main diagonal
-  for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
-    blocks_[bb].InvertDiagonal(diagonal_[bb], inp);
-  }
+void gridLevel::InvertDiagonal(const input& inp) {
+  // add volume and time term and calculate inverse of main diagonal
+  solver_->InvertDiagonal(*this, inp);
 }
 
-vector<blkMultiArray3d<varArray>> gridLevel::InitializeMatrixUpdate(
-    const input& inp, const physics& phys) const {
-  vector<blkMultiArray3d<varArray>> du(this->NumBlocks());
-  for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
-    du[bb] = blocks_[bb].InitializeMatrixUpdate(inp, phys, diagonal_[bb]);
-  }
-  return du;
+void gridLevel::InitializeMatrixUpdate(const input& inp, const physics& phys) {
+  solver_->InitializeMatrixUpdate(*this, inp, phys);
 }
 
 void gridLevel::UpdateBlocks(const input& inp, const physics& phys,
                              const int& mm,
-                             const vector<blkMultiArray3d<varArray>>& du,
                              residual& residL2, resid& residLinf) {
   // Update blocks and reset main diagonal
   for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
     // Update solution
-    blocks_[bb].UpdateBlock(inp, phys, du[bb], mm, residL2, residLinf);
+    blocks_[bb].UpdateBlock(inp, phys, solver_->X(bb), mm, residL2, residLinf);
 
     // Assign time n to time n-1 at end of nonlinear iterations
     if (inp.IsMultilevelInTime() && mm == inp.NonlinearIterations() - 1) {
@@ -428,10 +412,9 @@ void gridLevel::UpdateBlocks(const input& inp, const physics& phys,
     }
 
     // zero flux jacobians
-    diagonal_[bb].Zero();
+    solver_->A(bb).Zero();
   }
-                      }
-
+}
 
 void gridLevel::AuxillaryAndWidths(const physics& phys) {
   for (auto& block : blocks_) {
@@ -510,31 +493,47 @@ gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
   return coarse;
 }
 
-vector<blkMultiArray3d<varArray>> gridLevel::Restriction(
-    gridLevel& coarse, const vector<blkMultiArray3d<varArray>>& fineDu) const {
+void gridLevel::Restriction(gridLevel& coarse) const {
   MSG_ASSERT(blocks_.size() == coarse.blocks_.size(),
              "gridLevel size mismatch");
-  MSG_ASSERT(blocks_.size() == fineDu.size(),
-             "update size mismatch");
 
-  vector<blkMultiArray3d<varArray>> coarseDu;
-  coarseDu.reserve(this->NumBlocks());
   for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
     coarse.mgForcing_[ii].Zero();
-    // restrict residuals
-    BlockRestriction(blocks_[ii].Residuals(), toCoarse_[ii],
-                     volWeightFactor_[ii], coarse.mgForcing_[ii]);
     // restrict solution
     coarse.blocks_[ii].RestrictState(blocks_[ii], toCoarse_[ii],
                                      volWeightFactor_[ii]);
     // restrict update
-    coarseDu.emplace_back(coarse.blocks_[ii].NumI(), coarse.blocks_[ii].NumJ(),
-                          coarse.blocks_[ii].NumK(),
-                          coarse.blocks_[ii].NumGhosts(),
-                          coarse.blocks_[ii].NumEquations(),
-                          coarse.blocks_[ii].NumSpecies(), 0.0);
-    BlockRestriction(fineDu[ii], toCoarse_[ii], volWeightFactor_[ii],
-                     coarseDu[ii]);
+    BlockRestriction(solver_->X(ii), toCoarse_[ii], volWeightFactor_[ii],
+                     coarse.solver_->X(ii));
+    // DEBUG -- this should be residual of Ax=b, not FV residual
+    // DEBUG -- forcing term should be Ax - r
+    // Ax is Ax of coarse state (now possible since update and state were
+    //    restricted)
+    // r is b - Ax for fine state, restricted down to coarse level
+    // restrict residuals
+    BlockRestriction(blocks_[ii].Residuals(), toCoarse_[ii],
+                     volWeightFactor_[ii], coarse.mgForcing_[ii]);
+
   }
-  return coarseDu;
+}
+
+void gridLevel::SubtractFromUpdate(
+    const vector<blkMultiArray3d<varArray>>& coarseDu) {
+  solver_->SubtractFromUpdate(coarseDu);
+}
+
+void gridLevel::Prolongation(gridLevel& fine) const {
+  MSG_ASSERT(blocks_.size() == fine.blocks_.size(), "gridLevel size mismatch");
+  vector<blkMultiArray3d<varArray>> fineCorrVec;
+  fineCorrVec.reserve(this->NumBlocks());
+  for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
+    blkMultiArray3d<varArray> fineCorrection(
+        fine.blocks_[ii].NumI(), fine.blocks_[ii].NumJ(),
+        fine.blocks_[ii].NumK(), 0, fine.blocks_[ii].NumEquations(),
+        fine.blocks_[ii].NumSpecies());
+    BlockProlongation(solver_->X(ii), fine.toCoarse_[ii],
+                      prolongCoeffs_[ii], fineCorrection);
+    fineCorrVec.push_back(fineCorrection);
+  }
+  fine.solver_->AddToUpdate(fineCorrVec);
 }

@@ -846,9 +846,9 @@ unique_ptr<linearSolver> input::AssignLinearSolver(
   unique_ptr<linearSolver> solver(nullptr);
   if (matrixSolver_ == "lusgs" || matrixSolver_ == "blusgs") {
     solver =
-        unique_ptr<linearSolver>{std::make_unique<lusgs>(matrixSolver_, level)};
+        unique_ptr<linearSolver>{std::make_unique<lusgs>(*this, level)};
   } else if (matrixSolver_ == "dplur" || matrixSolver_ == "bdplur") {
-    solver = unique_ptr<linearSolver>{std::make_unique<dplur>(matrixSolver_)};
+    solver = unique_ptr<linearSolver>{std::make_unique<dplur>(*this, level)};
   } else {
     cerr << "ERROR: Error in input::AssignLinearSolver(). Linear "
          << "solver " << matrixSolver_ << " is not recognized!" << endl;

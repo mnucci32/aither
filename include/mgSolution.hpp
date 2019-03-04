@@ -41,16 +41,11 @@ class mgSolution {
   int mgCycleIndex_;
 
   // private member functions
-  vector<blkMultiArray3d<varArray>> Restriction(
-      const int&, const vector<blkMultiArray3d<varArray>>&);
-  template <typename T>
-  void Prolongation(const int&, const vector<T>&);
-  double CycleAtLevel(const int&, const physics&, const input&, const int&,
-                    const unique_ptr<linearSolver>&,
-                    vector<blkMultiArray3d<varArray>>& du);
-  double Relax(const int&, const int&, const physics&, const input&, const int&,
-               const unique_ptr<linearSolver>&,
-               vector<blkMultiArray3d<varArray>>&) const;
+  void Restriction(const int&);
+  void Prolongation(const int&);
+  double CycleAtLevel(const int&, const physics&, const input&, const int&);
+  double Relax(const int&, const int&, const physics&, const input&,
+               const int&);
 
  public:
   // Constructor
@@ -96,21 +91,14 @@ class mgSolution {
   void AuxillaryAndWidths(const physics& phys);
   void CalcWallDistance(const kdtree& tree);
   void SwapWallDist(const int& rank, const int& numGhosts);
-  void ResizeMatrix(const input& inp, const int& numProcBlock);
-  double ImplicitUpdate(const input& inp, const physics& phys,
-                        const unique_ptr<linearSolver>& solver, const int& mm,
+  double ImplicitUpdate(const input& inp, const physics& phys, const int& mm,
                         residual& residL2, resid& residLinf, const int& rank);
+  void SubtractFromUpdate(const int& ll,
+                          const vector<blkMultiArray3d<varArray>>& coarseDu);
 
   // Destructor
   ~mgSolution() noexcept {}
 };
 
-// multigrid prolongation - coarse grid to fine grid operator
-template <typename T>
-void mgSolution::Prolongation(const int &ci, const vector<T> &correction) {
-  MSG_ASSERT(ci > 0 && ci < static_cast<int>(solution_.size()),
-             "index for prolongation out of range");
-  solution_[ci].Prolongation(correction, solution_[ci - 1]);
-}
 
 #endif

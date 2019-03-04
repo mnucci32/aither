@@ -23,74 +23,140 @@
 #include "physicsModels.hpp"
 #include "gridLevel.hpp"
 #include "utility.hpp"
+#include "fluxJacobian.hpp"
 
 using std::cout;
 using std::endl;
 using std::cerr;
 using std::vector;
 
+// constructor
+linearSolver::linearSolver(const input &inp, const gridLevel &level) {
+  solverType_ = inp.MatrixSolver();
+  if (inp.IsImplicit()) {
+    a_.reserve(level.NumBlocks());
+    x_.reserve(level.NumBlocks());
+    const auto fluxJac =
+        inp.IsBlockMatrix()
+            ? fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations())
+            : fluxJacobian(1, std::min(1, inp.NumTurbEquations()));
+
+    for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
+      const auto &blk = level.Block(bb);
+      a_.emplace_back(blk.NumI(), blk.NumJ(), blk.NumK(), 0, fluxJac);
+      x_.emplace_back(blk.NumI(), blk.NumJ(), blk.NumK(), blk.NumGhosts(),
+                      blk.NumEquations(), blk.NumSpecies(), 0.0);
+    }
+  } else {
+    a_.resize(level.NumBlocks());
+    x_.resize(level.NumBlocks());
+  }
+  aInv_ = a_;
+}
+
 // function declarations
 
-blkMultiArray3d<varArray> linearSolver::InitializeMatrixUpdate(
-    const procBlock &blk, const input &inp, const physics &phys,
-    const matMultiArray3d &aInv) const {
-  // blk -- procBlock associated with diagonal
+void linearSolver::InitializeMatrixUpdate(const gridLevel &level,
+                                          const input &inp,
+                                          const physics &phys) {
+  // level -- grid level to initialize update for
   // inp -- input variables
   // phys -- physics models
-  // aInv -- inverse of main diagonal
+
+  MSG_ASSERT(level.NumBlocks() == this->NumBlocks(), "block size mismatch");
+  MSG_ASSERT(level.Block(0).NumCells() == a_[0].NumBlocks(),
+             "cell number mismatch");
 
   // allocate multiarray for update
-  blkMultiArray3d<varArray> x(blk.NumI(), blk.NumJ(), blk.NumK(),
-                              blk.NumGhosts(), inp.NumEquations(),
-                              inp.NumSpecies(), 0.0);
+  for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
+    const auto &blk = level.Block(bb);
+    if (inp.MatrixRequiresInitialization()) {
+      const auto thetaInv = 1.0 / inp.Theta();
+      for (auto kk = blk.StartK(); kk < blk.EndK(); ++kk) {
+        for (auto jj = blk.StartJ(); jj < blk.EndJ(); ++jj) {
+          for (auto ii = blk.StartI(); ii < blk.EndI(); ++ii) {
+            // calculate update
+            x_[bb].InsertBlock(ii, jj, kk,
+                               aInv_[bb].ArrayMult(
+                                   ii, jj, kk,
+                                   -thetaInv * blk.Residual(ii, jj, kk) +
+                                       blk.SolDeltaNm1(ii, jj, kk, inp) -
+                                       blk.SolDeltaMmN(ii, jj, kk, inp, phys)));
+          }
+        }
+      }
+    } else {
+      x_[bb].Zero();
+    }
+  }
+}
 
-  if (inp.MatrixRequiresInitialization()) {
-    const auto thetaInv = 1.0 / inp.Theta();
+void linearSolver::InvertDiagonal(const gridLevel &level, const input &inp) {
+  // level -- grid level to invert diagonal for
+  // inp -- input variables
 
+  MSG_ASSERT(level.NumBlocks() == this->NumBlocks(), "block size mismatch");
+  MSG_ASSERT(level.Block(0).NumCells() == a_[0].NumBlocks(),
+             "cell number mismatch");
+
+  // loop over blocks in grid level
+  for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
+    const auto &blk = level.Block(bb);
+    // loop over physical cells
     for (auto kk = blk.StartK(); kk < blk.EndK(); ++kk) {
       for (auto jj = blk.StartJ(); jj < blk.EndJ(); ++jj) {
         for (auto ii = blk.StartI(); ii < blk.EndI(); ++ii) {
-          // calculate update
-          x.InsertBlock(
-              ii, jj, kk,
-              aInv.ArrayMult(ii, jj, kk,
-                             -thetaInv * blk.Residual(ii, jj, kk) +
-                                 blk.SolDeltaNm1(ii, jj, kk, inp) -
-                                 blk.SolDeltaMmN(ii, jj, kk, inp, phys)));
+          auto diagVolTime = blk.SolDeltaNCoeff(ii, jj, kk, inp);
+          if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
+            // equal to volume / tau
+            diagVolTime +=
+                blk.SpectralRadius(ii, jj, kk).Max() / inp.DualTimeCFL();
+          }
+
+          // add volume and time term
+          a_[bb].MultiplyOnDiagonal(ii, jj, kk, inp.MatrixRelaxation());
+          a_[bb].AddOnDiagonal(ii, jj, kk, diagVolTime);
         }
       }
     }
   }
-  return x;
-}
 
-void linearSolver::InvertDiagonal(const procBlock &blk, const input &inp,
-                                  matMultiArray3d &mainDiagonal) const {
-  // blk -- block associated with mainDiagonal
-  // inp -- input variables
-  // mainDiagonal -- main diagonal in implicit operator
-
-  // loop over physical cells
-  for (auto kk = blk.StartK(); kk < blk.EndK(); ++kk) {
-    for (auto jj = blk.StartJ(); jj < blk.EndJ(); ++jj) {
-      for (auto ii = blk.StartI(); ii < blk.EndI(); ++ii) {
-        auto diagVolTime = blk.SolDeltaNCoeff(ii, jj, kk, inp);
-        if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
-          // equal to volume / tau
-          diagVolTime += blk.SpectralRadius(ii, jj, kk).Max() /
-              inp.DualTimeCFL();
+  // now calculate inverse
+  aInv_ = a_;
+  for (auto &ai : aInv_) {
+    for (auto kk = ai.StartK(); kk < ai.EndK(); ++kk) {
+      for (auto jj = ai.StartJ(); jj < ai.EndJ(); ++jj) {
+        for (auto ii = ai.StartI(); ii < ai.EndI(); ++ii) {
+          ai.Inverse(ii, jj, kk);
         }
-
-        // add volume and time term
-        mainDiagonal.MultiplyOnDiagonal(ii, jj, kk, inp.MatrixRelaxation());
-        mainDiagonal.AddOnDiagonal(ii, jj, kk, diagVolTime);
-        mainDiagonal.Inverse(ii, jj, kk);
       }
     }
   }
 }
 
-lusgs::lusgs(const string &type, const gridLevel &level) : linearSolver(type) {
+void linearSolver::SwapUpdate(const vector<connection> &conn, const int &rank,
+                              const int &numGhost) {
+  SwapImplicitUpdate(x_, conn, rank, numGhost);
+}
+
+void linearSolver::SubtractFromUpdate(
+    const vector<blkMultiArray3d<varArray>> &coarseDu) {
+  MSG_ASSERT(x_.size() == coarseDu.size(), "update size mismatch");
+  for (auto bb = 0U; bb < x_.size(); ++bb) {
+    x_[bb] -= coarseDu[bb];
+  }
+}
+
+void linearSolver::AddToUpdate(
+    const vector<blkMultiArray3d<varArray>> &correction) {
+  MSG_ASSERT(x_.size() == correction.size(), "update size mismatch");
+  for (auto bb = 0U; bb < x_.size(); ++bb) {
+    x_[bb] += correction[bb];
+  }
+}
+
+lusgs::lusgs(const input &inp, const gridLevel &level)
+    : linearSolver(inp, level) {
   // calculate order by hyperplanes for each block
   reorder_.resize(level.NumBlocks());
   for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
@@ -295,11 +361,13 @@ double lusgs::LUSGS_Backward(const procBlock &blk,
 }
 
 double lusgs::Relax(const gridLevel &level, const physics &phys,
-                    const input &inp, const int &rank, const int &sweeps,
-                    vector<blkMultiArray3d<varArray>> &du) const {
-  MSG_ASSERT(level.NumBlocks() == static_cast<int>(du.size()),
+                    const input &inp, const int &rank, const int &sweeps) {
+  MSG_ASSERT(level.NumBlocks() == this->NumBlocks(),
              "number of blocks mismatch");
-  MSG_ASSERT(du.size() == reorder_.size(), "reorder block size mismatch");
+  MSG_ASSERT(this->NumBlocks() == static_cast<int>(reorder_.size()),
+             "reorder block size mismatch");
+  MSG_ASSERT(level.Block(0).NumCells() == this->A(0).NumBlocks(),
+             "cell number mismatch");
 
   // initialize matrix error
   auto matrixError = 0.0;
@@ -309,21 +377,21 @@ double lusgs::Relax(const gridLevel &level, const physics &phys,
   // start sweeps through domain
   for (auto ii = 0; ii < sweeps; ++ii) {
     // swap updates for ghost cells
-    SwapImplicitUpdate(du, level.Connections(), rank, numG);
+    this->SwapUpdate(level.Connections(), rank, numG);
 
     // forward lu-sgs sweep
     for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
       this->LUSGS_Forward(level.Block(bb), reorder_[bb], phys, inp,
-                          level.Diagonal(bb), ii, du[bb]);
+                          this->AInv(bb), ii, this->X(bb));
     }
 
     // swap updates for ghost cells
-    SwapImplicitUpdate(du, level.Connections(), rank, numG);
+    this->SwapUpdate(level.Connections(), rank, numG);
 
     // backward lu-sgs sweep
     for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
       matrixError += this->LUSGS_Backward(level.Block(bb), reorder_[bb], phys,
-                                          inp, level.Diagonal(bb), ii, du[bb]);
+                                          inp, this->AInv(bb), ii, this->X(bb));
     }
   }
   return matrixError;
@@ -343,6 +411,8 @@ double dplur::DPLUR(const procBlock &blk, const physics &phys, const input &inp,
 
   // initialize residuals
   varArray l2Error(inp.NumEquations(), inp.NumSpecies());
+  blkMultiArray3d<varArray> resid(x.NumI(), x.NumJ(), x.NumK(), x.GhostLayers(),
+                                  x.BlockInfo());
   // copy old update
   const auto xold = x;
 
@@ -362,6 +432,11 @@ double dplur::DPLUR(const procBlock &blk, const physics &phys, const input &inp,
         x.InsertBlock(ii, jj, kk, aInv.ArrayMult(ii, jj, kk, b + offDiagonal));
 
         // calculate matrix error
+        // DEBUG -- needs to be 'A' instead of 'aInv'
+        // matrix residual = A * error = b - Ax
+        resid.InsertBlock(
+            ii, jj, kk,
+            b - aInv.ArrayMult(ii, jj, kk, x(ii, jj, kk)) - offDiagonal);
         const auto error = x(ii, jj, kk) - xold(ii, jj, kk);
         l2Error += error * error;
       }
@@ -371,10 +446,11 @@ double dplur::DPLUR(const procBlock &blk, const physics &phys, const input &inp,
 }
 
 double dplur::Relax(const gridLevel &level, const physics &phys,
-                    const input &inp, const int &rank, const int &sweeps,
-                    vector<blkMultiArray3d<varArray>> &du) const {
-  MSG_ASSERT(level.NumBlocks() == static_cast<int>(du.size()),
+                    const input &inp, const int &rank, const int &sweeps) {
+  MSG_ASSERT(level.NumBlocks() == this->NumBlocks(),
              "number of blocks mismatch");
+  MSG_ASSERT(level.Block(0).NumCells() == this->A(0).NumBlocks(),
+             "cell number mismatch");
 
   // initialize matrix error
   auto matrixError = 0.0;
@@ -384,11 +460,11 @@ double dplur::Relax(const gridLevel &level, const physics &phys,
   // start sweeps through domain
   for (auto ii = 0; ii < sweeps; ++ii) {
     // swap updates for ghost cells
-    SwapImplicitUpdate(du, level.Connections(), rank, numG);
+    this->SwapUpdate(level.Connections(), rank, numG);
 
     // dplur sweep
     for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
-      this->DPLUR(level.Block(bb), phys, inp, level.Diagonal(bb), du[bb]);
+      this->DPLUR(level.Block(bb), phys, inp, this->AInv(bb), this->X(bb));
     }
   }
   return matrixError;
