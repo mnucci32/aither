@@ -87,8 +87,8 @@ class gridLevel {
   connection& Connection(const int& ii) { return connections_[ii]; }
   void InvertDiagonal(const input &);
   void InitializeMatrixUpdate(const input&, const physics&);
-  double Relax(const physics& phys, const input& inp, const int& rank,
-             const int& sweeps) {
+  vector<blkMultiArray3d<varArray>> Relax(const physics& phys, const input& inp,
+                                          const int& rank, const int& sweeps) {
     return solver_->Relax(*this, phys, inp, rank, sweeps);
   }
 

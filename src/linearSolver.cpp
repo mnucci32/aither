@@ -313,22 +313,25 @@ void lusgs::LUSGS_Forward(const procBlock &blk,
   }  // end forward sweep
 }
 
-double lusgs::LUSGS_Backward(const procBlock &blk,
-                             const vector<vector3d<int>> &reorder,
-                             const physics &phys, const input &inp,
-                             const matMultiArray3d &aInv, const int &sweep,
-                             blkMultiArray3d<varArray> &x) const {
+blkMultiArray3d<varArray> lusgs::LUSGS_Backward(
+    const procBlock &blk, const vector<vector3d<int>> &reorder,
+    const physics &phys, const input &inp, const matMultiArray3d &aInv,
+    const matMultiArray3d &a, const int &sweep,
+    blkMultiArray3d<varArray> &x) const {
   // blk -- block to solve on
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // phys -- physics models
   // inp -- all input variables
   // aInv -- inverse of main diagonal
+  // a -- main diagonal
   // sweep -- sweep number through domain
   // x -- variables to be solved for
 
   const auto thetaInv = 1.0 / inp.Theta();
 
-  varArray l2Error(inp.NumEquations(), inp.NumSpecies());
+  // initialize matrix residual
+  blkMultiArray3d<varArray> resid(x.NumI(), x.NumJ(), x.NumK(), 0,
+                                  x.BlockInfo());
 
   // backward sweep over all physical cells
   for (auto nn = blk.NumCells() - 1; nn >= 0; --nn) {
@@ -350,18 +353,26 @@ double lusgs::LUSGS_Backward(const procBlock &blk,
       const auto b =
           -thetaInv * blk.Residual(ii, jj, kk) + solDeltaNm1 - solDeltaMmN;
       x.InsertBlock(ii, jj, kk, aInv.ArrayMult(ii, jj, kk, b + L - U));
+      // matrix residual = b - Ax
+      resid.InsertBlock(ii, jj, kk,
+                        b - a.ArrayMult(ii, jj, kk, x(ii, jj, kk)) + L - U);
     } else {
       x.InsertBlock(ii, jj, kk, xold - aInv.ArrayMult(ii, jj, kk, U));
+      // matrix residual = b - Ax
+      // DEBU -- fix this
+      resid.InsertBlock(ii, jj, kk,
+                        xold - a.ArrayMult(ii, jj, kk, x(ii, jj, kk)) - U);
     }
-    const auto error = x(ii, jj, kk) - xold;
-    l2Error += error * error;
   }  // end backward sweep
 
-  return l2Error.Sum();
+  return resid;
 }
 
-double lusgs::Relax(const gridLevel &level, const physics &phys,
-                    const input &inp, const int &rank, const int &sweeps) {
+vector<blkMultiArray3d<varArray>> lusgs::Relax(const gridLevel &level,
+                                               const physics &phys,
+                                               const input &inp,
+                                               const int &rank,
+                                               const int &sweeps) {
   MSG_ASSERT(level.NumBlocks() == this->NumBlocks(),
              "number of blocks mismatch");
   MSG_ASSERT(this->NumBlocks() == static_cast<int>(reorder_.size()),
@@ -369,12 +380,12 @@ double lusgs::Relax(const gridLevel &level, const physics &phys,
   MSG_ASSERT(level.Block(0).NumCells() == this->A(0).NumBlocks(),
              "cell number mismatch");
 
-  // initialize matrix error
-  auto matrixError = 0.0;
-
-  const auto numG = level.Block(0).NumGhosts();
+  // initialize matrix residual vector
+  vector<blkMultiArray3d<varArray>> matrixResid;
+  matrixResid.resize(level.NumBlocks());
 
   // start sweeps through domain
+  const auto numG = level.Block(0).NumGhosts();
   for (auto ii = 0; ii < sweeps; ++ii) {
     // swap updates for ghost cells
     this->SwapUpdate(level.Connections(), rank, numG);
@@ -390,17 +401,20 @@ double lusgs::Relax(const gridLevel &level, const physics &phys,
 
     // backward lu-sgs sweep
     for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
-      matrixError += this->LUSGS_Backward(level.Block(bb), reorder_[bb], phys,
-                                          inp, this->AInv(bb), ii, this->X(bb));
+      matrixResid[bb] =
+          this->LUSGS_Backward(level.Block(bb), reorder_[bb], phys, inp,
+                               this->AInv(bb), this->A(bb), ii, this->X(bb));
     }
   }
-  return matrixError;
+  return matrixResid;
 }
 
 // function to calculate the implicit update via the DP-LUR method
-double dplur::DPLUR(const procBlock &blk, const physics &phys, const input &inp,
-                    const matMultiArray3d &aInv,
-                    blkMultiArray3d<varArray> &x) const {
+blkMultiArray3d<varArray> dplur::DPLUR(const procBlock &blk,
+                                       const physics &phys, const input &inp,
+                                       const matMultiArray3d &aInv,
+                                       const matMultiArray3d &a,
+                                       blkMultiArray3d<varArray> &x) const {
   // blk -- block to solve on
   // phys --  physics models
   // inp -- all input variables
@@ -409,9 +423,8 @@ double dplur::DPLUR(const procBlock &blk, const physics &phys, const input &inp,
 
   const auto thetaInv = 1.0 / inp.Theta();
 
-  // initialize residuals
-  varArray l2Error(inp.NumEquations(), inp.NumSpecies());
-  blkMultiArray3d<varArray> resid(x.NumI(), x.NumJ(), x.NumK(), x.GhostLayers(),
+  // initialize matrix residual
+  blkMultiArray3d<varArray> resid(x.NumI(), x.NumJ(), x.NumK(), 0,
                                   x.BlockInfo());
   // copy old update
   const auto xold = x;
@@ -431,41 +444,41 @@ double dplur::DPLUR(const procBlock &blk, const physics &phys, const input &inp,
         // calculate update
         x.InsertBlock(ii, jj, kk, aInv.ArrayMult(ii, jj, kk, b + offDiagonal));
 
-        // calculate matrix error
-        // DEBUG -- needs to be 'A' instead of 'aInv'
-        // matrix residual = A * error = b - Ax
+        // calculate matrix residual
+        // matrix residual = b - Ax
         resid.InsertBlock(
             ii, jj, kk,
-            b - aInv.ArrayMult(ii, jj, kk, x(ii, jj, kk)) - offDiagonal);
-        const auto error = x(ii, jj, kk) - xold(ii, jj, kk);
-        l2Error += error * error;
+            b - a.ArrayMult(ii, jj, kk, x(ii, jj, kk)) + offDiagonal);
       }
     }
   }
-  return l2Error.Sum();
+  return resid;
 }
 
-double dplur::Relax(const gridLevel &level, const physics &phys,
-                    const input &inp, const int &rank, const int &sweeps) {
+vector<blkMultiArray3d<varArray>> dplur::Relax(const gridLevel &level,
+                                               const physics &phys,
+                                               const input &inp,
+                                               const int &rank,
+                                               const int &sweeps) {
   MSG_ASSERT(level.NumBlocks() == this->NumBlocks(),
              "number of blocks mismatch");
   MSG_ASSERT(level.Block(0).NumCells() == this->A(0).NumBlocks(),
              "cell number mismatch");
-
-  // initialize matrix error
-  auto matrixError = 0.0;
-
-  const auto numG = level.Block(0).NumGhosts();
+  // initialize matrix residual vector
+  vector<blkMultiArray3d<varArray>> matrixResid;
+  matrixResid.resize(level.NumBlocks());
 
   // start sweeps through domain
+  const auto numG = level.Block(0).NumGhosts();
   for (auto ii = 0; ii < sweeps; ++ii) {
     // swap updates for ghost cells
     this->SwapUpdate(level.Connections(), rank, numG);
 
     // dplur sweep
     for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
-      this->DPLUR(level.Block(bb), phys, inp, this->AInv(bb), this->X(bb));
+      matrixResid[bb] = this->DPLUR(level.Block(bb), phys, inp, this->AInv(bb),
+                                    this->A(bb), this->X(bb));
     }
   }
-  return matrixError;
+  return matrixResid;
 }

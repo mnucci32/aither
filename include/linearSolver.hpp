@@ -71,8 +71,10 @@ class linearSolver {
   void SubtractFromUpdate(const vector<blkMultiArray3d<varArray>>& coarseDu);
   void AddToUpdate(const vector<blkMultiArray3d<varArray>>& correction);
 
-  virtual double Relax(const gridLevel &, const physics &, const input &,
-                       const int &, const int &) = 0;
+  virtual vector<blkMultiArray3d<varArray>> Relax(const gridLevel &,
+                                                  const physics &,
+                                                  const input &, const int &,
+                                                  const int &) = 0;
 
   // destructor
   virtual ~linearSolver() noexcept {}
@@ -86,9 +88,12 @@ class lusgs : public linearSolver {
   void LUSGS_Forward(const procBlock &, const vector<vector3d<int>> &,
                      const physics &, const input &, const matMultiArray3d &,
                      const int &, blkMultiArray3d<varArray> &) const;
-  double LUSGS_Backward(const procBlock &, const vector<vector3d<int>> &,
-                        const physics &, const input &, const matMultiArray3d &,
-                        const int &, blkMultiArray3d<varArray> &) const;
+  blkMultiArray3d<varArray> LUSGS_Backward(const procBlock &,
+                                           const vector<vector3d<int>> &,
+                                           const physics &, const input &,
+                                           const matMultiArray3d &,
+                                           const matMultiArray3d &, const int &,
+                                           blkMultiArray3d<varArray> &) const;
 
  public:
   // constructors
@@ -103,8 +108,9 @@ class lusgs : public linearSolver {
   lusgs &operator=(const lusgs &) = default;
 
   // member functions
-  double Relax(const gridLevel &, const physics &, const input &, const int &,
-               const int &) override;
+  vector<blkMultiArray3d<varArray>> Relax(const gridLevel &, const physics &,
+                                          const input &, const int &,
+                                          const int &) override;
 
   // destructor
   virtual ~lusgs() noexcept {}
@@ -114,8 +120,10 @@ class lusgs : public linearSolver {
 class dplur : public linearSolver {
 
   // private member functions
-  double DPLUR(const procBlock &, const physics &, const input &,
-               const matMultiArray3d &, blkMultiArray3d<varArray> &) const;
+  blkMultiArray3d<varArray> DPLUR(const procBlock &, const physics &,
+                                  const input &, const matMultiArray3d &,
+                                  const matMultiArray3d &,
+                                  blkMultiArray3d<varArray> &) const;
 
  public:
   // constructors
@@ -130,8 +138,9 @@ class dplur : public linearSolver {
   dplur &operator=(const dplur &) = default;
 
   // member functions
-  double Relax(const gridLevel &, const physics &, const input &, const int &,
-               const int &) override;
+  vector<blkMultiArray3d<varArray>> Relax(const gridLevel &, const physics &,
+                                          const input &, const int &,
+                                          const int &) override;
 
   // destructor
   virtual ~dplur() noexcept {}

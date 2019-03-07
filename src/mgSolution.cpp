@@ -114,8 +114,11 @@ void mgSolution::Restriction(const int& fi) {
   solution_[fi].Restriction(solution_[fi + 1]);
 }
 
-double mgSolution::Relax(const int& ll, const int& sweeps, const physics& phys,
-                         const input& inp, const int& rank) {
+vector<blkMultiArray3d<varArray>> mgSolution::Relax(const int& ll,
+                                                    const int& sweeps,
+                                                    const physics& phys,
+                                                    const input& inp,
+                                                    const int& rank) {
   return solution_[ll].Relax(phys, inp, rank, sweeps);
 }
 
@@ -137,7 +140,9 @@ double mgSolution::CycleAtLevel(const int& fl, const physics& phys,
   // fl -- index for fine grid level
   MSG_ASSERT(fl >= 0 && fl < static_cast<int>(solution_.size()),
              "index for multigrid cycle out of range");
-  auto matrixResid = 0.0;
+  // initialize matrix residual
+  vector<blkMultiArray3d<varArray>> matrixResid;
+
   if (fl == this->NumGridLevels() - 1) {  // recursive base case
     matrixResid = this->Relax(fl, inp.MatrixSweeps(), phys, inp, rank);
   } else {
@@ -152,7 +157,7 @@ double mgSolution::CycleAtLevel(const int& fl, const physics& phys,
 
     // recursive call to next coarse level
     for (auto ii = 0; ii < mgCycleIndex_; ++ii) {
-      matrixResid = this->CycleAtLevel(cl, phys, inp, rank);
+      this->CycleAtLevel(cl, phys, inp, rank);
     }
     this->SubtractFromUpdate(cl, coarseDu);
 
@@ -162,7 +167,16 @@ double mgSolution::CycleAtLevel(const int& fl, const physics& phys,
     // post-relaxation sweeps
     matrixResid = this->Relax(fl, 1, phys, inp, rank);
   }
-  return matrixResid;
+
+  // calculate l2 norm of matrix residual
+  auto l2Resid = 0.0;
+  auto totalSize = 0;
+  for (auto& mr : matrixResid) {
+    mr *= mr;
+    std::accumulate(std::begin(mr), std::end(mr), l2Resid);
+    totalSize += mr.Size();
+  }
+  return l2Resid / totalSize;
 }
 
 double mgSolution::ImplicitUpdate(const input& inp, const physics& phys,

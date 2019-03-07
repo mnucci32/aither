@@ -44,8 +44,9 @@ class mgSolution {
   void Restriction(const int&);
   void Prolongation(const int&);
   double CycleAtLevel(const int&, const physics&, const input&, const int&);
-  double Relax(const int&, const int&, const physics&, const input&,
-               const int&);
+  vector<blkMultiArray3d<varArray>> Relax(const int&, const int&,
+                                          const physics&, const input&,
+                                          const int&);
 
  public:
   // Constructor
