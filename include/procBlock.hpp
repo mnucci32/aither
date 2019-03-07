@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (mnucci@pm.me)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include <iostream>
 #include <memory>
 #include <algorithm>
+#include <cstdlib>
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
 #include "multiArray3d.hpp"        // multiArray3d
