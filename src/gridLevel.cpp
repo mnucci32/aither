@@ -493,26 +493,30 @@ gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
   return coarse;
 }
 
-void gridLevel::Restriction(gridLevel& coarse) const {
+void gridLevel::Restriction(
+    gridLevel& coarse,
+    const vector<blkMultiArray3d<varArray>>& fineResid) const {
   MSG_ASSERT(blocks_.size() == coarse.blocks_.size(),
              "gridLevel size mismatch");
+  MSG_ASSERT(blocks_.size() == fineResid.size(), "residual size mismatch");
 
   for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
     coarse.mgForcing_[ii].Zero();
     // restrict solution
     coarse.blocks_[ii].RestrictState(blocks_[ii], toCoarse_[ii],
                                      volWeightFactor_[ii]);
-    // restrict update
+    // DEBUG
+    // should calculate solution on coarse grid level here - need to get Ax
+    // restrict update -- PROBABLY NOT NEEDED
     BlockRestriction(solver_->X(ii), toCoarse_[ii], volWeightFactor_[ii],
                      coarse.solver_->X(ii));
-    // DEBUG -- this should be residual of Ax=b, not FV residual
     // DEBUG -- forcing term should be Ax - r
     // Ax is Ax of coarse state (now possible since update and state were
     //    restricted)
     // r is b - Ax for fine state, restricted down to coarse level
     // restrict residuals
-    BlockRestriction(blocks_[ii].Residuals(), toCoarse_[ii],
-                     volWeightFactor_[ii], coarse.mgForcing_[ii]);
+    BlockRestriction(fineResid[ii], toCoarse_[ii], volWeightFactor_[ii],
+                     coarse.mgForcing_[ii]);
 
   }
 }

@@ -125,7 +125,8 @@ class gridLevel {
   void AuxillaryAndWidths(const physics& phys);
   gridLevel Coarsen(const decomposition& decomp, const input& inp,
                     const physics& phys);
-  void Restriction(gridLevel& coarse) const;
+  void Restriction(gridLevel& coarse,
+                   const vector<blkMultiArray3d<varArray>>& fineResid) const;
   void Prolongation(gridLevel& fine) const;
   void SubtractFromUpdate(const vector<blkMultiArray3d<varArray>>& coarseDu);
   vector<blkMultiArray3d<varArray>> Update() const { return solver_->X(); }

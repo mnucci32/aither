@@ -108,10 +108,11 @@ void mgSolution::SwapWallDist(const int& rank, const int& numGhosts) {
 }
 
 // multigrid restriction - fine grid to coarse grid operator
-void mgSolution::Restriction(const int& fi) {
+void mgSolution::Restriction(
+    const int& fi, const vector<blkMultiArray3d<varArray>>& matrixResid) {
   MSG_ASSERT(fi >= 0 && fi < static_cast<int>(solution_.size() - 1),
              "index for restriction out of range");
-  solution_[fi].Restriction(solution_[fi + 1]);
+  solution_[fi].Restriction(solution_[fi + 1], matrixResid);
 }
 
 vector<blkMultiArray3d<varArray>> mgSolution::Relax(const int& ll,
@@ -152,7 +153,7 @@ double mgSolution::CycleAtLevel(const int& fl, const physics& phys,
     // coarse grid correction
     // restrict solution, residual, and implicit update to coarse grid
     auto cl = fl + 1;
-    this->Restriction(fl);
+    this->Restriction(fl, matrixResid);
     const auto coarseDu = solution_[cl].Update();
 
     // recursive call to next coarse level

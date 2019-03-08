@@ -21,6 +21,7 @@
 #include "gridLevel.hpp"
 #include "vector3d.hpp"
 #include "multiArray3d.hpp"
+#include "blkMultiArray3d.hpp"
 #include "physicsModels.hpp"
 #include "linearSolver.hpp"
 
@@ -41,7 +42,7 @@ class mgSolution {
   int mgCycleIndex_;
 
   // private member functions
-  void Restriction(const int&);
+  void Restriction(const int&, const vector<blkMultiArray3d<varArray>> &);
   void Prolongation(const int&);
   double CycleAtLevel(const int&, const physics&, const input&, const int&);
   vector<blkMultiArray3d<varArray>> Relax(const int&, const int&,
