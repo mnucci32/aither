@@ -42,9 +42,18 @@ class mgSolution {
   int mgCycleIndex_;
 
   // private member functions
-  void Restriction(const int&, const vector<blkMultiArray3d<varArray>> &);
+  double ImplicitUpdate(const int& level, const input& inp, const physics& phys,
+                        const int& mm, const int& rank,
+                        const MPI_Datatype& MPI_tensorDouble,
+                        const MPI_Datatype& MPI_vec3d, residual& residL2,
+                        resid& residLinf);
+  void Restriction(const int&, const vector<blkMultiArray3d<varArray>>&,
+                   const input& inp, const physics& phys, const int& rank,
+                   const MPI_Datatype& MPI_tensorDouble,
+                   const MPI_Datatype& MPI_vec3d);
   void Prolongation(const int&);
-  double CycleAtLevel(const int&, const physics&, const input&, const int&);
+  double CycleAtLevel(const int&, const physics&, const input&, const int&,
+                      const MPI_Datatype&, const MPI_Datatype&);
   vector<blkMultiArray3d<varArray>> Relax(const int&, const int&,
                                           const physics&, const input&,
                                           const int&);
@@ -93,10 +102,13 @@ class mgSolution {
   void AuxillaryAndWidths(const physics& phys);
   void CalcWallDistance(const kdtree& tree);
   void SwapWallDist(const int& rank, const int& numGhosts);
-  double ImplicitUpdate(const input& inp, const physics& phys, const int& mm,
-                        residual& residL2, resid& residLinf, const int& rank);
   void SubtractFromUpdate(const int& ll,
                           const vector<blkMultiArray3d<varArray>>& coarseDu);
+  double Iterate(const int &level, const input& inp, const physics& phys,
+                 const MPI_Datatype& MPI_tensorDouble,
+                 const MPI_Datatype& MPI_vec3d, const int& mm, const int& rank,
+                 residual& residL2, resid& residLinf);
+
 
   // Destructor
   ~mgSolution() noexcept {}

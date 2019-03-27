@@ -81,6 +81,17 @@ class gridLevel {
   const procBlock& Block(const int &ii) const { return blocks_[ii]; }
   procBlock& Block(const int &ii) { return blocks_[ii]; }
 
+  void CalcTimeStep(const input& inp);
+  void ExplicitUpdate(const input& inp, const physics& phys, const int& mm,
+                      residual& residL2, resid& residLinf);
+  void UpdateBlocks(const input& inp, const physics& phys, const int& mm,
+                    residual& residL2, resid& residLinf);
+  void GetBoundaryConditions(const input& inp, const physics& phys,
+                             const int& rank);
+  void CalcResidual(const physics& phys, const input& inp, const int& rank,
+                    const MPI_Datatype& MPI_tensorDouble,
+                    const MPI_Datatype& MPI_vec3d);
+
   int NumConnections() const { return connections_.size(); }
   const vector<connection>& Connections() const { return connections_; }
   const connection& Connection(const int& ii) const { return connections_[ii]; }
@@ -104,29 +115,20 @@ class gridLevel {
   void CalcWallDistance(const kdtree& tree);
   void AssignSolToTimeN(const physics& phys);
   void AssignSolToTimeNm1();
-
-  void CalcTimeStep(const input& inp);
-  void ExplicitUpdate(const input& inp, const physics& phys, const int& mm,
-                      residual& residL2, resid& residLinf);
-  void UpdateBlocks(const input& inp, const physics& phys, const int& mm,
-                    residual& residL2, resid& residLinf);
-
-  void GetBoundaryConditions(const input& inp, const physics& phys,
-                             const int& rank);
   void SwapWallDist(const int& rank, const int& numGhosts);
   void SwapTurbVars(const int& rank, const int& numGhosts);
   void SwapEddyViscAndGradients(const int& rank,
                                 const MPI_Datatype& MPI_tensorDouble,
                                 const MPI_Datatype& MPI_vec3d,
                                 const int& numGhosts);
-  void CalcResidual(const physics& phys, const input& inp, const int& rank,
-                    const MPI_Datatype& MPI_tensorDouble,
-                    const MPI_Datatype& MPI_vec3d);
   void AuxillaryAndWidths(const physics& phys);
   gridLevel Coarsen(const decomposition& decomp, const input& inp,
                     const physics& phys);
   void Restriction(gridLevel& coarse,
-                   const vector<blkMultiArray3d<varArray>>& fineResid) const;
+                   const vector<blkMultiArray3d<varArray>>& fineResid,
+                   const input& inp, const physics& phys, const int& rank,
+                   const MPI_Datatype& MPI_tensorDouble,
+                   const MPI_Datatype& MPI_vec3d) const;
   void Prolongation(gridLevel& fine) const;
   void SubtractFromUpdate(const vector<blkMultiArray3d<varArray>>& coarseDu);
   vector<blkMultiArray3d<varArray>> Update() const { return solver_->X(); }

@@ -493,9 +493,12 @@ gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
   return coarse;
 }
 
-void gridLevel::Restriction(
-    gridLevel& coarse,
-    const vector<blkMultiArray3d<varArray>>& fineResid) const {
+void gridLevel::Restriction(gridLevel& coarse,
+                            const vector<blkMultiArray3d<varArray>>& fineResid,
+                            const input& inp, const physics& phys,
+                            const int& rank,
+                            const MPI_Datatype& MPI_tensorDouble,
+                            const MPI_Datatype& MPI_vec3d) const {
   MSG_ASSERT(blocks_.size() == coarse.blocks_.size(),
              "gridLevel size mismatch");
   MSG_ASSERT(blocks_.size() == fineResid.size(), "residual size mismatch");
@@ -505,8 +508,26 @@ void gridLevel::Restriction(
     // restrict solution
     coarse.blocks_[ii].RestrictState(blocks_[ii], toCoarse_[ii],
                                      volWeightFactor_[ii]);
-    // DEBUG
-    // should calculate solution on coarse grid level here - need to get Ax
+
+  }
+
+  // DEBUG
+  // should calculate solution on coarse grid level here - need to get Ax
+  // should do everything so linear solver can call relax
+  // Get boundary conditions for all blocks
+  coarse.GetBoundaryConditions(inp, phys, rank);
+  // Calculate residual (RHS)
+  coarse.CalcResidual(phys, inp, rank, MPI_tensorDouble, MPI_vec3d);
+  // Calculate time step
+  coarse.CalcTimeStep(inp);
+  if (inp.IsImplicit()) {
+    // add volume and time term and calculate inverse of main diagonal
+    coarse.InvertDiagonal(inp);
+    // initialize matrix update
+    coarse.InitializeMatrixUpdate(inp, phys);
+  }
+
+  for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
     // restrict update -- PROBABLY NOT NEEDED
     BlockRestriction(solver_->X(ii), toCoarse_[ii], volWeightFactor_[ii],
                      coarse.solver_->X(ii));
@@ -514,7 +535,7 @@ void gridLevel::Restriction(
     // Ax is Ax of coarse state (now possible since update and state were
     //    restricted)
     // r is b - Ax for fine state, restricted down to coarse level
-    // restrict residuals
+    // restrict matrix residuals
     BlockRestriction(fineResid[ii], toCoarse_[ii], volWeightFactor_[ii],
                      coarse.mgForcing_[ii]);
 

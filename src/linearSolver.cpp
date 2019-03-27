@@ -359,7 +359,7 @@ blkMultiArray3d<varArray> lusgs::LUSGS_Backward(
     } else {
       x.InsertBlock(ii, jj, kk, xold - aInv.ArrayMult(ii, jj, kk, U));
       // matrix residual = b - Ax
-      // DEBU -- fix this
+      // DEBUG -- fix this
       resid.InsertBlock(ii, jj, kk,
                         xold - a.ArrayMult(ii, jj, kk, x(ii, jj, kk)) - U);
     }

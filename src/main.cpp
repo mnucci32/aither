@@ -238,9 +238,7 @@ int main(int argc, char *argv[]) {
                 inp);
   }
 
-  // Get multigrid finest level
-  constexpr auto mg = 0;
-
+  constexpr auto mg = 0;  // multigrid finest level
   // ----------------------------------------------------------------------
   // ----------------------- Start Main Loop ------------------------------
   // ----------------------------------------------------------------------
@@ -260,27 +258,15 @@ int main(int argc, char *argv[]) {
 
     // loop over nonlinear iterations
     for (auto mm = 0; mm < inp.NonlinearIterations(); mm++) {
-      // Get boundary conditions for all blocks
-      localSolution[mg].GetBoundaryConditions(inp, phys, rank);
-
-      // Calculate residual (RHS)
-      localSolution[mg].CalcResidual(phys, inp, rank, MPI_tensorDouble,
-                                     MPI_vec3d);
-
-      // Calculate time step
-      localSolution[mg].CalcTimeStep(inp);
-
       // Initialize residual variables
       // l2 norm residuals
       residual residL2(inp.NumEquations(), inp.NumSpecies());
       resid residLinf;  // linf residuals
-      auto matrixResid = 0.0;
-      if (inp.IsImplicit()) {
-        matrixResid = localSolution.ImplicitUpdate(inp, phys, mm, residL2,
-                                                   residLinf, rank);
-      } else {  // explicit time integration
-        localSolution[mg].ExplicitUpdate(inp, phys, mm, residL2, residLinf);
-      }
+
+      // advance an iteration
+      auto matrixResid =
+          localSolution.Iterate(mg, inp, phys, MPI_tensorDouble, MPI_vec3d, mm,
+                                rank, residL2, residLinf);
 
       // ----------------------------------------------------------------------
       // Get residuals from all processors
