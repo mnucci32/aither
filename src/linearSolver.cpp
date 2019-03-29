@@ -55,6 +55,31 @@ linearSolver::linearSolver(const input &inp, const gridLevel &level) {
 }
 
 // function declarations
+vector<blkMultiArray3d<varArray>> linearSolver::AX(const gridLevel &level,
+                                                   const physics &phys,
+                                                   const input &inp) const {
+  vector<blkMultiArray3d<varArray>> ax;
+  ax.reserve(this->NumBlocks());
+  for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
+    const auto &blk = level.Block(bb);
+    ax.emplace_back(x_[bb].NumI(), x_[bb].NumJ(), x_[bb].NumK(), 0,
+                    x_[bb].BlockInfo());
+    for (auto kk = blk.StartK(); kk < blk.EndK(); ++kk) {
+      for (auto jj = blk.StartJ(); jj < blk.EndJ(); ++jj) {
+        for (auto ii = blk.StartI(); ii < blk.EndI(); ++ii) {
+          // calculate off diagonal terms on the fly
+          auto offDiagonal = blk.ImplicitLower(ii, jj, kk, x_[bb], phys, inp);
+          offDiagonal -= blk.ImplicitUpper(ii, jj, kk, x_[bb], phys, inp);
+
+          ax[bb].InsertBlock(
+              ii, jj, kk,
+              a_[bb].ArrayMult(ii, jj, kk, x_[bb](ii, jj, kk)) - offDiagonal);
+        }
+      }
+    }
+  }
+  return ax;
+}
 
 void linearSolver::InitializeMatrixUpdate(const gridLevel &level,
                                           const input &inp,

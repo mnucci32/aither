@@ -508,7 +508,9 @@ void gridLevel::Restriction(gridLevel& coarse,
     // restrict solution
     coarse.blocks_[ii].RestrictState(blocks_[ii], toCoarse_[ii],
                                      volWeightFactor_[ii]);
-
+    // restrict update
+    BlockRestriction(solver_->X(ii), toCoarse_[ii], volWeightFactor_[ii],
+                     coarse.solver_->X(ii));
   }
 
   // DEBUG
@@ -526,18 +528,17 @@ void gridLevel::Restriction(gridLevel& coarse,
     // initialize matrix update
     coarse.InitializeMatrixUpdate(inp, phys);
   }
+  // get Ax for coarse level
+  const auto ax = coarse.AX(phys, inp);
 
   for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
-    // restrict update -- PROBABLY NOT NEEDED
-    BlockRestriction(solver_->X(ii), toCoarse_[ii], volWeightFactor_[ii],
-                     coarse.solver_->X(ii));
     // DEBUG -- forcing term should be Ax - r
     // Ax is Ax of coarse state (now possible since update and state were
     //    restricted)
     // r is b - Ax for fine state, restricted down to coarse level
     // restrict matrix residuals
-    BlockRestriction(fineResid[ii], toCoarse_[ii], volWeightFactor_[ii],
-                     coarse.mgForcing_[ii]);
+    BlockRestriction(ax[ii] - fineResid[ii], toCoarse_[ii],
+                     volWeightFactor_[ii], coarse.mgForcing_[ii]);
 
   }
 }

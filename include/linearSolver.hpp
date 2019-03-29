@@ -64,6 +64,9 @@ class linearSolver {
 
   const matMultiArray3d &AInv(const int &bb) const { return aInv_[bb]; }
 
+  vector<blkMultiArray3d<varArray>> AX(const gridLevel &, const physics &,
+                                       const input &) const;
+
   void InvertDiagonal(const gridLevel &, const input &);
   void InitializeMatrixUpdate(const gridLevel &, const input &,
                               const physics &);

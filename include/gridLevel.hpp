@@ -102,6 +102,9 @@ class gridLevel {
                                           const int& rank, const int& sweeps) {
     return solver_->Relax(*this, phys, inp, rank, sweeps);
   }
+  vector<blkMultiArray3d<varArray>> AX(const physics& phys, const input& inp) {
+    return solver_->AX(*this, phys, inp);
+  }
 
   gridLevel SendGridLevel(const int& rank, const int& numProcBlock,
                           const MPI_Datatype& MPI_vec3d,
