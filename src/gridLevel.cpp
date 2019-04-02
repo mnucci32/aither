@@ -439,12 +439,17 @@ gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
   gridLevel coarse;
   coarse.connections_ = GetConnectionBCs(coarseBCs, coarseMesh, decomp, inp);
   coarse.blocks_.reserve(coarseMesh.size());
+  coarse.mgForcing_.reserve(coarseMesh.size());
   for (auto ll = 0U; ll < coarseMesh.size(); ++ll) {
     coarse.blocks_.emplace_back(coarseMesh[ll], blocks_[ll].ParentBlock(),
                                 coarseBCs[ll], ll, blocks_[ll].Rank(),
                                 blocks_[ll].LocalPosition(), inp);
     coarse.blocks_.back().InitializeStates(inp, phys);
     coarse.blocks_.back().AssignGhostCellsGeom();
+    coarse.mgForcing_.emplace_back(
+        coarse.blocks_.back().NumI(), coarse.blocks_.back().NumJ(),
+        coarse.blocks_.back().NumK(), 0, coarse.blocks_.back().NumEquations(),
+        coarse.blocks_.back().NumSpecies(), 0);
   }
 
   // Swap geometry for connection BCs
@@ -488,6 +493,11 @@ gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
         }
       }
     }
+  }
+
+  // Setup linear solver
+  if (inp.IsImplicit()) {
+    coarse.solver_ = inp.AssignLinearSolver(coarse);
   }
 
   return coarse;
@@ -537,9 +547,9 @@ void gridLevel::Restriction(gridLevel& coarse,
     //    restricted)
     // r is b - Ax for fine state, restricted down to coarse level
     // restrict matrix residuals
-    BlockRestriction(ax[ii] - fineResid[ii], toCoarse_[ii],
-                     volWeightFactor_[ii], coarse.mgForcing_[ii]);
-
+    BlockRestriction(fineResid[ii], toCoarse_[ii], volWeightFactor_[ii],
+                     coarse.mgForcing_[ii]);
+    coarse.mgForcing_[ii] = ax[ii] - coarse.mgForcing_[ii];
   }
 }
 
@@ -555,10 +565,10 @@ void gridLevel::Prolongation(gridLevel& fine) const {
   for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
     blkMultiArray3d<varArray> fineCorrection(
         fine.blocks_[ii].NumI(), fine.blocks_[ii].NumJ(),
-        fine.blocks_[ii].NumK(), 0, fine.blocks_[ii].NumEquations(),
-        fine.blocks_[ii].NumSpecies());
-    BlockProlongation(solver_->X(ii), fine.toCoarse_[ii],
-                      prolongCoeffs_[ii], fineCorrection);
+        fine.blocks_[ii].NumK(), fine.blocks_[ii].NumGhosts(),
+        fine.blocks_[ii].NumEquations(), fine.blocks_[ii].NumSpecies());
+    BlockProlongation(solver_->X(ii), fine.toCoarse_[ii], prolongCoeffs_[ii],
+                      fineCorrection);
     fineCorrVec.push_back(fineCorrection);
   }
   fine.solver_->AddToUpdate(fineCorrVec);

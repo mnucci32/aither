@@ -62,7 +62,8 @@ vector<blkMultiArray3d<varArray>> linearSolver::AX(const gridLevel &level,
   ax.reserve(this->NumBlocks());
   for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
     const auto &blk = level.Block(bb);
-    ax.emplace_back(x_[bb].NumI(), x_[bb].NumJ(), x_[bb].NumK(), 0,
+    ax.emplace_back(x_[bb].NumINoGhosts(), x_[bb].NumJNoGhosts(),
+                    x_[bb].NumKNoGhosts(), x_[bb].GhostLayers(),
                     x_[bb].BlockInfo());
     for (auto kk = blk.StartK(); kk < blk.EndK(); ++kk) {
       for (auto jj = blk.StartJ(); jj < blk.EndJ(); ++jj) {
@@ -355,7 +356,8 @@ blkMultiArray3d<varArray> lusgs::LUSGS_Backward(
   const auto thetaInv = 1.0 / inp.Theta();
 
   // initialize matrix residual
-  blkMultiArray3d<varArray> resid(x.NumI(), x.NumJ(), x.NumK(), 0,
+  blkMultiArray3d<varArray> resid(x.NumINoGhosts(), x.NumJNoGhosts(),
+                                  x.NumKNoGhosts(), x.GhostLayers(),
                                   x.BlockInfo());
 
   // backward sweep over all physical cells
@@ -449,7 +451,8 @@ blkMultiArray3d<varArray> dplur::DPLUR(const procBlock &blk,
   const auto thetaInv = 1.0 / inp.Theta();
 
   // initialize matrix residual
-  blkMultiArray3d<varArray> resid(x.NumI(), x.NumJ(), x.NumK(), 0,
+  blkMultiArray3d<varArray> resid(x.NumINoGhosts(), x.NumJNoGhosts(),
+                                  x.NumKNoGhosts(), x.GhostLayers(),
                                   x.BlockInfo());
   // copy old update
   const auto xold = x;

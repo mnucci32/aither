@@ -95,6 +95,19 @@ void mgSolution::AuxillaryAndWidths(const physics& phys) {
   }
 }
 
+void mgSolution::StoreOldSolution(const input& inp, const physics& phys,
+                                  const int& iter) {
+  // Store time-n solution, for time integration methods that require it
+  for (auto& sol : solution_) {
+    if (inp.NeedToStoreTimeN()) {
+      sol.AssignSolToTimeN(phys);
+      if (!inp.IsRestart() && inp.IsMultilevelInTime() && iter == 0) {
+        sol.AssignSolToTimeNm1();
+      }
+    }
+  }
+}
+
 void mgSolution::CalcWallDistance(const kdtree &tree) {
   for (auto &sol : solution_) {
     sol.CalcWallDistance(tree);
@@ -152,10 +165,10 @@ double mgSolution::CycleAtLevel(const int& fl, const physics& phys,
     matrixResid = this->Relax(fl, inp.MatrixSweeps(), phys, inp, rank);
   } else {
     // pre-relaxation sweeps
-    this->Relax(fl, 1, phys, inp, rank);
+    matrixResid = this->Relax(fl, 1, phys, inp, rank);
 
     // coarse grid correction
-    // restrict solution, residual, and implicit update to coarse grid
+    // restrict solution, matrix residual, and implicit update to coarse grid
     auto cl = fl + 1;
     this->Restriction(fl, matrixResid, inp, phys, rank, MPI_tensorDouble,
                       MPI_vec3d);
@@ -217,12 +230,12 @@ double mgSolution::ImplicitUpdate(const int& level, const input& inp,
   return matrixError;
 }
 
-double mgSolution::Iterate(const int& level, const input& inp,
-                           const physics& phys,
+double mgSolution::Iterate(const input& inp, const physics& phys,
                            const MPI_Datatype& MPI_tensorDouble,
                            const MPI_Datatype& MPI_vec3d, const int& mm,
                            const int& rank, residual& residL2,
                            resid& residLinf) {
+  constexpr auto level = 0;  // finest grid level
   // Get boundary conditions for all blocks
   solution_[level].GetBoundaryConditions(inp, phys, rank);
 

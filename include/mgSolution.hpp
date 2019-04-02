@@ -100,15 +100,15 @@ class mgSolution {
                           const MPI_Datatype& MPI_tensorDouble,
                           const input& inp);
   void AuxillaryAndWidths(const physics& phys);
+  void StoreOldSolution(const input& inp, const physics& phys, const int &iter);
   void CalcWallDistance(const kdtree& tree);
   void SwapWallDist(const int& rank, const int& numGhosts);
   void SubtractFromUpdate(const int& ll,
                           const vector<blkMultiArray3d<varArray>>& coarseDu);
-  double Iterate(const int &level, const input& inp, const physics& phys,
+  double Iterate(const input& inp, const physics& phys,
                  const MPI_Datatype& MPI_tensorDouble,
                  const MPI_Datatype& MPI_vec3d, const int& mm, const int& rank,
                  residual& residL2, resid& residLinf);
-
 
   // Destructor
   ~mgSolution() noexcept {}

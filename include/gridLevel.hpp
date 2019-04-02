@@ -65,7 +65,7 @@ class gridLevel {
             const physics& phys, const vector<vector3d<int>>& origGridSizes,
             const string& restartFile, input& inp, residual& first);
   gridLevel(const int& numBlocks) : blocks_(numBlocks) {}
-  gridLevel() : gridLevel(1) {}
+  gridLevel() : gridLevel(0) {}
 
   // move constructor and assignment operator
   gridLevel(gridLevel&&) noexcept = default;
@@ -149,9 +149,9 @@ void BlockProlongation(const T& coarse,
   // get coarse data at nodes
   const auto coarseNodes = ConvertCellToNode(coarse, true);
   // use trilinear interpolation
-  for (auto kk = fine.StartK(); kk < fine.EndK(); ++kk) {
-    for (auto jj = fine.StartJ(); jj < fine.EndJ(); ++jj) {
-      for (auto ii = fine.StartI(); ii < fine.EndI(); ++ii) {
+  for (auto kk = fine.PhysStartK(); kk < fine.PhysEndK(); ++kk) {
+    for (auto jj = fine.PhysStartJ(); jj < fine.PhysEndJ(); ++jj) {
+      for (auto ii = fine.PhysStartI(); ii < fine.PhysEndI(); ++ii) {
         const auto ci = toCoarse(ii, jj, kk);
         // data at coarse cell nodes
         const auto d0 = coarseNodes(ci.X()    , ci.Y()    , ci.Z());

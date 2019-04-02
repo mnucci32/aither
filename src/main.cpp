@@ -238,35 +238,28 @@ int main(int argc, char *argv[]) {
                 inp);
   }
 
-  constexpr auto mg = 0;  // multigrid finest level
   // ----------------------------------------------------------------------
   // ----------------------- Start Main Loop ------------------------------
   // ----------------------------------------------------------------------
   // loop over time
-  for (auto nn = 0; nn < inp.Iterations(); nn++) {
+  for (auto nn = 0; nn < inp.Iterations(); ++nn) {
     MPI_Barrier(MPI_COMM_WORLD);
     // Calculate cfl number
     inp.CalcCFL(nn);
 
     // Store time-n solution, for time integration methods that require it
-    if (inp.NeedToStoreTimeN()) {
-      localSolution[mg].AssignSolToTimeN(phys);
-      if (!inp.IsRestart() && inp.IsMultilevelInTime() && nn == 0) {
-        localSolution[mg].AssignSolToTimeNm1();
-      }
-    }
+    localSolution.StoreOldSolution(inp, phys, nn);
 
     // loop over nonlinear iterations
-    for (auto mm = 0; mm < inp.NonlinearIterations(); mm++) {
+    for (auto mm = 0; mm < inp.NonlinearIterations(); ++mm) {
       // Initialize residual variables
       // l2 norm residuals
       residual residL2(inp.NumEquations(), inp.NumSpecies());
       resid residLinf;  // linf residuals
 
       // advance an iteration
-      auto matrixResid =
-          localSolution.Iterate(mg, inp, phys, MPI_tensorDouble, MPI_vec3d, mm,
-                                rank, residL2, residLinf);
+      auto matrixResid = localSolution.Iterate(
+          inp, phys, MPI_tensorDouble, MPI_vec3d, mm, rank, residL2, residLinf);
 
       // ----------------------------------------------------------------------
       // Get residuals from all processors
