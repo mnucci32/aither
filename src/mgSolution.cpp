@@ -192,7 +192,7 @@ double mgSolution::CycleAtLevel(const int& fl, const physics& phys,
   auto totalSize = 0;
   for (auto& mr : matrixResid) {
     mr *= mr;
-    std::accumulate(std::begin(mr), std::end(mr), l2Resid);
+    l2Resid = std::accumulate(std::begin(mr), std::end(mr), 0.0);
     totalSize += mr.Size();
   }
   return l2Resid / totalSize;
