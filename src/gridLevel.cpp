@@ -111,7 +111,11 @@ gridLevel gridLevel::SendGridLevel(const int& rank, const int& numProcBlock,
     for (const auto &global : blocks_) {
       // no need to send data because it is already on root processor
       if (global.Rank() == ROOTP) {
-        local.blocks_[global.LocalPosition()] = global;
+        const auto lp = global.LocalPosition();
+        local.blocks_[lp] = global;
+        local.mgForcing_[lp] = blkMultiArray3d<varArray>(
+            global.NumI(), global.NumJ(), global.NumK(), 0,
+            global.NumEquations(), global.NumSpecies());
       } else {  // send data to receiving processors
         // pack and send procBlock
         global.PackSendGeomMPI(MPI_vec3d, MPI_vec3dMag);
@@ -127,7 +131,11 @@ gridLevel gridLevel::SendGridLevel(const int& rank, const int& numProcBlock,
       tempBlock.RecvUnpackGeomMPI(MPI_vec3d, MPI_vec3dMag, inp);
 
       // add procBlock to output vector
-      local.blocks_[tempBlock.LocalPosition()] = tempBlock;
+      const auto lp = tempBlock.LocalPosition();
+      local.blocks_[lp] = tempBlock;
+      local.mgForcing_[lp] = blkMultiArray3d<varArray>(
+          tempBlock.NumI(), tempBlock.NumJ(), tempBlock.NumK(), 0,
+          tempBlock.NumEquations(), tempBlock.NumSpecies());
     }
   }
 
@@ -514,7 +522,6 @@ void gridLevel::Restriction(gridLevel& coarse,
   MSG_ASSERT(blocks_.size() == fineResid.size(), "residual size mismatch");
 
   for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
-    coarse.mgForcing_[ii].Zero();
     // restrict solution
     coarse.blocks_[ii].RestrictState(blocks_[ii], toCoarse_[ii],
                                      volWeightFactor_[ii]);
@@ -547,6 +554,7 @@ void gridLevel::Restriction(gridLevel& coarse,
     //    restricted)
     // r is b - Ax for fine state, restricted down to coarse level
     // restrict matrix residuals
+    coarse.mgForcing_[ii].Zero();
     BlockRestriction(fineResid[ii], toCoarse_[ii], volWeightFactor_[ii],
                      coarse.mgForcing_[ii]);
     coarse.mgForcing_[ii] = ax[ii] - coarse.mgForcing_[ii];

@@ -90,12 +90,14 @@ class lusgs : public linearSolver {
   // private member functions
   void LUSGS_Forward(const procBlock &, const vector<vector3d<int>> &,
                      const physics &, const input &, const matMultiArray3d &,
-                     const int &, blkMultiArray3d<varArray> &) const;
+                     const int &, const blkMultiArray3d<varArray> &,
+                     blkMultiArray3d<varArray> &) const;
   blkMultiArray3d<varArray> LUSGS_Backward(const procBlock &,
                                            const vector<vector3d<int>> &,
                                            const physics &, const input &,
                                            const matMultiArray3d &,
                                            const matMultiArray3d &, const int &,
+                                           const blkMultiArray3d<varArray> &,
                                            blkMultiArray3d<varArray> &) const;
 
  public:
@@ -126,6 +128,7 @@ class dplur : public linearSolver {
   blkMultiArray3d<varArray> DPLUR(const procBlock &, const physics &,
                                   const input &, const matMultiArray3d &,
                                   const matMultiArray3d &,
+                                  const blkMultiArray3d<varArray> &,
                                   blkMultiArray3d<varArray> &) const;
 
  public:

@@ -64,7 +64,7 @@ class gridLevel {
             const vector<boundaryConditions>& bcs, const decomposition& decomp,
             const physics& phys, const vector<vector3d<int>>& origGridSizes,
             const string& restartFile, input& inp, residual& first);
-  gridLevel(const int& numBlocks) : blocks_(numBlocks) {}
+  gridLevel(const int& numBlocks) : blocks_(numBlocks), mgForcing_(numBlocks) {}
   gridLevel() : gridLevel(0) {}
 
   // move constructor and assignment operator
@@ -104,6 +104,9 @@ class gridLevel {
   }
   vector<blkMultiArray3d<varArray>> AX(const physics& phys, const input& inp) {
     return solver_->AX(*this, phys, inp);
+  }
+  const blkMultiArray3d<varArray>& Forcing(const int& ii) const {
+    return mgForcing_[ii];
   }
 
   gridLevel SendGridLevel(const int& rank, const int& numProcBlock,
