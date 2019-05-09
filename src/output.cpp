@@ -102,6 +102,46 @@ void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
   }
 }
 
+// function to write out cell centers of grid in plot3d format
+void WriteNodes(const string &gridName, const vector<plot3dBlock> &blks) {
+  // open binary output file
+  const string fEnd = "_nodes";
+  const string fPostfix = ".xyz";
+  const auto writeName = gridName + fEnd + fPostfix;
+  ofstream outFile(writeName, ios::out | ios::binary);
+
+  // check to see if file opened correctly
+  if (outFile.fail()) {
+    cerr << "ERROR: Grid file " << writeName << " did not open correctly!!!"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  WriteBlockDims(outFile, blks);
+
+  // write out x, y, z coordinates of cell centers
+  for (const auto &blk : blks) {
+    for (auto nn = 0; nn < 3; nn++) {  // loop over dimensions (3)
+      for (auto kk = 0; kk < blk.NumK(); kk++) {
+        for (auto jj = 0; jj < blk.NumJ(); jj++) {
+          for (auto ii = 0; ii < blk.NumI(); ii++) {
+            // get the cell center coordinates (dimensionalized)
+            auto dumVec = blk.Coords(ii, jj, kk);
+            // for a given block, first write out all x coordinates, then all y
+            // coordinates, then all z coordinates
+            auto dumDouble = dumVec[nn];
+            // write to file
+            outFile.write(reinterpret_cast<char *>(&dumDouble),
+                          sizeof(dumDouble));
+          }
+        }
+      }
+    }
+  }
+  // close output file
+  outFile.close();
+}
+
 // function to write out wall face centers of grid in plot3d format
 void WriteWallFaceCenter(const string &gridName, const vector<procBlock> &vars,
                          const double &LRef) {
@@ -547,6 +587,18 @@ void WriteOutput(const vector<procBlock> &vars, const physics &phys,
   }
 }
 
+void WriteCoarseOutput(const vector<procBlock> &vars, const physics &phys,
+                       const int &solIter, const input &inp) {
+  const string fEnd = "_coarse";
+  const string fPostfix = ".fun";
+  const auto writeName = inp.SimNameRoot() + "_" + to_string(solIter) + fEnd +
+      fPostfix;
+  decomposition decomp;
+  WriteCellCenter("coarse", vars, decomp, inp);
+  WriteFunFile(vars, vars, phys, decomp, writeName, inp);
+  WriteMeta(inp, solIter, true);
+}
+
 // function to write out restart variables
 void WriteRestart(const vector<procBlock> &splitVars, const physics &phys,
                   const int &solIter, const decomposition &decomp,
@@ -760,7 +812,7 @@ void ReadRestart(gridLevel &vars, const string &restartName,
     size_t nameSize = 0;
     fName.read(reinterpret_cast<char *>(&nameSize), sizeof(nameSize));
     
-    auto buffer = unique_ptr<char>(new char[nameSize]);
+    auto buffer = std::make_unique<char[]>(nameSize);
     fName.read(buffer.get(), nameSize * sizeof(char));
     string sname(buffer.get(), nameSize);
     speciesNames[ii] = sname;
@@ -1027,6 +1079,10 @@ void PrintResiduals(const input &inp, residual &residL2First,
     for (auto cc = residL2.NumSpecies(); cc < residL2.Size(); ++cc) {
       residL2First[cc] = std::max(residL2First[cc], residL2[cc]);
     }
+  }
+
+  for (auto ii = 0; ii < residL2First.Size(); ++ii) {
+    residL2First[ii] = 1.0;
   }
 
   os << std::left << setw(7) << nn << setw(8) << mm;

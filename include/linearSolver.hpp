@@ -73,6 +73,7 @@ class linearSolver {
   void SwapUpdate(const vector<connection> &, const int &, const int &);
   void SubtractFromUpdate(const vector<blkMultiArray3d<varArray>>& coarseDu);
   void AddToUpdate(const vector<blkMultiArray3d<varArray>>& correction);
+  void ZeroA(const int &bb) { a_[bb].Zero(); }
 
   virtual vector<blkMultiArray3d<varArray>> Relax(const gridLevel &,
                                                   const physics &,

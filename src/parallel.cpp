@@ -387,7 +387,7 @@ void BroadcastString(string &str) {
             MPI_COMM_WORLD);  // broadcast string size
   
   // allocate a char buffer of string size
-  auto buf = unique_ptr<char>(new char[strSize]);
+  auto buf = std::make_unique<char[]>(strSize);
   snprintf(buf.get(), strSize, "%s", str.c_str());  // copy string into buffer
   MPI_Bcast(buf.get(), strSize, MPI_CHAR, ROOTP,
             MPI_COMM_WORLD);  // broadcast string as char

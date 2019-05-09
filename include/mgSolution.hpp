@@ -42,18 +42,18 @@ class mgSolution {
   int mgCycleIndex_;
 
   // private member functions
-  double ImplicitUpdate(const int& level, const input& inp, const physics& phys,
-                        const int& mm, const int& rank,
-                        const MPI_Datatype& MPI_tensorDouble,
+  double ImplicitUpdate(const input& inp, const physics& phys, const int& mm,
+                        const int& rank, const MPI_Datatype& MPI_tensorDouble,
                         const MPI_Datatype& MPI_vec3d, residual& residL2,
                         resid& residLinf);
-  void Restriction(const int&, const vector<blkMultiArray3d<varArray>>&,
-                   const input& inp, const physics& phys, const int& rank,
+  void Restriction(const int&, const int&,
+                   const vector<blkMultiArray3d<varArray>>&, const input& inp,
+                   const physics& phys, const int& rank,
                    const MPI_Datatype& MPI_tensorDouble,
                    const MPI_Datatype& MPI_vec3d);
   void Prolongation(const int&);
-  double CycleAtLevel(const int&, const physics&, const input&, const int&,
-                      const MPI_Datatype&, const MPI_Datatype&);
+  double CycleAtLevel(const int&, const int&, const physics&, const input&,
+                      const int&, const MPI_Datatype&, const MPI_Datatype&);
   vector<blkMultiArray3d<varArray>> Relax(const int&, const int&,
                                           const physics&, const input&,
                                           const int&);
@@ -80,6 +80,7 @@ class mgSolution {
   const gridLevel& operator[](const int &a) const { return solution_[a]; }
   gridLevel& operator[](const int &a) { return solution_[a]; }
   const gridLevel& Finest() const { return solution_.front(); }
+  constexpr int FinestIndex() const { return 0; }
   const gridLevel& Coarsest() const { return solution_.back(); }
 
   void ConstructFinestLevel(const vector<plot3dBlock>& mesh,

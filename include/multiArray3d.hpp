@@ -368,12 +368,32 @@ class multiArray3d {
   void SameSizeResize(const int &ii, const int &jj, const int &kk);
   void SameSizeResizeGhosts(const int &ii, const int &jj, const int &kk,
                             const int &ng);
+  void PrintPhysical(ostream &os) const;
 
   // destructor
   virtual ~multiArray3d() noexcept {}
 };
 
 // ---------------------------------------------------------------------------
+
+template<typename T>
+void multiArray3d<T>::PrintPhysical(ostream &os) const {
+  os << "Size: " << this->NumINoGhosts() << ", " << this->NumJNoGhosts() << ", "
+     << this->NumKNoGhosts() << endl;
+  os << "Ghost layers: " << this->GhostLayers() << endl;
+
+  for (auto kk = this->PhysStartK(); kk < this->PhysEndK(); kk++) {
+    for (auto jj = this->PhysStartJ(); jj < this->PhysEndJ(); jj++) {
+      for (auto ii = this->PhysStartI(); ii < this->PhysEndI(); ii++) {
+        os << ii << ", " << jj << ", " << kk << ":" << endl;
+        for (auto bb = 0; bb < this->BlockSize(); ++bb) {
+          os << (*this)(ii, jj, kk, bb) << endl;
+        }
+      }
+    }
+  }
+}
+
 // non member functions
 // main slice function that all other overloaded slice functions call
 template <typename T>
@@ -953,7 +973,6 @@ auto GrowInK(const T &orig) {
   return arr;
 }
 
-
 // ---------------------------------------------------------------------------
 // member function definitions
 
@@ -1381,7 +1400,7 @@ template <typename T>
 ostream &operator<<(ostream &os, const multiArray3d<T> &arr) {
   os << "Size: " << arr.NumI() << ", " << arr.NumJ() << ", "
      << arr.NumK() << endl;
-  os << "Number of ghost layers: " << arr.GhostLayers() << endl;
+  os << "Ghost layers: " << arr.GhostLayers() << endl;
 
   for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
     for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
@@ -1440,8 +1459,8 @@ void multiArray3d<T>::PackSwapUnpackMPI(const connection &inter,
 
   // allocate buffer to pack data into
   // use unique_ptr to manage memory; use underlying pointer for MPI calls
-  auto unqBuffer = unique_ptr<char>(new char[bufSize]);
-  auto *buffer = unqBuffer.get();  
+  auto buffer = std::make_unique<char[]>(bufSize);
+  auto *rawBuffer = buffer.get();
 
   // pack data into buffer
   auto numI = this->NumI();
@@ -1450,37 +1469,42 @@ void multiArray3d<T>::PackSwapUnpackMPI(const connection &inter,
   auto numGhosts = this->GhostLayers();
   auto blkSize = this->BlockSize();
   auto position = 0;
-  MPI_Pack(&numI, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&numJ, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&numK, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&numGhosts, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&blkSize, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*std::begin(data_)), this->Size(), MPI_arrData, buffer, bufSize,
+  MPI_Pack(&numI, 1, MPI_INT, rawBuffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&numJ, 1, MPI_INT, rawBuffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&numK, 1, MPI_INT, rawBuffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&numGhosts, 1, MPI_INT, rawBuffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&blkSize, 1, MPI_INT, rawBuffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(data_)), this->Size(), MPI_arrData, rawBuffer, bufSize,
            &position, MPI_COMM_WORLD);
 
   MPI_Status status;
   if (rank == inter.RankFirst()) {  // send/recv with second entry in connection
-    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankSecond(), tag,
-                         inter.RankSecond(), tag, MPI_COMM_WORLD, &status);
+    MPI_Sendrecv_replace(rawBuffer, bufSize, MPI_PACKED, inter.RankSecond(),
+                         tag, inter.RankSecond(), tag, MPI_COMM_WORLD, &status);
   } else {  // send/recv with first entry in connection
-    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankFirst(), tag,
-                         inter.RankFirst(), tag, MPI_COMM_WORLD, &status);
+    MPI_Sendrecv_replace(rawBuffer, bufSize, MPI_PACKED, inter.RankFirst(),
+                         tag, inter.RankFirst(), tag, MPI_COMM_WORLD, &status);
   }
 
   // put slice back into multiArray3d
   position = 0;
-  MPI_Unpack(buffer, bufSize, &position, &numI, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &numJ, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &numK, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &numGhosts, 1, MPI_INT,
+  MPI_Unpack(rawBuffer, bufSize, &position, &numI, 1, MPI_INT,
              MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &blkSize, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(rawBuffer, bufSize, &position, &numJ, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(rawBuffer, bufSize, &position, &numK, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(rawBuffer, bufSize, &position, &numGhosts, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(rawBuffer, bufSize, &position, &blkSize, 1, MPI_INT,
+             MPI_COMM_WORLD);
 
   // resize slice
   this->SameSizeResize(numI, numJ, numK);
 
-  MPI_Unpack(buffer, bufSize, &position, &(*std::begin(data_)),
-             this->Size(), MPI_arrData, MPI_COMM_WORLD);
+  MPI_Unpack(rawBuffer, bufSize, &position, &(*std::begin(data_)), this->Size(),
+             MPI_arrData, MPI_COMM_WORLD);
 }
 
 /* Function to swap slice using MPI. This is similar to the SwapSlice

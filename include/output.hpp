@@ -57,6 +57,9 @@ class gridLevel;
 template<typename T>
 void WriteBlockDims(ofstream &, const vector<T> &, int = 0);
 
+void WriteNodes(const string &, const vector<plot3dBlock>&);
+void WriteCoarseOutput(const vector<procBlock> &vars, const physics &phys,
+                       const int &solIter, const input &inp);
 void WriteCellCenter(const string &, const vector<procBlock> &,
                      const decomposition &, const input &);
 void WriteWallFaceCenter(const string &, const vector<procBlock> &,

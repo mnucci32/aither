@@ -122,12 +122,13 @@ void mgSolution::SwapWallDist(const int& rank, const int& numGhosts) {
 
 // multigrid restriction - fine grid to coarse grid operator
 void mgSolution::Restriction(
-    const int& fi, const vector<blkMultiArray3d<varArray>>& matrixResid,
-    const input& inp, const physics& phys, const int& rank,
-    const MPI_Datatype& MPI_tensorDouble, const MPI_Datatype& MPI_vec3d) {
+    const int& fi, const int& mm,
+    const vector<blkMultiArray3d<varArray>>& matrixResid, const input& inp,
+    const physics& phys, const int& rank, const MPI_Datatype& MPI_tensorDouble,
+    const MPI_Datatype& MPI_vec3d) {
   MSG_ASSERT(fi >= 0 && fi < static_cast<int>(solution_.size() - 1),
              "index for restriction out of range");
-  solution_[fi].Restriction(solution_[fi + 1], matrixResid, inp, phys, rank,
+  solution_[fi].Restriction(solution_[fi + 1], mm, matrixResid, inp, phys, rank,
                             MPI_tensorDouble, MPI_vec3d);
 }
 
@@ -151,8 +152,9 @@ void mgSolution::Prolongation(const int &ci) {
   solution_[ci].Prolongation(solution_[ci - 1]);
 }
 
-double mgSolution::CycleAtLevel(const int& fl, const physics& phys,
-                                const input& inp, const int& rank,
+double mgSolution::CycleAtLevel(const int& fl, const int& mm,
+                                const physics& phys, const input& inp,
+                                const int& rank,
                                 const MPI_Datatype& MPI_tensorDouble,
                                 const MPI_Datatype& MPI_vec3d) {
   // fl -- index for fine grid level
@@ -163,20 +165,36 @@ double mgSolution::CycleAtLevel(const int& fl, const physics& phys,
 
   if (fl == this->NumGridLevels() - 1) {  // recursive base case
     matrixResid = this->Relax(fl, inp.MatrixSweeps(), phys, inp, rank);
+    //cout << "AT COARSEST LEVEL -- UPDATE" << endl;
+    //solution_[fl].Update()[0].PrintPhysical(cout);
+    //cout << "AT COARSEST LEVEL -- RESIDUAL" << endl;
+    //solution_[fl].Block(0).Residuals().PrintPhysical(cout);
+    // cout << "AT COARSEST LEVEL -- FORCING" << endl;
+    //solution_[fl].Forcing(0).PrintPhysical(cout);
+    /*
+    residual residL2(5, 1);
+    resid residLinf;
+    auto mm = 0;
+    solution_[fl].UpdateBlocks(inp, phys, mm, residL2, residLinf);
+    WriteCoarseOutput(solution_[fl].Blocks(), phys, 9999, inp);
+    */
+    //cout << "COARSE SOLUTION" << endl;
+    //cout << solution_[fl].Block(0).States() << endl;
+
   } else {
     // pre-relaxation sweeps
-    matrixResid = this->Relax(fl, 1, phys, inp, rank);
+    matrixResid = this->Relax(fl, ceil(inp.MatrixSweeps()/2), phys, inp, rank);
 
     // coarse grid correction
     // restrict solution, matrix residual, and implicit update to coarse grid
     auto cl = fl + 1;
-    this->Restriction(fl, matrixResid, inp, phys, rank, MPI_tensorDouble,
+    this->Restriction(fl, mm, matrixResid, inp, phys, rank, MPI_tensorDouble,
                       MPI_vec3d);
     const auto coarseDu = solution_[cl].Update();
 
     // recursive call to next coarse level
     for (auto ii = 0; ii < mgCycleIndex_; ++ii) {
-      this->CycleAtLevel(cl, phys, inp, rank, MPI_tensorDouble, MPI_vec3d);
+      this->CycleAtLevel(cl, mm, phys, inp, rank, MPI_tensorDouble, MPI_vec3d);
     }
     this->SubtractFromUpdate(cl, coarseDu);
 
@@ -184,7 +202,7 @@ double mgSolution::CycleAtLevel(const int& fl, const physics& phys,
     this->Prolongation(cl);
 
     // post-relaxation sweeps
-    matrixResid = this->Relax(fl, 1, phys, inp, rank);
+    matrixResid = this->Relax(fl, ceil(inp.MatrixSweeps()/2), phys, inp, rank);
   }
 
   // calculate l2 norm of matrix residual
@@ -198,13 +216,12 @@ double mgSolution::CycleAtLevel(const int& fl, const physics& phys,
   return l2Resid / totalSize;
 }
 
-double mgSolution::ImplicitUpdate(const int& level, const input& inp,
+double mgSolution::ImplicitUpdate(const input& inp,
                                   const physics& phys, const int& mm,
                                   const int& rank,
                                   const MPI_Datatype& MPI_tensorDouble,
                                   const MPI_Datatype& MPI_vec3d,
                                   residual& residL2, resid& residLinf) {
-  // level -- multigrid level
   // inp -- input variables
   // phys -- physics models
   // mm -- nonlinear iteration
@@ -215,17 +232,23 @@ double mgSolution::ImplicitUpdate(const int& level, const input& inp,
   auto matrixError = 0.0;
 
   // add volume and time term and calculate inverse of main diagonal
-  solution_[level].InvertDiagonal(inp);
+  const auto fl = this->FinestIndex();
+  solution_[fl].InvertDiagonal(inp);
 
   // initialize matrix update
-  solution_[level].InitializeMatrixUpdate(inp, phys);
+  solution_[fl].InitializeMatrixUpdate(inp, phys);
 
   // Solve Ax=b with supported solver and multigrid
   matrixError =
-      this->CycleAtLevel(level, phys, inp, rank, MPI_tensorDouble, MPI_vec3d);
+      this->CycleAtLevel(fl, mm, phys, inp, rank, MPI_tensorDouble, MPI_vec3d);
 
-  // Update blocks and reset main diagonal
-  solution_[level].UpdateBlocks(inp, phys, mm, residL2, residLinf);
+  // Update blocks
+  solution_[fl].UpdateBlocks(inp, phys, mm, residL2, residLinf);
+
+  // Reset main diagonal on all levels
+  for (auto level = fl; level < this->NumGridLevels(); ++level) {
+    solution_[level].ResetDiagonal();
+  }
 
   return matrixError;
 }
@@ -235,23 +258,22 @@ double mgSolution::Iterate(const input& inp, const physics& phys,
                            const MPI_Datatype& MPI_vec3d, const int& mm,
                            const int& rank, residual& residL2,
                            resid& residLinf) {
-  constexpr auto level = 0;  // finest grid level
+  const auto fl = this->FinestIndex();
   // Get boundary conditions for all blocks
-  solution_[level].GetBoundaryConditions(inp, phys, rank);
+  solution_[fl].GetBoundaryConditions(inp, phys, rank);
 
   // Calculate residual (RHS)
-  solution_[level].CalcResidual(phys, inp, rank, MPI_tensorDouble, MPI_vec3d);
+  solution_[fl].CalcResidual(phys, inp, rank, MPI_tensorDouble, MPI_vec3d);
 
   // Calculate time step
-  solution_[level].CalcTimeStep(inp);
+  solution_[fl].CalcTimeStep(inp);
 
   auto matrixResid = 0.0;
   if (inp.IsImplicit()) {
-    matrixResid =
-        this->ImplicitUpdate(level, inp, phys, mm, rank, MPI_tensorDouble,
-                             MPI_vec3d, residL2, residLinf);
+    matrixResid = this->ImplicitUpdate(inp, phys, mm, rank, MPI_tensorDouble,
+                                       MPI_vec3d, residL2, residLinf);
   } else {  // explicit time integration
-    solution_[level].ExplicitUpdate(inp, phys, mm, residL2, residLinf);
+    solution_[fl].ExplicitUpdate(inp, phys, mm, residL2, residLinf);
   }
   return matrixResid;
 }

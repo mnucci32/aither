@@ -43,6 +43,7 @@
 #include "ghostStates.hpp"
 #include "matMultiArray3d.hpp"
 #include "physicsModels.hpp"
+#include "output.hpp"
 
 using std::cout;
 using std::endl;
@@ -1050,7 +1051,6 @@ void procBlock::AssignSolToTimeN(const physics &phys) {
 void procBlock::AssignSolToTimeNm1() {
   consVarsNm1_ = consVarsN_;
 }
-
 
 
 varArray procBlock::ImplicitLower(const int &ii, const int &jj, const int &kk,
@@ -2257,9 +2257,6 @@ void procBlock::AssignGhostCellsGeom() {
         center_.Insert(dir, gCell, r1, r2,
                        center_.Slice(dir, pCell, r1, r2) + distC2C);
       }
-
-      // fill ghost cell edge lines with geometric values
-      // (*this).AssignGhostCellsGeomEdge();
     }
   }
 }
@@ -2372,8 +2369,9 @@ void procBlock::AssignGhostCellsGeomEdge() {
               center_.Slice(dir, pCellD2, pCellD3, true);
 
           // assign centroids
-          center_.Insert(dir, gCellD2, gCellD3, distC2C +
-                         center_.Slice(dir, pCellD2, gCellD3, true), true);
+          center_.Insert(dir, gCellD2, gCellD3,
+                         distC2C + center_.Slice(dir, pCellD2, gCellD3, true),
+                         true);
 
           // assign face centers
           // use lambda to get distance to move for i, j, k face data
@@ -2454,9 +2452,9 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
   // phys -- physics models
 
   // loop over all layers of ghost cells
-  for (auto layer = 1; layer <= numGhosts_; layer++) {
+  for (auto layer = 1; layer <= numGhosts_; ++layer) {
     // loop over all boundary surfaces
-    for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
+    for (auto ii = 0; ii < bc_.NumSurfaces(); ++ii) {
       // get ranges for boundary surface
       const auto r1 = bc_.RangeDir1(ii);
       const auto r2 = bc_.RangeDir2(ii);
@@ -2528,8 +2526,6 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       }
     }
   }
-  // assign values to edge ghost cells
-  // (*this).AssignInviscidGhostCellsEdge(inp, eos, trans);
 }
 
 /* Member function to assign values to ghost cells located on the 12 block edges
@@ -4115,8 +4111,8 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
 
   // allocate buffer to pack data into
   // use unique_ptr to manage memory; use underlying pointer with MPI calls
-  auto unqSendBuffer = unique_ptr<char>(new char[sendBufSize]);
-  auto *sendBuffer = unqSendBuffer.get();
+  auto sendBuffer = std::make_unique<char[]>(sendBufSize);
+  auto *rawSendBuffer = sendBuffer.get();
 
   const auto numI = this->NumI();
   const auto numJ = this->NumJ();
@@ -4125,69 +4121,69 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
   // pack data to send into buffer
   auto position = 0;
   // int and vector data
-  MPI_Pack(&numI, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&numI, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&numJ, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&numJ, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&numK, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&numK, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&numGhosts_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&numGhosts_, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&parBlock_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&parBlock_, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&rank_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&rank_, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&localPos_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&localPos_, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&globalPos_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&globalPos_, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&isViscous_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&isTurbulent_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&isRANS_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&storeTimeN_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
+  MPI_Pack(&isViscous_, 1, MPI_CXX_BOOL, rawSendBuffer, sendBufSize,
            &position, MPI_COMM_WORLD);
-  MPI_Pack(&isMultiLevelTime_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
+  MPI_Pack(&isTurbulent_, 1, MPI_CXX_BOOL, rawSendBuffer, sendBufSize,
            &position, MPI_COMM_WORLD);
-  MPI_Pack(&isMultiSpecies_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
+  MPI_Pack(&isRANS_, 1, MPI_CXX_BOOL, rawSendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&storeTimeN_, 1, MPI_CXX_BOOL, rawSendBuffer, sendBufSize,
            &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_DOUBLE, sendBuffer,
+  MPI_Pack(&isMultiLevelTime_, 1, MPI_CXX_BOOL, rawSendBuffer, sendBufSize,
+           &position, MPI_COMM_WORLD);
+  MPI_Pack(&isMultiSpecies_, 1, MPI_CXX_BOOL, rawSendBuffer, sendBufSize,
+           &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_DOUBLE, rawSendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
   if (isMultiLevelTime_) {
     MPI_Pack(&(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_DOUBLE,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
-  MPI_Pack(&(*std::begin(nodes_)), nodes_.Size(), MPI_vec3d, sendBuffer,
+  MPI_Pack(&(*std::begin(nodes_)), nodes_.Size(), MPI_vec3d, rawSendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*std::begin(center_)), center_.Size(), MPI_vec3d, sendBuffer,
-           sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(center_)), center_.Size(), MPI_vec3d,
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fAreaI_)), fAreaI_.Size(), MPI_vec3dMag,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fAreaJ_)), fAreaJ_.Size(), MPI_vec3dMag,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fAreaK_)), fAreaK_.Size(), MPI_vec3dMag,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fCenterI_)), fCenterI_.Size(), MPI_vec3d,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fCenterJ_)), fCenterJ_.Size(), MPI_vec3d,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fCenterK_)), fCenterK_.Size(), MPI_vec3d,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*std::begin(vol_)), vol_.Size(), MPI_DOUBLE, sendBuffer,
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(vol_)), vol_.Size(), MPI_DOUBLE, rawSendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
 
   // pack boundary condition data
-  bc_.PackBC(sendBuffer, sendBufSize, position);
+  bc_.PackBC(rawSendBuffer, sendBufSize, position);
 
   // pack wall data
   for (auto &wd : wallData_) {
-    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_vec3d);
+    wd.PackWallData(rawSendBuffer, sendBufSize, position, MPI_vec3d);
   }
 
   // send buffer to appropriate processor
-  MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, rank_, 2,
+  MPI_Send(rawSendBuffer, sendBufSize, MPI_PACKED, rank_, 2,
            MPI_COMM_WORLD);
 }
 
@@ -4208,45 +4204,45 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_vec3d,
 
   // allocate buffer of correct size
   // use unique_ptr to manage memory; use underlying pointer with MPI
-  auto unqRecvBuffer = unique_ptr<char>(new char[recvBufSize]);
-  auto *recvBuffer = unqRecvBuffer.get();
+  auto recvBuffer = std::make_unique<char[]>(recvBufSize);
+  auto *rawRecvBuffer = recvBuffer.get();
 
   // receive message from ROOT
-  MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, ROOTP, 2, MPI_COMM_WORLD,
+  MPI_Recv(rawRecvBuffer, recvBufSize, MPI_PACKED, ROOTP, 2, MPI_COMM_WORLD,
            &status);
 
   auto numI = 0, numJ = 0, numK = 0;
   // unpack procBlock INTs
   auto position = 0;
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &numI, 1,
-             MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &numJ, 1,
-             MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &numK, 1,
-             MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &numGhosts_, 1,
-             MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &parBlock_, 1, MPI_INT,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &numI, 1, MPI_INT,
              MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &rank_, 1, MPI_INT,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &numJ, 1, MPI_INT,
              MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &localPos_, 1, MPI_INT,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &numK, 1, MPI_INT,
              MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &globalPos_, 1,
-             MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &numGhosts_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &parBlock_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &rank_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &localPos_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &globalPos_, 1, MPI_INT,
+             MPI_COMM_WORLD);
 
   // unpack procBlock bools
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &isViscous_, 1,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &isViscous_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &isTurbulent_, 1,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &isTurbulent_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &isRANS_, 1,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &isRANS_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &storeTimeN_, 1,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &storeTimeN_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &isMultiLevelTime_, 1,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &isMultiLevelTime_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &isMultiSpecies_, 1,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &isMultiSpecies_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
 
   // clean and resize the vectors in the class to
@@ -4254,49 +4250,49 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_vec3d,
                         inp.NumSpecies());
 
   // unpack vector data into allocated vectors
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(state_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(state_)),
              state_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack states
   if (isMultiLevelTime_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(consVarsNm1_)),
-               consVarsNm1_.Size(), MPI_DOUBLE,
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+               &(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack sol n-1
   }
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(nodes_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(nodes_)),
              nodes_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack nodes
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(center_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(center_)),
              center_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack cell centers
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fAreaI_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(fAreaI_)),
              fAreaI_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area I
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fAreaJ_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(fAreaJ_)),
              fAreaJ_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area J
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fAreaK_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(fAreaK_)),
              fAreaK_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area K
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterI_)),
-             fCenterI_.Size(), MPI_vec3d,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(fCenterI_)), fCenterI_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center I
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterJ_)),
-             fCenterJ_.Size(), MPI_vec3d,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(fCenterJ_)), fCenterJ_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center J
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterK_)),
-             fCenterK_.Size(), MPI_vec3d,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(fCenterK_)), fCenterK_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center K
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(vol_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(vol_)),
              vol_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack volumes
 
   // unpack boundary conditions
-  bc_.UnpackBC(recvBuffer, recvBufSize, position);
+  bc_.UnpackBC(rawRecvBuffer, recvBufSize, position);
 
   // unpack wall data
   wallData_.resize(bc_.NumViscousSurfaces());
   for (auto &wd : wallData_) {
-    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_vec3d, inp);
+    wd.UnpackWallData(rawRecvBuffer, recvBufSize, position, MPI_vec3d, inp);
   }
 }
 
@@ -4391,98 +4387,101 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
                                                    // allocated with chars
   // allocate buffer of correct size
   // use unique_ptr to manage memory; use underlying pointer for MPI calls
-  auto unqRecvBuffer = unique_ptr<char>(new char[recvBufSize]);
-  auto *recvBuffer = unqRecvBuffer.get();
+  auto recvBuffer = std::make_unique<char[]>(recvBufSize);
+  auto *rawRecvBuffer = recvBuffer.get();
 
   // receive message from non-ROOT
-  MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, rank_, globalPos_,
+  MPI_Recv(rawRecvBuffer, recvBufSize, MPI_PACKED, rank_, globalPos_,
            MPI_COMM_WORLD, &status);
 
   // unpack vector data into allocated vectors
   auto position = 0;
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(state_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(state_)),
              state_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack states
   if (isMultiLevelTime_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(consVarsNm1_)),
-               consVarsNm1_.Size(), MPI_DOUBLE,
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+               &(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack states
   }
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(residual_)),
-             residual_.Size(), MPI_DOUBLE,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(residual_)), residual_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack residuals
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(dt_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(dt_)),
              dt_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack time steps
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(cellWidthI_)),
-             cellWidthI_.Size(), MPI_DOUBLE,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(cellWidthI_)), cellWidthI_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack cell width I
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(cellWidthJ_)),
-             cellWidthJ_.Size(), MPI_DOUBLE,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(cellWidthJ_)), cellWidthJ_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack cell width J
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(cellWidthK_)),
-             cellWidthK_.Size(), MPI_DOUBLE,
-             MPI_COMM_WORLD);  // unpack cell width K                          
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(wallDist_)),
-             wallDist_.Size(), MPI_DOUBLE,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(cellWidthK_)), cellWidthK_.Size(), MPI_DOUBLE,
+             MPI_COMM_WORLD);  // unpack cell width K
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(wallDist_)), wallDist_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack wall distance
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(specRadius_)),
-             specRadius_.Size(), MPI_uncoupledScalar,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(specRadius_)), specRadius_.Size(),
+             MPI_uncoupledScalar,
              MPI_COMM_WORLD);  // unpack average wave speeds
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(temperature_)),
-             temperature_.Size(), MPI_DOUBLE,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(temperature_)), temperature_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack temperature
 
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(velocityGrad_)),
-             velocityGrad_.Size(), MPI_tensorDouble,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(velocityGrad_)), velocityGrad_.Size(),
+             MPI_tensorDouble,
              MPI_COMM_WORLD);  // unpack velocity gradient
-  MPI_Unpack(recvBuffer, recvBufSize, &position,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
              &(*std::begin(temperatureGrad_)), temperatureGrad_.Size(),
              MPI_vec3d, MPI_COMM_WORLD);  // unpack temperature gradient
-  MPI_Unpack(recvBuffer, recvBufSize, &position,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
              &(*std::begin(densityGrad_)), densityGrad_.Size(),
              MPI_vec3d, MPI_COMM_WORLD);  // unpack density gradient
-  MPI_Unpack(recvBuffer, recvBufSize, &position,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
              &(*std::begin(pressureGrad_)), pressureGrad_.Size(),
              MPI_vec3d, MPI_COMM_WORLD);  // unpack pressure gradient
 
   if (isViscous_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(viscosity_)),
-               viscosity_.Size(), MPI_DOUBLE,
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+               &(*std::begin(viscosity_)), viscosity_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack viscosity
   }
 
   if (isTurbulent_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position,
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
                &(*std::begin(eddyViscosity_)), eddyViscosity_.Size(),
                MPI_DOUBLE, MPI_COMM_WORLD);  // unpack eddy viscosity
   }
 
   if (isRANS_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(f1_)),
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(f1_)),
                f1_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack blending variable f1
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(f2_)),
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(f2_)),
                f2_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack blending variable f2
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(tkeGrad_)),
-               tkeGrad_.Size(), MPI_vec3d,
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+               &(*std::begin(tkeGrad_)), tkeGrad_.Size(), MPI_vec3d,
                MPI_COMM_WORLD);  // unpack tke gradient
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(omegaGrad_)),
-               omegaGrad_.Size(), MPI_vec3d,
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+               &(*std::begin(omegaGrad_)), omegaGrad_.Size(), MPI_vec3d,
                MPI_COMM_WORLD);  // unpack omega gradient
   }
 
   if (isMultiSpecies_) {
     // unpack mixture gradients
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(mixtureGrad_)),
-               mixtureGrad_.Size(), MPI_vec3d, MPI_COMM_WORLD);
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+               &(*std::begin(mixtureGrad_)), mixtureGrad_.Size(), MPI_vec3d,
+               MPI_COMM_WORLD);
   }
 
   // unpack wall data
   wallData_.resize(bc_.NumViscousSurfaces());
   for (auto &wd : wallData_) {
-    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_vec3d, inp);
+    wd.UnpackWallData(rawRecvBuffer, recvBufSize, position, MPI_vec3d, inp);
   }
 }
 
@@ -4584,77 +4583,77 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
 
   // allocate buffer to pack data into
   // use unique_ptr to manage memory; use underlying pointer for MPI calls
-  auto unqSendBuffer = unique_ptr<char>(new char[sendBufSize]);
-  auto *sendBuffer = unqSendBuffer.get();
+  auto sendBuffer = std::make_unique<char[]>(sendBufSize);
+  auto *rawSendBuffer = sendBuffer.get();
 
   // pack data to send into buffer
   auto position = 0;
-  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_DOUBLE, sendBuffer,
+  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_DOUBLE, rawSendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
   if (isMultiLevelTime_) {
     MPI_Pack(&(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_DOUBLE,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
   MPI_Pack(&(*std::begin(residual_)), residual_.Size(), MPI_DOUBLE,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*std::begin(dt_)), dt_.Size(), MPI_DOUBLE, sendBuffer,
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(dt_)), dt_.Size(), MPI_DOUBLE, rawSendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(cellWidthI_)), cellWidthI_.Size(), MPI_DOUBLE,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(cellWidthJ_)), cellWidthJ_.Size(), MPI_DOUBLE,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(cellWidthK_)), cellWidthK_.Size(), MPI_DOUBLE,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);           
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);           
   MPI_Pack(&(*std::begin(wallDist_)), wallDist_.Size(), MPI_DOUBLE,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(specRadius_)), specRadius_.Size(), MPI_uncoupledScalar,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(temperature_)), temperature_.Size(), MPI_DOUBLE,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 
   MPI_Pack(&(*std::begin(velocityGrad_)), velocityGrad_.Size(),
-           MPI_tensorDouble, sendBuffer, sendBufSize, &position,
+           MPI_tensorDouble, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(temperatureGrad_)), temperatureGrad_.Size(), MPI_vec3d,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(densityGrad_)), densityGrad_.Size(), MPI_vec3d,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(pressureGrad_)), pressureGrad_.Size(), MPI_vec3d,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 
   if (isViscous_) {
     MPI_Pack(&(*std::begin(viscosity_)), viscosity_.Size(), MPI_DOUBLE,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
   if (isTurbulent_) {
     MPI_Pack(&(*std::begin(eddyViscosity_)), eddyViscosity_.Size(), MPI_DOUBLE,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
   if (isRANS_) {
     MPI_Pack(&(*std::begin(f1_)), f1_.Size(), MPI_DOUBLE,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
     MPI_Pack(&(*std::begin(f2_)), f2_.Size(), MPI_DOUBLE,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
     MPI_Pack(&(*std::begin(tkeGrad_)), tkeGrad_.Size(), MPI_vec3d,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
     MPI_Pack(&(*std::begin(omegaGrad_)), omegaGrad_.Size(), MPI_vec3d,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
   if (isMultiSpecies_) {
     MPI_Pack(&(*std::begin(mixtureGrad_)), mixtureGrad_.Size(), MPI_vec3d,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
   // pack wall data
   for (auto &wd : wallData_) {
-    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_vec3d);
+    wd.PackWallData(rawSendBuffer, sendBufSize, position, MPI_vec3d);
   }
 
   // send buffer to appropriate processor
-  MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, ROOTP, globalPos_,
+  MPI_Send(rawSendBuffer, sendBufSize, MPI_PACKED, ROOTP, globalPos_,
            MPI_COMM_WORLD);
 }
 
@@ -6541,6 +6540,7 @@ void procBlock::GetCoarseMeshAndBCs(
     }
   }
   mesh.emplace_back(coarseNodes);
+  WriteNodes("coarse", mesh);
 
   // create map of fine to coarse cells
   toCoarse.emplace_back(this->NumI(), this->NumJ(), this->NumK(), 0);
@@ -6555,7 +6555,7 @@ void procBlock::GetCoarseMeshAndBCs(
     }
   };
   std::multimap<vector3d<int>, vector3d<int>, decltype(compareV3d)>
-      fineToCoarse(compareV3d);
+      coarseToFine(compareV3d);
 
   for (auto fk = this->StartK(); fk < this->EndK(); ++fk) {
     for (auto fj = this->StartJ(); fj < this->EndJ(); ++fj) {
@@ -6564,21 +6564,21 @@ void procBlock::GetCoarseMeshAndBCs(
         int ci = std::distance(
             std::begin(iIndex),
             std::find_if(std::begin(iIndex), std::end(iIndex),
-                         [&fi](const auto &ind) { return ind >= fi; }));
+                         [&fi](const auto &ind) { return ind > fi; }));
         if (ci != this->StartI()) {ci--;}  // convert to cell index
         int cj = std::distance(
             std::begin(jIndex),
             std::find_if(std::begin(jIndex), std::end(jIndex),
-                         [&fj](const auto &ind) { return ind >= fj; }));
+                         [&fj](const auto &ind) { return ind > fj; }));
         if (cj != this->StartJ()) {cj--;}  // convert to cell index
         int ck = std::distance(
             std::begin(kIndex),
             std::find_if(std::begin(kIndex), std::end(kIndex),
-                         [&fk](const auto &ind) { return ind >= fk; }));
+                         [&fk](const auto &ind) { return ind > fk; }));
         if (ck != this->StartK()) {ck--;}  // convert to cell index
         toCoarse.back()(fi, fj, fk) = {ci, cj, ck};
-        fineToCoarse.insert(std::make_pair(vector3d<int>(fi, fj, fk),
-                                           vector3d<int>(ci, cj, ck)));
+        coarseToFine.insert(std::make_pair(vector3d<int>(ci, cj, ck),
+                                           vector3d<int>(fi, fj, fk)));
       }
     }
   }
@@ -6588,7 +6588,7 @@ void procBlock::GetCoarseMeshAndBCs(
   for (auto ck = coarseNodes.StartK(); ck < coarseNodes.EndK() - 1; ++ck) {
     for (auto cj = coarseNodes.StartJ(); cj < coarseNodes.EndJ() - 1; ++cj) {
       for (auto ci = coarseNodes.StartI(); ci < coarseNodes.EndI() - 1; ++ci) {
-        auto range = fineToCoarse.equal_range({ci, cj, ck});
+        auto range = coarseToFine.equal_range({ci, cj, ck});
         // iterate over range and sum all volumes that map to same coarse cell
         auto volSum = 0.0;
         for (auto ii = range.first; ii != range.second; ++ii) {

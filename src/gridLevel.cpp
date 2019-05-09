@@ -64,10 +64,12 @@ gridLevel::gridLevel(const vector<plot3dBlock>& mesh,
     ReadRestart(*this, restartFile, decomp, inp, phys, first, origGridSizes);
   }
 
-  // Swap geometry for connection BCs
+  // Swap geometry for interblock BCs
   for (auto& conn : connections_) {
-    SwapGeomSlice(conn, blocks_[conn.BlockFirst()],
-                  blocks_[conn.BlockSecond()]);
+    if (conn.IsInterblock()) {
+      SwapGeomSlice(conn, blocks_[conn.BlockFirst()],
+                    blocks_[conn.BlockSecond()]);
+    }
   }
   // Get ghost cell edge data
   for (auto& block : blocks_) {
@@ -402,6 +404,12 @@ void gridLevel::InvertDiagonal(const input& inp) {
   solver_->InvertDiagonal(*this, inp);
 }
 
+void gridLevel::ResetDiagonal() {
+  for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
+    solver_->ZeroA(bb);
+  }
+}
+
 void gridLevel::InitializeMatrixUpdate(const input& inp, const physics& phys) {
   solver_->InitializeMatrixUpdate(*this, inp, phys);
 }
@@ -409,7 +417,7 @@ void gridLevel::InitializeMatrixUpdate(const input& inp, const physics& phys) {
 void gridLevel::UpdateBlocks(const input& inp, const physics& phys,
                              const int& mm,
                              residual& residL2, resid& residLinf) {
-  // Update blocks and reset main diagonal
+  // Update blocks
   for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
     // Update solution
     blocks_[bb].UpdateBlock(inp, phys, solver_->X(bb), mm, residL2, residLinf);
@@ -418,9 +426,6 @@ void gridLevel::UpdateBlocks(const input& inp, const physics& phys,
     if (inp.IsMultilevelInTime() && mm == inp.NonlinearIterations() - 1) {
       blocks_[bb].AssignSolToTimeNm1();
     }
-
-    // zero flux jacobians
-    solver_->A(bb).Zero();
   }
 }
 
@@ -460,10 +465,12 @@ gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
         coarse.blocks_.back().NumSpecies(), 0);
   }
 
-  // Swap geometry for connection BCs
+  // Swap geometry for interblock BCs
   for (auto& conn : coarse.connections_) {
-    SwapGeomSlice(conn, coarse.blocks_[conn.BlockFirst()],
-                  coarse.blocks_[conn.BlockSecond()]);
+    if (conn.IsInterblock()) {
+      SwapGeomSlice(conn, coarse.blocks_[conn.BlockFirst()],
+                    coarse.blocks_[conn.BlockSecond()]);
+    }
   }
   // Get ghost cell edge data
   for (auto& block : coarse.blocks_) {
@@ -511,7 +518,7 @@ gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
   return coarse;
 }
 
-void gridLevel::Restriction(gridLevel& coarse,
+void gridLevel::Restriction(gridLevel& coarse, const int &mm,
                             const vector<blkMultiArray3d<varArray>>& fineResid,
                             const input& inp, const physics& phys,
                             const int& rank,
@@ -520,12 +527,18 @@ void gridLevel::Restriction(gridLevel& coarse,
   MSG_ASSERT(blocks_.size() == coarse.blocks_.size(),
              "gridLevel size mismatch");
   MSG_ASSERT(blocks_.size() == fineResid.size(), "residual size mismatch");
+  MSG_ASSERT(inp.IsImplicit(), "calling gridLevel::Restriction for explicit");
 
   for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
     // restrict solution
     coarse.blocks_[ii].RestrictState(blocks_[ii], toCoarse_[ii],
                                      volWeightFactor_[ii]);
+    if (mm == 0) {  // need to store solution at time n for linear solvers
+      coarse.AssignSolToTimeN(phys);
+    }
+
     // restrict update
+    coarse.solver_->X(ii).Zero();
     BlockRestriction(solver_->X(ii), toCoarse_[ii], volWeightFactor_[ii],
                      coarse.solver_->X(ii));
   }
@@ -539,25 +552,47 @@ void gridLevel::Restriction(gridLevel& coarse,
   coarse.CalcResidual(phys, inp, rank, MPI_tensorDouble, MPI_vec3d);
   // Calculate time step
   coarse.CalcTimeStep(inp);
-  if (inp.IsImplicit()) {
-    // add volume and time term and calculate inverse of main diagonal
-    coarse.InvertDiagonal(inp);
-    // initialize matrix update
-    coarse.InitializeMatrixUpdate(inp, phys);
-  }
+  // add volume and time term and calculate inverse of main diagonal
+  coarse.InvertDiagonal(inp);
+  // initialize matrix update
+  // coarse.InitializeMatrixUpdate(inp, phys);
   // get Ax for coarse level
   const auto ax = coarse.AX(phys, inp);
 
-  for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
+  for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
     // DEBUG -- forcing term should be Ax - r
     // Ax is Ax of coarse state (now possible since update and state were
     //    restricted)
     // r is b - Ax for fine state, restricted down to coarse level
     // restrict matrix residuals
-    coarse.mgForcing_[ii].Zero();
-    BlockRestriction(fineResid[ii], toCoarse_[ii], volWeightFactor_[ii],
-                     coarse.mgForcing_[ii]);
-    coarse.mgForcing_[ii] = ax[ii] - coarse.mgForcing_[ii];
+    auto tmpFactor = volWeightFactor_[bb];
+    tmpFactor.Zero(1.0);
+    coarse.mgForcing_[bb].Zero();
+    //BlockRestriction(fineResid[bb], toCoarse_[bb], volWeightFactor_[bb],
+    //                 coarse.mgForcing_[bb]);
+    BlockRestriction(fineResid[bb], toCoarse_[bb], tmpFactor,
+                     coarse.mgForcing_[bb]);
+    //cout << "COARSE AX" << endl;
+    //ax[bb].PrintPhysical(cout);
+    //cout << endl;
+    //cout << "RESTRICTED MATRIX RESID" << endl;
+    //coarse.mgForcing_[bb].PrintPhysical(cout);
+    //cout << endl;
+    // DEBUG -- doing this because ax and mgForcing have different num ghosts
+    for (auto kk = coarse.mgForcing_[bb].StartK(); kk < coarse.mgForcing_[bb].EndK(); ++kk) {
+      for (auto jj = coarse.mgForcing_[bb].StartJ(); jj < coarse.mgForcing_[bb].EndJ(); ++jj) {
+        for (auto ii = coarse.mgForcing_[bb].StartI(); ii < coarse.mgForcing_[bb].EndI(); ++ii) {
+          coarse.mgForcing_[bb].InsertBlock(
+              ii, jj, kk,
+              ax[bb](ii, jj, kk) - coarse.mgForcing_[bb](ii, jj, kk));
+        }
+      }
+    }
+    //cout << "RESTRICTED MATRIX RESID AFTER OPERATION" << endl;
+    //coarse.mgForcing_[bb].PrintPhysical(cout);
+    //cout << endl;
+
+    // coarse.mgForcing_[bb] = ax[bb] - coarse.mgForcing_[bb];
   }
 }
 
@@ -575,9 +610,33 @@ void gridLevel::Prolongation(gridLevel& fine) const {
         fine.blocks_[ii].NumI(), fine.blocks_[ii].NumJ(),
         fine.blocks_[ii].NumK(), fine.blocks_[ii].NumGhosts(),
         fine.blocks_[ii].NumEquations(), fine.blocks_[ii].NumSpecies());
+  
+    //if (blocks_[ii].NumI() < 3) {
+    //  cout << "COARSE UPDATE BEFORE PROLONG" << endl;
+    //  solver_->X(ii).PrintPhysical(cout);
+    //}
+  
     BlockProlongation(solver_->X(ii), fine.toCoarse_[ii], prolongCoeffs_[ii],
                       fineCorrection);
+    
+    //if (blocks_[ii].NumI() < 3) {
+    //  cout << "PROLONGED UPDATE" << endl;
+    //  fineCorrection.PrintPhysical(cout);
+    //}
+    
     fineCorrVec.push_back(fineCorrection);
   }
+  
+  //if (blocks_[0].NumI() < 3) {
+  //  cout << "FINE UPDATE -- BEFORE ADD" << endl;
+  //  fine.solver_->X(0).PrintPhysical(cout);
+  //}
+  
   fine.solver_->AddToUpdate(fineCorrVec);
+  
+  //if (blocks_[0].NumI() < 3) {
+  //  cout << "PROLONGED UPDATE -- AFTER ADD" << endl;
+  //  fine.solver_->X(0).PrintPhysical(cout);
+  //}
+  
 }

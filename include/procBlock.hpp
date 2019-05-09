@@ -502,6 +502,8 @@ class procBlock {
   void CalcCellWidths();
   void GetStatesFromRestart(const blkMultiArray3d<primitive> &);
   void GetSolNm1FromRestart(const blkMultiArray3d<conserved> &);
+  // DEBUG
+  const blkMultiArray3d<primitive> &States() const { return state_; }
 
   int WallDataIndex(const boundarySurface &) const;
   int WallDataSize() const {return wallData_.size();}
@@ -637,6 +639,7 @@ void BlockRestriction(const blkMultiArray3d<T1>& fine,
                       const multiArray3d<double>& volFac,
                       blkMultiArray3d<T2>& coarse) {
   // use volume weighted average
+  coarse.Zero();
   for (auto kk = fine.PhysStartK(); kk < fine.PhysEndK(); ++kk) {
     for (auto jj = fine.PhysStartJ(); jj < fine.PhysEndJ(); ++jj) {
       for (auto ii = fine.PhysStartI(); ii < fine.PhysEndI(); ++ii) {

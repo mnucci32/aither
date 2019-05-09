@@ -98,6 +98,7 @@ class gridLevel {
   connection& Connection(const int& ii) { return connections_[ii]; }
   void InvertDiagonal(const input &);
   void InitializeMatrixUpdate(const input&, const physics&);
+  void ResetDiagonal();
   vector<blkMultiArray3d<varArray>> Relax(const physics& phys, const input& inp,
                                           const int& rank, const int& sweeps) {
     return solver_->Relax(*this, phys, inp, rank, sweeps);
@@ -130,7 +131,7 @@ class gridLevel {
   void AuxillaryAndWidths(const physics& phys);
   gridLevel Coarsen(const decomposition& decomp, const input& inp,
                     const physics& phys);
-  void Restriction(gridLevel& coarse,
+  void Restriction(gridLevel& coarse, const int &mm,
                    const vector<blkMultiArray3d<varArray>>& fineResid,
                    const input& inp, const physics& phys, const int& rank,
                    const MPI_Datatype& MPI_tensorDouble,
@@ -150,12 +151,24 @@ void BlockProlongation(const T& coarse,
                        const multiArray3d<std::array<double, 7>>& coeffs,
                        T& fine) {
   // get coarse data at nodes
-  const auto coarseNodes = ConvertCellToNode(coarse, true);
+  const auto coarseNodes = ConvertCellToNode(coarse, true, true);
+  /*
+  if (coarse.NumI() <= 4) {
+    cout << "COARSE NODAL DATA" << endl;
+    cout << coarseNodes << endl;
+  }
+  */
   // use trilinear interpolation
   for (auto kk = fine.PhysStartK(); kk < fine.PhysEndK(); ++kk) {
     for (auto jj = fine.PhysStartJ(); jj < fine.PhysEndJ(); ++jj) {
       for (auto ii = fine.PhysStartI(); ii < fine.PhysEndI(); ++ii) {
         const auto ci = toCoarse(ii, jj, kk);
+        /*
+        if (coarse.NumI() <= 4) {
+          cout << "fine index: " << ii << " " << jj << " " << kk
+               << " MAPS to coarse index: " << ci << endl;
+        }
+        */
         // data at coarse cell nodes
         const auto d0 = coarseNodes(ci.X()    , ci.Y()    , ci.Z());
         const auto d1 = coarseNodes(ci.X() + 1, ci.Y()    , ci.Z());
@@ -167,6 +180,22 @@ void BlockProlongation(const T& coarse,
         const auto d7 = coarseNodes(ci.X() + 1, ci.Y() + 1, ci.Z() + 1);
         const auto prolong =
             TrilinearInterp(coeffs(ii, jj, kk), d0, d1, d2, d3, d4, d5, d6, d7);
+/*
+        if (coarse.NumI() <= 4) {
+          cout << "d0: " << d0 << endl;
+          cout << "d1: " << d1 << endl;
+          cout << "d2: " << d2 << endl;
+          cout << "d3: " << d3 << endl;
+          cout << "d4: " << d4 << endl;
+          cout << "d5: " << d5 << endl;
+          cout << "d6: " << d6 << endl;
+          cout << "d7: " << d7 << endl;
+          auto c = coeffs(ii, jj, kk);
+          cout << "coeffs: " << c[0] << " " << c[1] << " " << c[2] << " "
+               << c[3] << " " << c[4] << " " << c[5] << " " << c[6] << endl;
+          cout << "prolong: " << prolong << endl;
+        }
+        */
         fine.InsertBlock(ii, jj, kk, prolong);
       }
     }

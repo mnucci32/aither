@@ -181,10 +181,11 @@ T1 FindRoot(const T2 &func, T1 x1, T1 x2, const T1 &tol,
 }
 
 template <typename T>
-T ConvertCellToNode(const T &cellData, const bool &ignoreEdge = false) {
+T ConvertCellToNode(const T &cellData, const bool &ignoreEdge = false,
+                    const bool &ignoreGhosts = false) {
   T nodeData(cellData.NumINoGhosts() + 1, cellData.NumJNoGhosts() + 1,
              cellData.NumKNoGhosts() + 1, 0, cellData.BlockInfo());
-  const auto haveGhosts = cellData.GhostLayers() > 0;
+  const auto haveGhosts = ignoreGhosts ? false : cellData.GhostLayers() > 0;
   if (haveGhosts) {
     string dir = "";
     for (auto kk = cellData.PhysStartK() - 1; kk <= cellData.PhysEndK(); ++kk) {
@@ -332,10 +333,13 @@ T ConvertCellToNode(const T &cellData, const bool &ignoreEdge = false) {
 double LinearInterpCoeff(const vector3d<double> &x0, const vector3d<double> &x1,
                          const vector3d<double> &x);
 
+// auto return type to handle the case where an arrayView should return a 
+// different type
 template <typename T>
-T LinearInterp(const T &d0, const T &d1, const double &coeff) {
+auto LinearInterp(const T &d0, const T &d1, const double &coeff) {
   return (1.0 - coeff) * d0 + coeff * d1;
 }
+
 
 std::array<double, 7> TrilinearInterpCoeff(
     const vector3d<double> &x0, const vector3d<double> &x1,
@@ -344,8 +348,10 @@ std::array<double, 7> TrilinearInterpCoeff(
     const vector3d<double> &x6, const vector3d<double> &x7,
     const vector3d<double> &x);
 
+// auto return type to handle the case where an arrayView should return a 
+// different type
 template <typename T>
-T TrilinearInterp(const std::array<double, 7> &coeffs, const T &d0, const T &d1,
+auto TrilinearInterp(const std::array<double, 7> &coeffs, const T &d0, const T &d1,
                   const T &d2, const T &d3, const T &d4, const T &d5,
                   const T &d6, const T &d7) {
   // 4 linear interpolations to convert to 2D

@@ -2277,7 +2277,7 @@ void boundarySurface::UnpackBoundarySurface(char *(&recvBuffer),
 
   // unpack boundary condition names
   // allocate buffer to store BC name
-  auto nameBuf = unique_ptr<char>(new char[strLength]);
+  auto nameBuf = std::make_unique<char[]>(strLength);
   MPI_Unpack(recvBuffer, recvBufSize, &position, nameBuf.get(), strLength,
              MPI_CHAR, MPI_COMM_WORLD);
   // create string of bc name (-1 to exclude c_str end character)

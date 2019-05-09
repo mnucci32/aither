@@ -328,6 +328,8 @@ int main(int argc, char *argv[]) {
   FreeDataTypesMPI(MPI_vec3d, MPI_procBlockInts, MPI_connection,
                    MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar,
                    MPI_tensorDouble);
+  // Free operation previously created
+  MPI_Op_free(&MPI_MAX_LINF);
 
   MPI_Finalize();
 
