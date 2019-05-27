@@ -38,6 +38,7 @@ class linearSolver {
   string solverType_;
   vector<matMultiArray3d> a_;
   vector<matMultiArray3d> aInv_;
+ protected:
   vector<blkMultiArray3d<varArray>> x_;
 
  public:
@@ -56,7 +57,6 @@ class linearSolver {
   int NumBlocks() const { return a_.size(); }
   const vector<blkMultiArray3d<varArray>> &X() const { return x_; }
   const blkMultiArray3d<varArray> &X(const int &bb) const { return x_[bb]; }
-  blkMultiArray3d<varArray> &X(const int &bb) { return x_[bb]; }
 
   const vector<matMultiArray3d> &A() const { return a_; }
   const matMultiArray3d &A(const int &bb) const { return a_[bb]; }
@@ -64,16 +64,24 @@ class linearSolver {
 
   const matMultiArray3d &AInv(const int &bb) const { return aInv_[bb]; }
 
-  vector<blkMultiArray3d<varArray>> AX(const gridLevel &, const physics &,
+  vector<blkMultiArray3d<varArray>> AXmB(const gridLevel &, const physics &,
                                        const input &) const;
+  vector<blkMultiArray3d<varArray>> Residual(const gridLevel &, const physics &,
+                                             const input &) const;
 
   void InvertDiagonal(const gridLevel &, const input &);
+  void Invert();
   void InitializeMatrixUpdate(const gridLevel &, const input &,
                               const physics &);
   void SwapUpdate(const vector<connection> &, const int &, const int &);
   void SubtractFromUpdate(const vector<blkMultiArray3d<varArray>>& coarseDu);
   void AddToUpdate(const vector<blkMultiArray3d<varArray>>& correction);
   void ZeroA(const int &bb) { a_[bb].Zero(); }
+  void Restriction(unique_ptr<linearSolver> &coarse,
+                   const vector<connection> &conn,
+                   const vector<multiArray3d<vector3d<int>>> &toCoarse,
+                   const vector<multiArray3d<double>> &volWeightFactor,
+                   const int &rank) const;
 
   virtual vector<blkMultiArray3d<varArray>> Relax(const gridLevel &,
                                                   const physics &,
@@ -126,11 +134,10 @@ class lusgs : public linearSolver {
 class dplur : public linearSolver {
 
   // private member functions
-  blkMultiArray3d<varArray> DPLUR(const procBlock &, const physics &,
-                                  const input &, const matMultiArray3d &,
-                                  const matMultiArray3d &,
-                                  const blkMultiArray3d<varArray> &,
-                                  blkMultiArray3d<varArray> &) const;
+  void DPLUR(const procBlock &, const physics &, const input &,
+             const matMultiArray3d &, const matMultiArray3d &,
+             const blkMultiArray3d<varArray> &,
+             blkMultiArray3d<varArray> &) const;
 
  public:
   // constructors
@@ -157,11 +164,4 @@ class dplur : public linearSolver {
 // function definitions
 
 #endif
-
-
-
-
-
-
-
 

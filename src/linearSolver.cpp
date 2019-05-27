@@ -55,16 +55,17 @@ linearSolver::linearSolver(const input &inp, const gridLevel &level) {
 }
 
 // function declarations
-vector<blkMultiArray3d<varArray>> linearSolver::AX(const gridLevel &level,
-                                                   const physics &phys,
-                                                   const input &inp) const {
-  vector<blkMultiArray3d<varArray>> ax;
-  ax.reserve(this->NumBlocks());
+vector<blkMultiArray3d<varArray>> linearSolver::AXmB(const gridLevel &level,
+                                                     const physics &phys,
+                                                     const input &inp) const {
+  const auto thetaInv = 1.0 / inp.Theta();
+  vector<blkMultiArray3d<varArray>> axmb;
+  axmb.reserve(this->NumBlocks());
   for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
     const auto &blk = level.Block(bb);
-    ax.emplace_back(x_[bb].NumINoGhosts(), x_[bb].NumJNoGhosts(),
-                    x_[bb].NumKNoGhosts(), x_[bb].GhostLayers(),
-                    x_[bb].BlockInfo());
+    axmb.emplace_back(x_[bb].NumINoGhosts(), x_[bb].NumJNoGhosts(),
+                      x_[bb].NumKNoGhosts(), x_[bb].GhostLayers(),
+                      x_[bb].BlockInfo());
     for (auto kk = blk.StartK(); kk < blk.EndK(); ++kk) {
       for (auto jj = blk.StartJ(); jj < blk.EndJ(); ++jj) {
         for (auto ii = blk.StartI(); ii < blk.EndI(); ++ii) {
@@ -72,14 +73,58 @@ vector<blkMultiArray3d<varArray>> linearSolver::AX(const gridLevel &level,
           auto offDiagonal = blk.ImplicitLower(ii, jj, kk, x_[bb], phys, inp);
           offDiagonal -= blk.ImplicitUpper(ii, jj, kk, x_[bb], phys, inp);
 
-          ax[bb].InsertBlock(
-              ii, jj, kk,
-              a_[bb].ArrayMult(ii, jj, kk, x_[bb](ii, jj, kk)) - offDiagonal);
+          // calculate 'b' terms - these change at subiteration level
+          const auto solDeltaNm1 = blk.SolDeltaNm1(ii, jj, kk, inp);
+          const auto solDeltaMmN = blk.SolDeltaMmN(ii, jj, kk, inp, phys);
+          const auto b =
+              -thetaInv * blk.Residual(ii, jj, kk) + solDeltaNm1 - solDeltaMmN;
+
+          axmb[bb].InsertBlock(
+              ii, jj, kk, a_[bb].ArrayMult(ii, jj, kk, x_[bb](ii, jj, kk)) -
+                              offDiagonal - b);
         }
       }
     }
   }
-  return ax;
+  return axmb;
+}
+
+vector<blkMultiArray3d<varArray>> linearSolver::Residual(
+    const gridLevel &level, const physics &phys, const input &inp) const {
+  const auto thetaInv = 1.0 / inp.Theta();
+  vector<blkMultiArray3d<varArray>> resid;
+  resid.reserve(level.NumBlocks());
+  for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
+    // initialize matrix residual
+    resid.emplace_back(x_[bb].NumINoGhosts(), x_[bb].NumJNoGhosts(),
+                       x_[bb].NumKNoGhosts(), x_[bb].GhostLayers(),
+                       x_[bb].BlockInfo());
+    const auto &blk = level.Block(bb);
+    const auto &forcing = level.Forcing(bb);
+    for (auto kk = blk.StartK(); kk < blk.EndK(); ++kk) {
+      for (auto jj = blk.StartJ(); jj < blk.EndJ(); ++jj) {
+        for (auto ii = blk.StartI(); ii < blk.EndI(); ++ii) {
+          // calculate off diagonal terms on the fly
+          auto offDiagonal = blk.ImplicitLower(ii, jj, kk, x_[bb], phys, inp);
+          offDiagonal -= blk.ImplicitUpper(ii, jj, kk, x_[bb], phys, inp);
+          // calculate 'b' terms - these change at subiteration level
+          const auto solDeltaNm1 = blk.SolDeltaNm1(ii, jj, kk, inp);
+          const auto solDeltaMmN = blk.SolDeltaMmN(ii, jj, kk, inp, phys);
+          const auto b =
+              -thetaInv * blk.Residual(ii, jj, kk) + solDeltaNm1 - solDeltaMmN;
+
+          // calculate matrix residual
+          // matrix residual = f - (Ax - b)
+          resid[bb].InsertBlock(
+              ii, jj, kk,
+              forcing(ii, jj, kk) -
+                  (a_[bb].ArrayMult(ii, jj, kk, x_[bb](ii, jj, kk)) -
+                   offDiagonal - b));
+        }
+      }
+    }
+  }
+  return resid;
 }
 
 void linearSolver::InitializeMatrixUpdate(const gridLevel &level,
@@ -148,6 +193,10 @@ void linearSolver::InvertDiagonal(const gridLevel &level, const input &inp) {
   }
 
   // now calculate inverse
+  this->Invert();
+}
+
+void linearSolver::Invert() {
   aInv_ = a_;
   for (auto &ai : aInv_) {
     for (auto kk = ai.StartK(); kk < ai.EndK(); ++kk) {
@@ -181,6 +230,20 @@ void linearSolver::AddToUpdate(
   }
 }
 
+void linearSolver::Restriction(
+    unique_ptr<linearSolver> &coarse, const vector<connection> &conn,
+    const vector<multiArray3d<vector3d<int>>> &toCoarse,
+    const vector<multiArray3d<double>> &volWeightFactor,
+    const int &rank) const {
+  for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
+    // restrict update
+    BlockRestriction(x_[bb], toCoarse[bb], volWeightFactor[bb], coarse->x_[bb]);
+  }
+  // swap updates for ghost cells
+  coarse->SwapUpdate(conn, rank, coarse->x_[0].GhostLayers());
+}
+
+// constructor
 lusgs::lusgs(const input &inp, const gridLevel &level)
     : linearSolver(inp, level) {
   // calculate order by hyperplanes for each block
@@ -424,7 +487,7 @@ vector<blkMultiArray3d<varArray>> lusgs::Relax(const gridLevel &level,
     // forward lu-sgs sweep
     for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
       this->LUSGS_Forward(level.Block(bb), reorder_[bb], phys, inp,
-                          this->AInv(bb), ii, level.Forcing(bb), this->X(bb));
+                          this->AInv(bb), ii, level.Forcing(bb), x_[bb]);
     }
 
     // swap updates for ghost cells
@@ -434,19 +497,17 @@ vector<blkMultiArray3d<varArray>> lusgs::Relax(const gridLevel &level,
     for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
       matrixResid[bb] = this->LUSGS_Backward(
           level.Block(bb), reorder_[bb], phys, inp, this->AInv(bb), this->A(bb),
-          ii, level.Forcing(bb), this->X(bb));
+          ii, level.Forcing(bb), x_[bb]);
     }
   }
   return matrixResid;
 }
 
 // function to calculate the implicit update via the DP-LUR method
-blkMultiArray3d<varArray> dplur::DPLUR(const procBlock &blk,
-                                       const physics &phys, const input &inp,
-                                       const matMultiArray3d &aInv,
-                                       const matMultiArray3d &a,
-                                       const blkMultiArray3d<varArray> &forcing,
-                                       blkMultiArray3d<varArray> &x) const {
+void dplur::DPLUR(const procBlock &blk, const physics &phys, const input &inp,
+                  const matMultiArray3d &aInv, const matMultiArray3d &a,
+                  const blkMultiArray3d<varArray> &forcing,
+                  blkMultiArray3d<varArray> &x) const {
   // blk -- block to solve on
   // phys --  physics models
   // inp -- all input variables
@@ -456,14 +517,8 @@ blkMultiArray3d<varArray> dplur::DPLUR(const procBlock &blk,
   // x -- variables to solve for
 
   const auto thetaInv = 1.0 / inp.Theta();
-
-  // initialize matrix residual
-  blkMultiArray3d<varArray> resid(x.NumINoGhosts(), x.NumJNoGhosts(),
-                                  x.NumKNoGhosts(), x.GhostLayers(),
-                                  x.BlockInfo());
   // copy old update
   const auto xold = x;
-
   for (auto kk = blk.StartK(); kk < blk.EndK(); ++kk) {
     for (auto jj = blk.StartJ(); jj < blk.EndJ(); ++jj) {
       for (auto ii = blk.StartI(); ii < blk.EndI(); ++ii) {
@@ -473,21 +528,16 @@ blkMultiArray3d<varArray> dplur::DPLUR(const procBlock &blk,
         // calculate 'b' terms - these change at subiteration level
         const auto solDeltaNm1 = blk.SolDeltaNm1(ii, jj, kk, inp);
         const auto solDeltaMmN = blk.SolDeltaMmN(ii, jj, kk, inp, phys);
-        const auto b = -thetaInv * blk.Residual(ii, jj, kk) +
-                       forcing(ii, jj, kk) + solDeltaNm1 - solDeltaMmN;
+        const auto b =
+            -thetaInv * blk.Residual(ii, jj, kk) + solDeltaNm1 - solDeltaMmN;
 
         // calculate update
-        x.InsertBlock(ii, jj, kk, aInv.ArrayMult(ii, jj, kk, b + offDiagonal));
-
-        // calculate matrix residual
-        // matrix residual = b - Ax
-        resid.InsertBlock(
+        x.InsertBlock(
             ii, jj, kk,
-            b - a.ArrayMult(ii, jj, kk, x(ii, jj, kk)) + offDiagonal);
+            aInv.ArrayMult(ii, jj, kk, b + forcing(ii, jj, kk) + offDiagonal));
       }
     }
   }
-  return resid;
 }
 
 vector<blkMultiArray3d<varArray>> dplur::Relax(const gridLevel &level,
@@ -499,10 +549,6 @@ vector<blkMultiArray3d<varArray>> dplur::Relax(const gridLevel &level,
              "number of blocks mismatch");
   MSG_ASSERT(level.Block(0).NumCells() == this->A(0).NumBlocks(),
              "cell number mismatch");
-  // initialize matrix residual vector
-  vector<blkMultiArray3d<varArray>> matrixResid;
-  matrixResid.resize(level.NumBlocks());
-
   // start sweeps through domain
   const auto numG = level.Block(0).NumGhosts();
   for (auto ii = 0; ii < sweeps; ++ii) {
@@ -511,10 +557,11 @@ vector<blkMultiArray3d<varArray>> dplur::Relax(const gridLevel &level,
 
     // dplur sweep
     for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
-      matrixResid[bb] =
-          this->DPLUR(level.Block(bb), phys, inp, this->AInv(bb), this->A(bb),
-                      level.Forcing(bb), this->X(bb));
+      this->DPLUR(level.Block(bb), phys, inp, this->AInv(bb), this->A(bb),
+                  level.Forcing(bb), x_[bb]);
     }
   }
+  // calculate matrix residual
+  auto matrixResid = this->Residual(level, phys, inp);
   return matrixResid;
 }

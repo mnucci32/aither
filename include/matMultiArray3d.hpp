@@ -75,8 +75,8 @@ class matMultiArray3d : public multiArray3d<double> {
     }
   }
   matMultiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
-                  const int &bs, const int &fs, const int &ts)
-      : multiArray3d<double>(ii, jj, kk, ng, bs),
+                  const int &fs, const int &ts)
+      : multiArray3d<double>(ii, jj, kk, ng, (fs * fs) + (ts * ts)),
         flowSize_(fs),
         turbSize_(ts) {}
   matMultiArray3d() : multiArray3d<double>(), flowSize_(0), turbSize_(0) {}
@@ -94,6 +94,17 @@ class matMultiArray3d : public multiArray3d<double> {
   int TurbSize() const { return turbSize_; }
   bool IsScalar() const { return flowSize_ == 1; }
   void Zero() { std::fill(this->begin(), this->end(), 0.0); }
+
+  fluxJacobian Jacobian(const int &ii, const int &jj, const int &kk) const {
+    return fluxJacobian(this->BeginFlow(ii, jj, kk), flowSize_,
+                        this->BeginTurb(ii, jj, kk), turbSize_);
+  }
+  void InsertJacobian(const int &ii, const int &jj, const int &kk,
+                      const fluxJacobian &jac) {
+    MSG_ASSERT(flowSize_ == jac.FlowSize(), "flow size mismatch");
+    MSG_ASSERT(turbSize_ == jac.TurbSize(), "turb size mismatch");
+    std::copy(jac.begin(), jac.end(), this->BeginFlow(ii, jj, kk));
+  }
 
   void MultiplyOnDiagonal(const int &ii, const int &jj, const int &kk,
                           const double &fac) {
@@ -163,8 +174,8 @@ class matMultiArray3d : public multiArray3d<double> {
   }
 
   void ClearResize(const int &ii, const int &jj, const int &kk,
-                   const int &ng, const int &bs, const int &fs, const int &ts) {
-    *this = matMultiArray3d(ii, jj, kk, ng, bs, fs, ts);
+                   const int &ng, const int &fs, const int &ts) {
+    *this = matMultiArray3d(ii, jj, kk, ng, fs, ts);
   }
   void ClearResize(const int &ii, const int &jj, const int &kk, const int &ng,
                    const fluxJacobian &val) {

@@ -225,9 +225,9 @@ class procBlock {
   primitiveView State(const int &ii, const int &jj, const int &kk) const {
     return state_(ii, jj, kk);
   }
-  void RestrictState(const procBlock &fine,
-                     const multiArray3d<vector3d<int>> &toCoarse,
-                     const multiArray3d<double> &volWeightFactor);
+  void Restriction(const procBlock &fine,
+                   const multiArray3d<vector3d<int>> &toCoarse,
+                   const multiArray3d<double> &volWeightFactor);
   conservedView ConsVarsN(const int &ii, const int &jj, const int &kk) const {
     return consVarsN_(ii, jj, kk);
   }
@@ -645,6 +645,25 @@ void BlockRestriction(const blkMultiArray3d<T1>& fine,
       for (auto ii = fine.PhysStartI(); ii < fine.PhysEndI(); ++ii) {
         const auto ci = toCoarse(ii, jj, kk);
         T2 restricted =
+            coarse(ci[0], ci[1], ci[2]) + volFac(ii, jj, kk) * fine(ii, jj, kk);
+        coarse.InsertBlock(ci[0], ci[1], ci[2], restricted);
+      }
+    }
+  }
+}
+
+template <typename T>
+void BlockRestriction(const multiArray3d<T>& fine,
+                      const multiArray3d<vector3d<int>>& toCoarse,
+                      const multiArray3d<double>& volFac,
+                      multiArray3d<T>& coarse) {
+  // use volume weighted average
+  coarse.Zero();
+  for (auto kk = fine.PhysStartK(); kk < fine.PhysEndK(); ++kk) {
+    for (auto jj = fine.PhysStartJ(); jj < fine.PhysEndJ(); ++jj) {
+      for (auto ii = fine.PhysStartI(); ii < fine.PhysEndI(); ++ii) {
+        const auto ci = toCoarse(ii, jj, kk);
+        auto restricted =
             coarse(ci[0], ci[1], ci[2]) + volFac(ii, jj, kk) * fine(ii, jj, kk);
         coarse.InsertBlock(ci[0], ci[1], ci[2], restricted);
       }

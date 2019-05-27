@@ -531,21 +531,25 @@ void gridLevel::Restriction(gridLevel& coarse, const int &mm,
 
   for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
     // restrict solution
-    coarse.blocks_[ii].RestrictState(blocks_[ii], toCoarse_[ii],
-                                     volWeightFactor_[ii]);
+    //coarse.blocks_[ii].RestrictState(blocks_[ii], toCoarse_[ii],
+    //                                 volWeightFactor_[ii]);
+    // restrict residual
+    coarse.blocks_[ii].Restriction(blocks_[ii], toCoarse_[ii],
+                                   volWeightFactor_[ii]);
+    // coarse.blocks_[ii].CalcBlockTimeStep(inp);
+
     if (mm == 0) {  // need to store solution at time n for linear solvers
       coarse.AssignSolToTimeN(phys);
     }
 
+
     // restrict update
-    coarse.solver_->X(ii).Zero();
-    BlockRestriction(solver_->X(ii), toCoarse_[ii], volWeightFactor_[ii],
-                     coarse.solver_->X(ii));
+    //coarse.solver_->X(ii).Zero();
+    //BlockRestriction(solver_->X(ii), toCoarse_[ii], volWeightFactor_[ii],
+    //                 coarse.solver_->X(ii));
   }
 
-  // DEBUG
-  // should calculate solution on coarse grid level here - need to get Ax
-  // should do everything so linear solver can call relax
+
   // Get boundary conditions for all blocks
   coarse.GetBoundaryConditions(inp, phys, rank);
   // Calculate residual (RHS)
@@ -556,9 +560,21 @@ void gridLevel::Restriction(gridLevel& coarse, const int &mm,
   coarse.InvertDiagonal(inp);
   // initialize matrix update
   // coarse.InitializeMatrixUpdate(inp, phys);
-  // get Ax for coarse level
-  const auto ax = coarse.AX(phys, inp);
 
+  // restrict linear system
+  solver_->Restriction(coarse.solver_, coarse.connections_, toCoarse_,
+                       volWeightFactor_, rank);
+  //coarse.ResetDiagonal();
+  //solver_->RestrictionMat(coarse.solver_, toCoarse_, volWeightFactor_);
+  //coarse.solver_->Invert();
+
+  // DEBUG
+  // should calculate solution on coarse grid level here - need to get Ax
+  // should do everything so linear solver can call relax
+  // get Ax for coarse level
+  // DEBUG -- this should be Ax - b
+  const auto axmb = coarse.AXmB(phys, inp);
+  
   for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
     // DEBUG -- forcing term should be Ax - r
     // Ax is Ax of coarse state (now possible since update and state were
@@ -567,30 +583,22 @@ void gridLevel::Restriction(gridLevel& coarse, const int &mm,
     // restrict matrix residuals
     auto tmpFactor = volWeightFactor_[bb];
     tmpFactor.Zero(1.0);
-    coarse.mgForcing_[bb].Zero();
     //BlockRestriction(fineResid[bb], toCoarse_[bb], volWeightFactor_[bb],
     //                 coarse.mgForcing_[bb]);
     BlockRestriction(fineResid[bb], toCoarse_[bb], tmpFactor,
                      coarse.mgForcing_[bb]);
-    //cout << "COARSE AX" << endl;
-    //ax[bb].PrintPhysical(cout);
-    //cout << endl;
-    //cout << "RESTRICTED MATRIX RESID" << endl;
-    //coarse.mgForcing_[bb].PrintPhysical(cout);
-    //cout << endl;
+
     // DEBUG -- doing this because ax and mgForcing have different num ghosts
-    for (auto kk = coarse.mgForcing_[bb].StartK(); kk < coarse.mgForcing_[bb].EndK(); ++kk) {
+    for (auto kk = coarse.mgForcing_[bb].StartK();
+         kk < coarse.mgForcing_[bb].EndK(); ++kk) {
       for (auto jj = coarse.mgForcing_[bb].StartJ(); jj < coarse.mgForcing_[bb].EndJ(); ++jj) {
         for (auto ii = coarse.mgForcing_[bb].StartI(); ii < coarse.mgForcing_[bb].EndI(); ++ii) {
           coarse.mgForcing_[bb].InsertBlock(
               ii, jj, kk,
-              ax[bb](ii, jj, kk) - coarse.mgForcing_[bb](ii, jj, kk));
+              axmb[bb](ii, jj, kk) + coarse.mgForcing_[bb](ii, jj, kk));
         }
       }
     }
-    //cout << "RESTRICTED MATRIX RESID AFTER OPERATION" << endl;
-    //coarse.mgForcing_[bb].PrintPhysical(cout);
-    //cout << endl;
 
     // coarse.mgForcing_[bb] = ax[bb] - coarse.mgForcing_[bb];
   }
@@ -610,33 +618,9 @@ void gridLevel::Prolongation(gridLevel& fine) const {
         fine.blocks_[ii].NumI(), fine.blocks_[ii].NumJ(),
         fine.blocks_[ii].NumK(), fine.blocks_[ii].NumGhosts(),
         fine.blocks_[ii].NumEquations(), fine.blocks_[ii].NumSpecies());
-  
-    //if (blocks_[ii].NumI() < 3) {
-    //  cout << "COARSE UPDATE BEFORE PROLONG" << endl;
-    //  solver_->X(ii).PrintPhysical(cout);
-    //}
-  
     BlockProlongation(solver_->X(ii), fine.toCoarse_[ii], prolongCoeffs_[ii],
                       fineCorrection);
-    
-    //if (blocks_[ii].NumI() < 3) {
-    //  cout << "PROLONGED UPDATE" << endl;
-    //  fineCorrection.PrintPhysical(cout);
-    //}
-    
     fineCorrVec.push_back(fineCorrection);
   }
-  
-  //if (blocks_[0].NumI() < 3) {
-  //  cout << "FINE UPDATE -- BEFORE ADD" << endl;
-  //  fine.solver_->X(0).PrintPhysical(cout);
-  //}
-  
   fine.solver_->AddToUpdate(fineCorrVec);
-  
-  //if (blocks_[0].NumI() < 3) {
-  //  cout << "PROLONGED UPDATE -- AFTER ADD" << endl;
-  //  fine.solver_->X(0).PrintPhysical(cout);
-  //}
-  
 }

@@ -165,22 +165,6 @@ double mgSolution::CycleAtLevel(const int& fl, const int& mm,
 
   if (fl == this->NumGridLevels() - 1) {  // recursive base case
     matrixResid = this->Relax(fl, inp.MatrixSweeps(), phys, inp, rank);
-    //cout << "AT COARSEST LEVEL -- UPDATE" << endl;
-    //solution_[fl].Update()[0].PrintPhysical(cout);
-    //cout << "AT COARSEST LEVEL -- RESIDUAL" << endl;
-    //solution_[fl].Block(0).Residuals().PrintPhysical(cout);
-    // cout << "AT COARSEST LEVEL -- FORCING" << endl;
-    //solution_[fl].Forcing(0).PrintPhysical(cout);
-    /*
-    residual residL2(5, 1);
-    resid residLinf;
-    auto mm = 0;
-    solution_[fl].UpdateBlocks(inp, phys, mm, residL2, residLinf);
-    WriteCoarseOutput(solution_[fl].Blocks(), phys, 9999, inp);
-    */
-    //cout << "COARSE SOLUTION" << endl;
-    //cout << solution_[fl].Block(0).States() << endl;
-
   } else {
     // pre-relaxation sweeps
     matrixResid = this->Relax(fl, ceil(inp.MatrixSweeps()/2), phys, inp, rank);

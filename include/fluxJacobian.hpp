@@ -131,6 +131,13 @@ class fluxJacobian {
       this->TurbJacobian(0, 0) = specRad.TurbVariable();
     }
   }
+  fluxJacobian(const vector<double>::const_iterator &fb, const int &flowSize,
+               const vector<double>::const_iterator &tb, const int &turbSize)
+      : fluxJacobian(flowSize, turbSize) {
+    std::copy(fb, fb + flowSize * flowSize, data_.begin());
+    std::copy(tb, tb + turbSize * turbSize,
+              data_.begin() + flowSize * flowSize);
+  }
 
   // move constructor and assignment operator
   fluxJacobian(fluxJacobian&&) noexcept = default;

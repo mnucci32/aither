@@ -587,18 +587,6 @@ void WriteOutput(const vector<procBlock> &vars, const physics &phys,
   }
 }
 
-void WriteCoarseOutput(const vector<procBlock> &vars, const physics &phys,
-                       const int &solIter, const input &inp) {
-  const string fEnd = "_coarse";
-  const string fPostfix = ".fun";
-  const auto writeName = inp.SimNameRoot() + "_" + to_string(solIter) + fEnd +
-      fPostfix;
-  decomposition decomp;
-  WriteCellCenter("coarse", vars, decomp, inp);
-  WriteFunFile(vars, vars, phys, decomp, writeName, inp);
-  WriteMeta(inp, solIter, true);
-}
-
 // function to write out restart variables
 void WriteRestart(const vector<procBlock> &splitVars, const physics &phys,
                   const int &solIter, const decomposition &decomp,

@@ -103,11 +103,18 @@ class gridLevel {
                                           const int& rank, const int& sweeps) {
     return solver_->Relax(*this, phys, inp, rank, sweeps);
   }
-  vector<blkMultiArray3d<varArray>> AX(const physics& phys, const input& inp) {
-    return solver_->AX(*this, phys, inp);
+  vector<blkMultiArray3d<varArray>> AXmB(const physics& phys,
+                                         const input& inp) {
+    return solver_->AXmB(*this, phys, inp);
   }
   const blkMultiArray3d<varArray>& Forcing(const int& ii) const {
     return mgForcing_[ii];
+  }
+  const vector<multiArray3d<vector3d<int>>> &ToCoarse() const {
+    return toCoarse_;
+  }
+  const vector<multiArray3d<double>> &VolWeightFactor() const {
+    return volWeightFactor_;
   }
 
   gridLevel SendGridLevel(const int& rank, const int& numProcBlock,
@@ -124,6 +131,7 @@ class gridLevel {
   void AssignSolToTimeNm1();
   void SwapWallDist(const int& rank, const int& numGhosts);
   void SwapTurbVars(const int& rank, const int& numGhosts);
+  void SwapViscosity(const int& rank, const int& numGhosts);
   void SwapEddyViscAndGradients(const int& rank,
                                 const MPI_Datatype& MPI_tensorDouble,
                                 const MPI_Datatype& MPI_vec3d,
