@@ -652,6 +652,23 @@ void BlockRestriction(const blkMultiArray3d<T1>& fine,
   }
 }
 
+template <typename T1, typename T2>
+void BlockRestriction(const blkMultiArray3d<T1>& fine,
+                      const multiArray3d<vector3d<int>>& toCoarse,
+                      blkMultiArray3d<T2>& coarse) {
+  // use sum of all fine cells inside a coarse cell
+  coarse.Zero();
+  for (auto kk = fine.PhysStartK(); kk < fine.PhysEndK(); ++kk) {
+    for (auto jj = fine.PhysStartJ(); jj < fine.PhysEndJ(); ++jj) {
+      for (auto ii = fine.PhysStartI(); ii < fine.PhysEndI(); ++ii) {
+        const auto ci = toCoarse(ii, jj, kk);
+        T2 restricted = coarse(ci[0], ci[1], ci[2]) + fine(ii, jj, kk);
+        coarse.InsertBlock(ci[0], ci[1], ci[2], restricted);
+      }
+    }
+  }
+}
+
 template <typename T>
 void BlockRestriction(const multiArray3d<T>& fine,
                       const multiArray3d<vector3d<int>>& toCoarse,
@@ -663,6 +680,7 @@ void BlockRestriction(const multiArray3d<T>& fine,
     for (auto jj = fine.PhysStartJ(); jj < fine.PhysEndJ(); ++jj) {
       for (auto ii = fine.PhysStartI(); ii < fine.PhysEndI(); ++ii) {
         const auto ci = toCoarse(ii, jj, kk);
+        // auto and not T to deal with view types
         auto restricted =
             coarse(ci[0], ci[1], ci[2]) + volFac(ii, jj, kk) * fine(ii, jj, kk);
         coarse.InsertBlock(ci[0], ci[1], ci[2], restricted);

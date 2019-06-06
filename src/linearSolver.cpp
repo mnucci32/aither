@@ -91,35 +91,16 @@ vector<blkMultiArray3d<varArray>> linearSolver::AXmB(const gridLevel &level,
 
 vector<blkMultiArray3d<varArray>> linearSolver::Residual(
     const gridLevel &level, const physics &phys, const input &inp) const {
-  const auto thetaInv = 1.0 / inp.Theta();
-  vector<blkMultiArray3d<varArray>> resid;
-  resid.reserve(level.NumBlocks());
+  auto resid = this->AXmB(level, phys, inp);
   for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
-    // initialize matrix residual
-    resid.emplace_back(x_[bb].NumINoGhosts(), x_[bb].NumJNoGhosts(),
-                       x_[bb].NumKNoGhosts(), x_[bb].GhostLayers(),
-                       x_[bb].BlockInfo());
     const auto &blk = level.Block(bb);
-    const auto &forcing = level.Forcing(bb);
     for (auto kk = blk.StartK(); kk < blk.EndK(); ++kk) {
       for (auto jj = blk.StartJ(); jj < blk.EndJ(); ++jj) {
         for (auto ii = blk.StartI(); ii < blk.EndI(); ++ii) {
-          // calculate off diagonal terms on the fly
-          auto offDiagonal = blk.ImplicitLower(ii, jj, kk, x_[bb], phys, inp);
-          offDiagonal -= blk.ImplicitUpper(ii, jj, kk, x_[bb], phys, inp);
-          // calculate 'b' terms - these change at subiteration level
-          const auto solDeltaNm1 = blk.SolDeltaNm1(ii, jj, kk, inp);
-          const auto solDeltaMmN = blk.SolDeltaMmN(ii, jj, kk, inp, phys);
-          const auto b =
-              -thetaInv * blk.Residual(ii, jj, kk) + solDeltaNm1 - solDeltaMmN;
-
-          // calculate matrix residual
           // matrix residual = f - (Ax - b)
           resid[bb].InsertBlock(
               ii, jj, kk,
-              forcing(ii, jj, kk) -
-                  (a_[bb].ArrayMult(ii, jj, kk, x_[bb](ii, jj, kk)) -
-                   offDiagonal - b));
+              level.Forcing(bb)(ii, jj, kk) - resid[bb](ii, jj, kk));
         }
       }
     }
@@ -162,7 +143,7 @@ void linearSolver::InitializeMatrixUpdate(const gridLevel &level,
   }
 }
 
-void linearSolver::InvertDiagonal(const gridLevel &level, const input &inp) {
+void linearSolver::AddDiagonalTerms(const gridLevel &level, const input &inp) {
   // level -- grid level to invert diagonal for
   // inp -- input variables
 
@@ -191,9 +172,6 @@ void linearSolver::InvertDiagonal(const gridLevel &level, const input &inp) {
       }
     }
   }
-
-  // now calculate inverse
-  this->Invert();
 }
 
 void linearSolver::Invert() {
@@ -404,12 +382,13 @@ void lusgs::LUSGS_Forward(const procBlock &blk,
   }  // end forward sweep
 }
 
-blkMultiArray3d<varArray> lusgs::LUSGS_Backward(
-    const procBlock &blk, const vector<vector3d<int>> &reorder,
-    const physics &phys, const input &inp, const matMultiArray3d &aInv,
-    const matMultiArray3d &a, const int &sweep,
-    const blkMultiArray3d<varArray> &forcing,
-    blkMultiArray3d<varArray> &x) const {
+void lusgs::LUSGS_Backward(const procBlock &blk,
+                           const vector<vector3d<int>> &reorder,
+                           const physics &phys, const input &inp,
+                           const matMultiArray3d &aInv,
+                           const matMultiArray3d &a, const int &sweep,
+                           const blkMultiArray3d<varArray> &forcing,
+                           blkMultiArray3d<varArray> &x) const {
   // blk -- block to solve on
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // phys -- physics models
@@ -421,11 +400,6 @@ blkMultiArray3d<varArray> lusgs::LUSGS_Backward(
   // x -- variables to be solved for
 
   const auto thetaInv = 1.0 / inp.Theta();
-
-  // initialize matrix residual
-  blkMultiArray3d<varArray> resid(x.NumINoGhosts(), x.NumJNoGhosts(),
-                                  x.NumKNoGhosts(), x.GhostLayers(),
-                                  x.BlockInfo());
 
   // backward sweep over all physical cells
   for (auto nn = blk.NumCells() - 1; nn >= 0; --nn) {
@@ -447,19 +421,10 @@ blkMultiArray3d<varArray> lusgs::LUSGS_Backward(
       const auto b = -thetaInv * blk.Residual(ii, jj, kk) +
                      forcing(ii, jj, kk) + solDeltaNm1 - solDeltaMmN;
       x.InsertBlock(ii, jj, kk, aInv.ArrayMult(ii, jj, kk, b + L - U));
-      // matrix residual = b - Ax
-      resid.InsertBlock(ii, jj, kk,
-                        b - a.ArrayMult(ii, jj, kk, x(ii, jj, kk)) + L - U);
     } else {
       x.InsertBlock(ii, jj, kk, xold - aInv.ArrayMult(ii, jj, kk, U));
-      // matrix residual = b - Ax
-      // DEBUG -- fix this
-      resid.InsertBlock(ii, jj, kk,
-                        xold - a.ArrayMult(ii, jj, kk, x(ii, jj, kk)) - U);
     }
   }  // end backward sweep
-
-  return resid;
 }
 
 vector<blkMultiArray3d<varArray>> lusgs::Relax(const gridLevel &level,
@@ -473,10 +438,6 @@ vector<blkMultiArray3d<varArray>> lusgs::Relax(const gridLevel &level,
              "reorder block size mismatch");
   MSG_ASSERT(level.Block(0).NumCells() == this->A(0).NumBlocks(),
              "cell number mismatch");
-
-  // initialize matrix residual vector
-  vector<blkMultiArray3d<varArray>> matrixResid;
-  matrixResid.resize(level.NumBlocks());
 
   // start sweeps through domain
   const auto numG = level.Block(0).NumGhosts();
@@ -495,11 +456,16 @@ vector<blkMultiArray3d<varArray>> lusgs::Relax(const gridLevel &level,
 
     // backward lu-sgs sweep
     for (auto bb = 0; bb < level.NumBlocks(); ++bb) {
-      matrixResid[bb] = this->LUSGS_Backward(
-          level.Block(bb), reorder_[bb], phys, inp, this->AInv(bb), this->A(bb),
-          ii, level.Forcing(bb), x_[bb]);
+      this->LUSGS_Backward(level.Block(bb), reorder_[bb], phys, inp,
+                           this->AInv(bb), this->A(bb), ii, level.Forcing(bb),
+                           x_[bb]);
     }
   }
+
+  // calculate matrix residual
+  // swap updates for ghost cells
+  this->SwapUpdate(level.Connections(), rank, numG);
+  auto matrixResid = this->Residual(level, phys, inp);
   return matrixResid;
 }
 
@@ -562,6 +528,8 @@ vector<blkMultiArray3d<varArray>> dplur::Relax(const gridLevel &level,
     }
   }
   // calculate matrix residual
+  // swap updates for ghost cells
+  this->SwapUpdate(level.Connections(), rank, numG);
   auto matrixResid = this->Residual(level, phys, inp);
   return matrixResid;
 }

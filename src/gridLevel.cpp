@@ -401,7 +401,8 @@ void gridLevel::CalcResidual(const physics& phys, const input& inp,
 
 void gridLevel::InvertDiagonal(const input& inp) {
   // add volume and time term and calculate inverse of main diagonal
-  solver_->InvertDiagonal(*this, inp);
+  solver_->AddDiagonalTerms(*this, inp);
+  solver_->Invert();
 }
 
 void gridLevel::ResetDiagonal() {
@@ -531,76 +532,44 @@ void gridLevel::Restriction(gridLevel& coarse, const int &mm,
 
   for (auto ii = 0; ii < this->NumBlocks(); ++ii) {
     // restrict solution
-    //coarse.blocks_[ii].RestrictState(blocks_[ii], toCoarse_[ii],
-    //                                 volWeightFactor_[ii]);
-    // restrict residual
     coarse.blocks_[ii].Restriction(blocks_[ii], toCoarse_[ii],
                                    volWeightFactor_[ii]);
-    // coarse.blocks_[ii].CalcBlockTimeStep(inp);
-
     if (mm == 0) {  // need to store solution at time n for linear solvers
       coarse.AssignSolToTimeN(phys);
     }
-
-
-    // restrict update
-    //coarse.solver_->X(ii).Zero();
-    //BlockRestriction(solver_->X(ii), toCoarse_[ii], volWeightFactor_[ii],
-    //                 coarse.solver_->X(ii));
   }
 
-
-  // Get boundary conditions for all blocks
+  // calculate residual and implicit matrix using restricted solution
   coarse.GetBoundaryConditions(inp, phys, rank);
-  // Calculate residual (RHS)
   coarse.CalcResidual(phys, inp, rank, MPI_tensorDouble, MPI_vec3d);
-  // Calculate time step
   coarse.CalcTimeStep(inp);
   // add volume and time term and calculate inverse of main diagonal
   coarse.InvertDiagonal(inp);
-  // initialize matrix update
-  // coarse.InitializeMatrixUpdate(inp, phys);
 
-  // restrict linear system
+  // restrict linear system update
   solver_->Restriction(coarse.solver_, coarse.connections_, toCoarse_,
                        volWeightFactor_, rank);
-  //coarse.ResetDiagonal();
-  //solver_->RestrictionMat(coarse.solver_, toCoarse_, volWeightFactor_);
-  //coarse.solver_->Invert();
 
-  // DEBUG
-  // should calculate solution on coarse grid level here - need to get Ax
-  // should do everything so linear solver can call relax
-  // get Ax for coarse level
-  // DEBUG -- this should be Ax - b
+  // get Ax-b for coarse level
   const auto axmb = coarse.AXmB(phys, inp);
   
   for (auto bb = 0; bb < this->NumBlocks(); ++bb) {
-    // DEBUG -- forcing term should be Ax - r
-    // Ax is Ax of coarse state (now possible since update and state were
-    //    restricted)
-    // r is b - Ax for fine state, restricted down to coarse level
-    // restrict matrix residuals
-    auto tmpFactor = volWeightFactor_[bb];
-    tmpFactor.Zero(1.0);
-    //BlockRestriction(fineResid[bb], toCoarse_[bb], volWeightFactor_[bb],
-    //                 coarse.mgForcing_[bb]);
-    BlockRestriction(fineResid[bb], toCoarse_[bb], tmpFactor,
-                     coarse.mgForcing_[bb]);
+    auto& coarseForce = coarse.mgForcing_[bb];
+    // forcing term is Ax - b + r
+    // Ax - b is from coarse level (using restricted update and state
+    // r is matrix residual (f - (Ax - b)) for fine, restricted to coarse level
+    BlockRestriction(fineResid[bb], toCoarse_[bb], coarseForce);
 
-    // DEBUG -- doing this because ax and mgForcing have different num ghosts
-    for (auto kk = coarse.mgForcing_[bb].StartK();
-         kk < coarse.mgForcing_[bb].EndK(); ++kk) {
-      for (auto jj = coarse.mgForcing_[bb].StartJ(); jj < coarse.mgForcing_[bb].EndJ(); ++jj) {
-        for (auto ii = coarse.mgForcing_[bb].StartI(); ii < coarse.mgForcing_[bb].EndI(); ++ii) {
-          coarse.mgForcing_[bb].InsertBlock(
-              ii, jj, kk,
-              axmb[bb](ii, jj, kk) + coarse.mgForcing_[bb](ii, jj, kk));
+    // doing this instead of -= because axmb and forcing have different 
+    // number of ghost cells
+    for (auto kk = coarseForce.StartK(); kk < coarseForce.EndK(); ++kk) {
+      for (auto jj = coarseForce.StartJ(); jj < coarseForce.EndJ(); ++jj) {
+        for (auto ii = coarseForce.StartI(); ii < coarseForce.EndI(); ++ii) {
+          coarseForce.InsertBlock(
+              ii, jj, kk, axmb[bb](ii, jj, kk) + coarseForce(ii, jj, kk));
         }
       }
     }
-
-    // coarse.mgForcing_[bb] = ax[bb] - coarse.mgForcing_[bb];
   }
 }
 

@@ -69,7 +69,7 @@ class linearSolver {
   vector<blkMultiArray3d<varArray>> Residual(const gridLevel &, const physics &,
                                              const input &) const;
 
-  void InvertDiagonal(const gridLevel &, const input &);
+  void AddDiagonalTerms(const gridLevel &, const input &);
   void Invert();
   void InitializeMatrixUpdate(const gridLevel &, const input &,
                               const physics &);
@@ -101,13 +101,11 @@ class lusgs : public linearSolver {
                      const physics &, const input &, const matMultiArray3d &,
                      const int &, const blkMultiArray3d<varArray> &,
                      blkMultiArray3d<varArray> &) const;
-  blkMultiArray3d<varArray> LUSGS_Backward(const procBlock &,
-                                           const vector<vector3d<int>> &,
-                                           const physics &, const input &,
-                                           const matMultiArray3d &,
-                                           const matMultiArray3d &, const int &,
-                                           const blkMultiArray3d<varArray> &,
-                                           blkMultiArray3d<varArray> &) const;
+  void LUSGS_Backward(const procBlock &, const vector<vector3d<int>> &,
+                      const physics &, const input &, const matMultiArray3d &,
+                      const matMultiArray3d &, const int &,
+                      const blkMultiArray3d<varArray> &,
+                      blkMultiArray3d<varArray> &) const;
 
  public:
   // constructors
