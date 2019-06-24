@@ -138,8 +138,11 @@ class gridLevel {
                                 const int& numGhosts);
   void AuxillaryAndWidths(const physics& phys);
   gridLevel Coarsen(const decomposition& decomp, const input& inp,
-                    const physics& phys);
-  void Restriction(gridLevel& coarse, const int &mm,
+                    const physics& phys, const int& rank,
+                    const MPI_Datatype& MPI_connection,
+                    const MPI_Datatype& MPI_vec3d,
+                    const MPI_Datatype& MPI_vec3dMag);
+  void Restriction(gridLevel& coarse, const int& mm,
                    const vector<blkMultiArray3d<varArray>>& fineResid,
                    const input& inp, const physics& phys, const int& rank,
                    const MPI_Datatype& MPI_tensorDouble,

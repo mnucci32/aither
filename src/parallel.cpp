@@ -576,6 +576,18 @@ void decomposition::Split(const int &low, const int &ind, const string &dir) {
   localPos_.push_back(this->NumBlocksOnProc(rank_[low]) - 1);
 }
 
+int decomposition::GlobalPos(const int &rank, const int &localPos) const {
+  auto globalPos = -1;
+  for (auto ii = 0U; ii < rank_.size(); ++ii) {
+    if (rank_[ii] == rank && localPos_[ii] == localPos) {
+        globalPos = ii;
+        break;
+      }
+  }
+  MSG_ASSERT(globalPos >= 0, "could not find global pos");
+  return globalPos;
+}
+
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const decomposition &d) {
   // os -- stream to print to

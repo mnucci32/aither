@@ -61,6 +61,9 @@ vector3d<double> ScalarGradGG(
     const vector3d<double> &, const double &);
 
 void SwapGeomSlice(connection &, procBlock &, procBlock &);
+void SwapGeomSliceMPI(connection &inter, procBlock &blk, const int &tag,
+                      const MPI_Datatype &MPI_vec3d,
+                      const MPI_Datatype &MPI_vec3dMag);
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
 void SwapImplicitUpdate(vector<blkMultiArray3d<varArray>> &,
                         const vector<connection> &, const int &, const int &);

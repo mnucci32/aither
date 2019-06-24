@@ -106,6 +106,7 @@ class decomposition {
   void DecompArray(vector<blkMultiArray3d<T>> &) const;
   void PrintDiagnostics(const vector<plot3dBlock>&) const;
   void Broadcast();
+  int GlobalPos(const int &rank, const int &localPos) const;
 
   // Destructor
   ~decomposition() noexcept {}

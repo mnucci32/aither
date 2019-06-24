@@ -101,6 +101,9 @@ class geomSlice {
   vector3d<double> FCenterK(const int &ii, const int &jj, const int &kk) const {
     return fCenterK_(ii, jj, kk);
   }
+  void PackSwapUnpackMPI(const connection &, const MPI_Datatype &,
+                         const MPI_Datatype &, const int &, const int &);
+  void SameSizeResize(const int &, const int &, const int &, const int &);
 
   // destructor
   ~geomSlice() noexcept {}

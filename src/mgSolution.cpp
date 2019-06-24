@@ -82,10 +82,15 @@ void mgSolution::GetFinestGridLevel(const mgSolution& local, const int& rank,
 }
 
 void mgSolution::ConstructMultigrids(const decomposition& decomp,
-                                     const input& inp, const physics& phys) {
+                                     const input& inp, const physics& phys,
+                                     const int& rank,
+                                     const MPI_Datatype& MPI_connection,
+                                     const MPI_Datatype& MPI_vec3d,
+                                     const MPI_Datatype& MPI_vec3dMag) {
   const auto numLevels = solution_.capacity();
   while (solution_.size() < numLevels) {
-    solution_.push_back(solution_.back().Coarsen(decomp, inp, phys));
+    solution_.push_back(solution_.back().Coarsen(
+        decomp, inp, phys, rank, MPI_connection, MPI_vec3d, MPI_vec3dMag));
   }
 }
 

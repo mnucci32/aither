@@ -165,7 +165,8 @@ int main(int argc, char *argv[]) {
   // Send finest gridLevel to appropriate processor
   auto localSolution = solution.SendFinestGridLevel(
       rank, numProcBlock, MPI_vec3d, MPI_vec3dMag, MPI_connection, inp);
-  localSolution.ConstructMultigrids(decomp, inp, phys);
+  localSolution.ConstructMultigrids(decomp, inp, phys, rank, MPI_connection,
+                                    MPI_vec3d, MPI_vec3dMag);
 
   // Update auxillary variables (temperature, viscosity, etc), cell widths
   localSolution.AuxillaryAndWidths(phys);

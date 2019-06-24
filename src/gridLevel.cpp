@@ -64,7 +64,7 @@ gridLevel::gridLevel(const vector<plot3dBlock>& mesh,
     ReadRestart(*this, restartFile, decomp, inp, phys, first, origGridSizes);
   }
 
-  // Swap geometry for interblock BCs
+  // Swap geometry for interblock BCs - assumes all data on rank 0
   for (auto& conn : connections_) {
     if (conn.IsInterblock()) {
       SwapGeomSlice(conn, blocks_[conn.BlockFirst()],
@@ -438,7 +438,10 @@ void gridLevel::AuxillaryAndWidths(const physics& phys) {
 }
 
 gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
-                             const physics& phys) {
+                             const physics& phys, const int& rank,
+                             const MPI_Datatype& MPI_connection,
+                             const MPI_Datatype& MPI_vec3d,
+                             const MPI_Datatype& MPI_vec3dMag) {
   // get plot3dBlocks and bcs for coarsened grid level
   vector<plot3dBlock> coarseMesh;
   coarseMesh.reserve(this->NumBlocks());
@@ -451,7 +454,8 @@ gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
   }
 
   gridLevel coarse;
-  coarse.connections_ = GetConnectionBCs(coarseBCs, coarseMesh, decomp, inp);
+  coarse.connections_ = GetConnectionBCsPar(coarseBCs, coarseMesh, decomp, inp,
+                                            rank, MPI_connection, MPI_vec3d);
   coarse.blocks_.reserve(coarseMesh.size());
   coarse.mgForcing_.reserve(coarseMesh.size());
   for (auto ll = 0U; ll < coarseMesh.size(); ++ll) {
@@ -467,10 +471,26 @@ gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
   }
 
   // Swap geometry for interblock BCs
-  for (auto& conn : coarse.connections_) {
+  for (auto ii = 0U; ii < coarse.connections_.size(); ++ii) {
+    auto& conn = coarse.connections_[ii];
     if (conn.IsInterblock()) {
-      SwapGeomSlice(conn, coarse.blocks_[conn.BlockFirst()],
-                    coarse.blocks_[conn.BlockSecond()]);
+      if (rank == conn.RankFirst() && rank == conn.RankSecond()) {
+        // all data is local
+        SwapGeomSlice(conn, coarse.blocks_[conn.LocalBlockFirst()],
+                      coarse.blocks_[conn.LocalBlockSecond()]);
+      } else if (rank == conn.RankFirst()) {
+        // first connection swapping with remote processor
+        SwapGeomSliceMPI(conn, coarse.blocks_[conn.LocalBlockFirst()], ii,
+                         MPI_vec3d, MPI_vec3dMag);
+      } else if (rank == conn.RankSecond()) {
+        // second connection swapping with remote processor
+        SwapGeomSliceMPI(conn, coarse.blocks_[conn.LocalBlockSecond()], ii,
+                         MPI_vec3d, MPI_vec3dMag);
+      } else {
+        cerr << "ERROR: Problem swapping geometry for connection " << conn
+             << endl;
+        exit(EXIT_FAILURE);
+      }
     }
   }
   // Get ghost cell edge data

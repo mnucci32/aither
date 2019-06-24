@@ -112,5 +112,8 @@ vector<plot3dBlock> ReadP3dGrid(const string &, const double &, double &);
 double PyramidVolume(const vector3d<double> &, const vector3d<double> &,
                      const vector3d<double> &, const vector3d<double> &,
                      const vector3d<double> &);
+vector<plot3dBlock> GatherP3ds(const vector<plot3dBlock> &,
+                               const decomposition &, const int &,
+                               const MPI_Datatype &MPI_vec3d);
 
 #endif

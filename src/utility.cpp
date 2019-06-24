@@ -244,13 +244,63 @@ void SwapGeomSlice(connection &inter, procBlock &blk1, procBlock &blk2) {
   const auto adjEdge1 = blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts());
   const auto adjEdge2 = blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts());
 
-  // if an connection border needs to be updated, update
+  // if a connection border needs to be updated, update
   for (auto ii = 0U; ii < adjEdge1.size(); ii++) {
     if (adjEdge1[ii]) {
       inter.UpdateBorderFirst(ii);
     }
     if (adjEdge2[ii]) {
       inter.UpdateBorderSecond(ii);
+    }
+  }
+}
+
+void SwapGeomSliceMPI(connection &inter, procBlock &blk, const int &tag,
+                      const MPI_Datatype &MPI_vec3d,
+                      const MPI_Datatype &MPI_vec3dMag) {
+  // inter -- connection boundary information
+  // blk -- first block involved in connection boundary
+  // Get indices for slice coming from block to swap
+  auto is = 0, ie = 0;
+  auto js = 0, je = 0;
+  auto ks = 0, ke = 0;
+
+  const auto rank = blk.Rank();
+  if (rank == inter.RankFirst()) {  // local block first in connection
+    inter.FirstSliceIndices(is, ie, js, je, ks, ke, blk.NumGhosts());
+  } else if (rank == inter.RankSecond()) {  // local block second in connection
+    inter.SecondSliceIndices(is, ie, js, je, ks, ke, blk.NumGhosts());
+  } else {
+    cerr << "ERROR: Error in SwapGeomSliceMPI(). Processor rank does "
+            "not match either of connection ranks!" << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // get local geomslice to swap
+  auto slice = geomSlice(blk, {is, ie}, {js, je}, {ks, ke});
+
+  // swap geomSlices with partner block
+  slice.PackSwapUnpackMPI(inter, MPI_vec3d, MPI_vec3dMag, rank, tag);
+
+  // change connections to work with slice and ghosts
+  auto interAdj = inter;
+  // block to insert into is first in connection
+  if (rank == inter.RankFirst()) {
+    interAdj.AdjustForSlice(true, blk.NumGhosts());
+  } else {  // block to insert into is second in connection, so pass swapped
+            // version
+    interAdj.AdjustForSlice(false, blk.NumGhosts());
+  }
+
+  // insert geomSlice into procBlock
+  // return vector determining if any of the 4 edges of the connection need to
+  // be updated for a "t" intersection
+  const auto adjEdge = blk.PutGeomSlice(slice, interAdj, blk.NumGhosts());
+
+  // if a connection border needs to be updated, update
+  for (auto ii = 0U; ii < adjEdge.size(); ++ii) {
+    if (adjEdge[ii]) {
+      inter.UpdateBorderFirst(ii);
     }
   }
 }

@@ -437,6 +437,14 @@ class connection {
 vector<connection> GetConnectionBCs(const vector<boundaryConditions>&,
                                     const vector<plot3dBlock>&,
                                     const decomposition&, const input&);
+vector<connection> GetConnectionBCsPar(const vector<boundaryConditions> &,
+                                       const vector<plot3dBlock> &,
+                                       const decomposition &, const input &,
+                                       const int &, const MPI_Datatype &,
+                                       const MPI_Datatype &);
+vector<boundaryConditions> GatherBCs(const vector<boundaryConditions> &,
+                                     const decomposition &, const int &);
+
 map<boundarySurface, pair<boundarySurface, int>> GetBlockInterConnBCs(
     const vector<boundaryConditions> &, const vector<plot3dBlock> &,
     const int &);
