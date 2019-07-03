@@ -45,6 +45,7 @@
 #include "utility.hpp"
 #include "matMultiArray3d.hpp"
 #include "mgSolution.hpp"
+#include "logFileManager.hpp"
 
 using std::cout;
 using std::cerr;
@@ -72,9 +73,6 @@ int main(int argc, char *argv[]) {
     cout << "Using " << numProcs << " processors" << endl;
   }
   MPI_Barrier(MPI_COMM_WORLD);
-
-  // Start clock to time simulation
-  const auto start = std::chrono::high_resolution_clock::now();
 
   // Enable exceptions so code won't run with NANs
 #ifdef __linux__
@@ -106,6 +104,7 @@ int main(int argc, char *argv[]) {
 
   // Parse input file
   inp.ReadInput(rank);
+  logFileManager logs(inp, rank);
 
   // nondimensionalize fluid data
   inp.NondimensionalizeFluid();
@@ -118,8 +117,6 @@ int main(int argc, char *argv[]) {
 
   mgSolution solution;  // only keep finest grid level globally
   vector<vector3d<double>> viscFaces;
-  // l2 norm residuals to normalize by
-  residual residL2First(inp.NumEquations(), inp.NumSpecies());
 
   if (rank == ROOTP) {
     cout << "Number of equations: " << inp.NumEquations() << endl << endl;
@@ -141,7 +138,7 @@ int main(int argc, char *argv[]) {
     }
 
     solution.ConstructFinestLevel(mesh, bcs, decomp, phys, restartFile, inp,
-                                  residL2First);
+                                  logs.L2First());
 
     // Get face centers of faces with viscous wall BC
     viscFaces = GetViscousFaceCenters(solution.Finest().Blocks());
@@ -218,19 +215,7 @@ int main(int argc, char *argv[]) {
   solution.GetFinestGridLevel(localSolution, rank, MPI_uncoupledScalar,
                               MPI_vec3d, MPI_tensorDouble, inp);
 
-  ofstream resFile;
   if (rank == ROOTP) {
-    // Open residual file
-    if (inp.IsRestart()) {
-      resFile.open(inp.SimNameRoot() + ".resid", ios::app);
-    } else {
-      resFile.open(inp.SimNameRoot() + ".resid", ios::out);
-    }
-    if (resFile.fail()) {
-      cerr << "ERROR: Could not open residual file!" << endl;
-      exit(EXIT_FAILURE);
-    }
-
     // Write out cell centers grid file
     WriteCellCenter(inp.GridName(), solution.Finest().Blocks(), decomp, inp);
 
@@ -245,6 +230,8 @@ int main(int argc, char *argv[]) {
   // loop over time
   for (auto nn = 0; nn < inp.Iterations(); ++nn) {
     MPI_Barrier(MPI_COMM_WORLD);
+    logs.GetIterStart();
+
     // Calculate cfl number
     inp.CalcCFL(nn);
 
@@ -284,8 +271,8 @@ int main(int argc, char *argv[]) {
         matrixResid = sqrt(matrixResid/(totalCells * inp.NumEquations()));
 
         // Print out run information
-        WriteResiduals(inp, residL2First, residL2, residLinf, matrixResid,
-                       nn + inp.IterationStart(), mm, resFile);
+        logs.WriteResiduals(inp, residL2, residLinf, matrixResid,
+                            nn + inp.IterationStart(), mm);
       }
     }  // loop for nonlinear iterations ---------------------------------------
 
@@ -308,21 +295,15 @@ int main(int argc, char *argv[]) {
         // Write out restart file
         WriteRestart(solution.Finest().Blocks(), phys,
                      (nn + inp.IterationStart() + 1), decomp, inp,
-                     residL2First);
+                     logs.L2First());
       }
     }
+    logs.WriteTime(nn);
   }  // loop for time step -----------------------------------------------------
 
   if (rank == ROOTP) {
-    // close residual file
-    resFile.close();
-
     cout << endl << "Program Complete" << endl;
     PrintTime();
-
-    const auto simEnd = std::chrono::high_resolution_clock::now();
-    const std::chrono::duration<double> duration = simEnd - start;
-    cout << "Total Time: " << duration.count() << " seconds" << endl;
   }
 
   // Free datatypes previously created

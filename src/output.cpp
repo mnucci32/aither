@@ -1004,30 +1004,6 @@ void WriteWallMeta(const input &inp, const int &iter) {
   metaFile.close();
 }
 
-
-// function to write out residual information
-void WriteResiduals(const input &inp, residual &residL2First,
-                    const residual &residL2, const resid &residLinf,
-                    const double &matrixResid, const int &nn, const int &mm,
-                    ostream &resFile) {
-  // if first iteration write headers to residual file
-  if (nn == 0 && mm == 0) {
-    PrintHeaders(inp, resFile);
-  }
-
-  // write out column headers every 100 iterations to standard out
-  if (nn % 100 == 0 && mm == 0) {
-    PrintHeaders(inp, cout);
-  }
-
-  // print residuals to standard out
-  PrintResiduals(inp, residL2First, residL2, residLinf, matrixResid, nn, mm,
-                 cout);
-  // print residuals to residual file
-  PrintResiduals(inp, residL2First, residL2, residLinf, matrixResid, nn, mm,
-                 resFile);
-}
-
 void PrintHeaders(const input &inp, ostream &os) {
   // write out column headers
   os << std::left << setw(7) << "Step" << setw(8) << "NL-Iter";

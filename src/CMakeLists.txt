@@ -42,6 +42,7 @@ set(sources
   kdtree.cpp
   limiter.cpp
   linearSolver.cpp
+  logFileManager.cpp
   matMultiArray3d.cpp
   matrix.cpp
   mgSolution.cpp

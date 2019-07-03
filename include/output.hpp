@@ -95,8 +95,6 @@ blkMultiArray3d<conserved> ReadSolNm1FromRestart(ifstream &, const input &,
                                                  const int &, const int &,
                                                  const int &, const int &);
 
-void WriteResiduals(const input &, residual &, const residual &, const resid &,
-                    const double &, const int &, const int &, ostream &);
 void PrintResiduals(const input &, residual &, const residual &, const resid &,
                     const double &, const int &, const int &, ostream &);
 void PrintHeaders(const input &, ostream &);
