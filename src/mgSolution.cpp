@@ -172,7 +172,8 @@ double mgSolution::CycleAtLevel(const int& fl, const int& mm,
     matrixResid = this->Relax(fl, inp.MatrixSweeps(), phys, inp, rank);
   } else {
     // pre-relaxation sweeps
-    matrixResid = this->Relax(fl, ceil(inp.MatrixSweeps()/2), phys, inp, rank);
+    const auto sweeps = std::max(inp.MatrixSweeps() / 2, 1);
+    matrixResid = this->Relax(fl, sweeps, phys, inp, rank);
 
     // coarse grid correction
     // restrict solution, matrix residual, and implicit update to coarse grid
@@ -191,7 +192,7 @@ double mgSolution::CycleAtLevel(const int& fl, const int& mm,
     this->Prolongation(cl);
 
     // post-relaxation sweeps
-    matrixResid = this->Relax(fl, ceil(inp.MatrixSweeps()/2), phys, inp, rank);
+    matrixResid = this->Relax(fl, sweeps, phys, inp, rank);
   }
 
   // calculate l2 norm of matrix residual

@@ -486,10 +486,6 @@ gridLevel gridLevel::Coarsen(const decomposition& decomp, const input& inp,
         // second connection swapping with remote processor
         SwapGeomSliceMPI(conn, coarse.blocks_[conn.LocalBlockSecond()], ii,
                          MPI_vec3d, MPI_vec3dMag);
-      } else {
-        cerr << "ERROR: Problem swapping geometry for connection " << conn
-             << endl;
-        exit(EXIT_FAILURE);
       }
     }
   }
