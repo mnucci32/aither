@@ -1045,10 +1045,6 @@ void PrintResiduals(const input &inp, residual &residL2First,
     }
   }
 
-  for (auto ii = 0; ii < residL2First.Size(); ++ii) {
-    residL2First[ii] = 1.0;
-  }
-
   os << std::left << setw(7) << nn << setw(8) << mm;
   if (inp.Dt() > 0.0) {
     os << std::left << setw(12) << setprecision(4) << std::scientific

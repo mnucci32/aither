@@ -318,15 +318,20 @@ def main():
 
     # ------------------------------------------------------------------
     # transonic bump in channel
-    # laminar, inviscid, dplur
+    # laminar, inviscid, dplur, multigrid
     transBump = regressionTest()
     transBump.SetRegressionCase("transonicBump")
     transBump.SetAitherPath(options.aitherPath)
     transBump.SetRunDirectory("transonicBump")
     transBump.SetProfile(isProfile)
-    transBump.SetNumberOfProcessors(1)
+    transBump.SetNumberOfProcessors(maxProcs)
     transBump.SetNumberOfIterations(numIterations)
-    transBump.SetResiduals([1.1901e-01, 7.0606e-02, 8.4288e-02, 1.0000e+00, 1.0032e-01])
+    if transBump.Processors() == 2:
+        transBump.SetResiduals(
+            [2.6257e-02, 1.6075e-02, 1.0009e-02, 1.0000e+00, 1.9338e-02])
+    else:
+        transBump.SetResiduals(
+            [2.6152e-02, 1.5984e-02, 9.6803e-03, 1.0000e+00, 1.9215e-02])
     transBump.SetIgnoreIndices(3)
     transBump.SetMpirunPath(options.mpirunPath)
 
