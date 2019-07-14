@@ -81,16 +81,16 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-3.8
+            - llvm-toolchain-trusty-8
           packages:
-            - clang++-3.8 clang-3.8 libc++-dev libc++abi-dev
+            - clang++-8 clang-8 libc++-dev libc++abi-dev
       env:
-        - CXX_COMPILER=clang++-3.8
-        - C_COMPILER=clang-3.8
+        - CXX_COMPILER=clang++-8
+        - C_COMPILER=clang-8
         - BUILD_TYPE=release
         - AITHER_INSTALL_DIRECTORY=$TRAVIS_BUILD_DIR/build/install
     - os: osx
-      osx_image: xcode8
+      osx_image: xcode11
       compiler: gcc
       env:
         - CXX_COMPILER=g++-8
@@ -100,7 +100,7 @@ matrix:
         - BUILD_TYPE=release
         - AITHER_INSTALL_DIRECTORY=$TRAVIS_BUILD_DIR/build/install
     - os: osx
-      osx_image: xcode8
+      osx_image: xcode11
       compiler: clang
       env:
         - CXX_COMPILER=clang++
@@ -116,7 +116,7 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y python3; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew upgrade python; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc@8; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc8; fi
   - test -n $CC && unset CC
   - test -n $CXX && unset CXX
   - which $CXX_COMPILER

@@ -324,7 +324,7 @@ def main():
     transBump.SetAitherPath(options.aitherPath)
     transBump.SetRunDirectory("transonicBump")
     transBump.SetProfile(isProfile)
-    transBump.SetNumberOfProcessors(maxProcs)
+    transBump.SetNumberOfProcessors(1)
     transBump.SetNumberOfIterations(numIterations)
     if transBump.Processors() == 2:
         transBump.SetResiduals(
