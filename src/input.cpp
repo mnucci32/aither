@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (mnucci@pm.me)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,6 +30,8 @@
 #include "inputStates.hpp"
 #include "physicsModels.hpp"
 #include "fluid.hpp"
+#include "linearSolver.hpp"
+#include "gridLevel.hpp"
 #include "macros.hpp"
 
 using std::cout;
@@ -94,6 +96,11 @@ input::input(const string &name, const string &resName) : simName_(name),
   iterationStart_ = 0;  // default to start from iteration zero
   schmidtNumber_ = 0.9;
   freezingTemperature_ = 0.0;
+  mgLevels_ = 1;
+  outputNodalVariables_ = false;
+  mgPreSweeps_ = 2;
+  mgPostSweeps_ = 1;
+  mgCycle_ = "V";
 
   // default to primitive variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
@@ -134,10 +141,15 @@ input::input(const string &name, const string &resName) : simName_(name),
            "equationOfState",
            "transportModel",
            "outputVariables",
+           "outputNodalVariables",
            "wallOutputVariables",
            "initialConditions",
            "schmidtNumber",
            "freezingTemperature",
+           "multigridLevels",
+           "multigridPreSweeps",
+           "multigridPostSweeps",
+           "multigridCycle",
            "boundaryStates",
            "boundaryConditions"};
 }
@@ -422,6 +434,31 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->FreezingTemperature() << endl;
           }
+        } else if (key == "multigridLevels") {
+          mgLevels_ = stoi(tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << ": " << this->MultigridLevels() << endl;
+          }
+        } else if (key == "multigridPreSweeps") {
+          mgPreSweeps_ = stoi(tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << ": " << this->MultigridPreSweeps() << endl;
+          }
+        } else if (key == "multigridPostSweeps") {
+          mgPostSweeps_ = stoi(tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << ": " << this->MultigridPostSweeps() << endl;
+          }
+        } else if (key == "multigridCycle") {
+          mgCycle_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->MultigridCycleType() << endl;
+          }
+        } else if (key == "outputNodalVariables") {
+          outputNodalVariables_ = tokens[1] == "yes" || tokens[1] == "true";
+          if (rank == ROOTP) {
+            cout << key << ": " << this->OutputNodalVariables() << endl;
+          }
         } else if (key == "outputVariables") {
           // clear default variables from set
           outputVariables_.clear();
@@ -593,6 +630,7 @@ void input::ReadInput(const int &rank) {
   this->CheckSpecies();
   this->CheckNonreflecting();
   this->CheckChemistryMechanism();
+  this->CheckMultigrid();
 
   if (rank == ROOTP) {
     cout << endl;
@@ -801,6 +839,23 @@ unique_ptr<chemistry> input::AssignChemistryModel() const {
   return chem;
 }
 
+// member function to get linear solver
+unique_ptr<linearSolver> input::AssignLinearSolver(
+    const gridLevel &level) const {
+  // define linear solver
+  unique_ptr<linearSolver> solver(nullptr);
+  if (matrixSolver_ == "lusgs" || matrixSolver_ == "blusgs") {
+    solver =
+        unique_ptr<linearSolver>{std::make_unique<lusgs>(*this, level)};
+  } else if (matrixSolver_ == "dplur" || matrixSolver_ == "bdplur") {
+    solver = unique_ptr<linearSolver>{std::make_unique<dplur>(*this, level)};
+  } else {
+    cerr << "ERROR: Error in input::AssignLinearSolver(). Linear "
+         << "solver " << matrixSolver_ << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return solver;
+}
 
 physics input::AssignPhysicsModels() const {
   auto eqnState = this->AssignEquationOfState();
@@ -981,6 +1036,18 @@ void input::CheckNonreflecting() const {
         exit(EXIT_FAILURE);
       }
     }
+  }
+}
+
+// check that multigrid parameters make sense
+void input::CheckMultigrid() const {
+  if (mgLevels_ < 1) {
+    cerr << "ERROR: multigridLevels must be >= 1!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (mgCycle_ != "V" && mgCycle_ != "W") {
+    cerr << "ERROR: multigridCycle must be 'V' or 'W'" << endl;
+    exit(EXIT_FAILURE);
   }
 }
 

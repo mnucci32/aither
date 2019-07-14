@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (mnucci@pm.me)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,9 +14,8 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef PARALLELHEADERDEF  // only if the macro PARALLELHEADERDEF is not defined
-                           // execute these lines of code
-#define PARALLELHEADERDEF  // define the macro
+#ifndef PARALLEL_HEADER_DEF
+#define PARALLEL_HEADER_DEF
 
 /* This header contains the function declarations for many of the parallel
  * functions in the code */
@@ -106,6 +105,8 @@ class decomposition {
   template <typename T>
   void DecompArray(vector<blkMultiArray3d<T>> &) const;
   void PrintDiagnostics(const vector<plot3dBlock>&) const;
+  void Broadcast();
+  int GlobalPos(const int &rank, const int &localPos) const;
 
   // Destructor
   ~decomposition() noexcept {}
@@ -120,7 +121,6 @@ decomposition CubicDecomposition(vector<plot3dBlock>&,
                                  vector<boundaryConditions>&, const int&);
 
 void SendNumProcBlocks(const vector<int>&, int&);
-void SendConnections(vector<connection>&, const MPI_Datatype&);
 
 void SetDataTypesMPI(MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
                      MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
@@ -129,20 +129,10 @@ void FreeDataTypesMPI(MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
                       MPI_Datatype &, MPI_Datatype &, MPI_Datatype &,
                       MPI_Datatype &);
 
-vector<procBlock> SendProcBlocks(const vector<procBlock> &, const int &,
-                                 const int &, const MPI_Datatype &,
-                                 const MPI_Datatype &,
-                                 const input &);
-void GetProcBlocks(vector<procBlock> &, const vector<procBlock> &, const int &,
-                   const MPI_Datatype &, const MPI_Datatype &,
-                   const MPI_Datatype &, const input &);
-
 void MaxLinf(resid*, resid*, int*, MPI_Datatype*);
 
 void BroadcastString(string& str);
-
 void BroadcastViscFaces(const MPI_Datatype&, vector<vector3d<double>> &);
-
 
 template <typename T>
 void decomposition::DecompArray(vector<blkMultiArray3d<T>> &arr) const {

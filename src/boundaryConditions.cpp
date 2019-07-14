@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (mnucci@pm.me)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -377,6 +377,122 @@ range connection::Dir2RangeFirst() const {
 
 range connection::Dir2RangeSecond() const {
   return {d2Start_[1], d2End_[1]};
+}
+
+vector<boundaryConditions> GatherBCs(const vector<boundaryConditions> &bc,
+                                     const decomposition &decomp,
+                                     const int &rank) {
+  // find out how many total blocks there are
+  auto numBlks = bc.size();
+  if (rank == ROOTP) {
+    MPI_Reduce(MPI_IN_PLACE, &numBlks, 1, MPI_INT, MPI_SUM, ROOTP,
+               MPI_COMM_WORLD);
+  } else {
+    MPI_Reduce(&numBlks, &numBlks, 1, MPI_INT, MPI_SUM, ROOTP, MPI_COMM_WORLD);
+  }
+
+  vector<boundaryConditions> allBCs;
+  if (rank == ROOTP) {
+    // first copy local data
+    allBCs.resize(numBlks);
+    for (auto gp = 0U; gp < numBlks; ++gp) {
+      MSG_ASSERT(gp <= numBlks, "global position outside of range");
+      const auto sendingRank = decomp.Rank(gp);
+      if (sendingRank == ROOTP) {  // data already on rank 0
+        allBCs[gp] = bc[decomp.LocalPosition(gp)];
+      } else {  // need to receive remote data
+        MPI_Status status;  // allocate MPI_Status structure
+        // probe message to get correct data size
+        auto recvBufSize = 0;
+        MPI_Probe(sendingRank, gp, MPI_COMM_WORLD, &status);
+        // use MPI_CHAR because sending buffer was allocated with chars
+        MPI_Get_count(&status, MPI_CHAR, &recvBufSize);
+        // allocate buffer of correct size
+        // use unique_ptr to manage memory; use underlying pointer with MPI
+        auto recvBuffer = std::make_unique<char[]>(recvBufSize);
+        auto *rawRecvBuffer = recvBuffer.get();
+        // receive message from remote
+        MPI_Recv(rawRecvBuffer, recvBufSize, MPI_PACKED, sendingRank, gp,
+                 MPI_COMM_WORLD, &status);
+        auto position = 0;
+          // unpack boundary conditions
+        allBCs[gp].UnpackBC(rawRecvBuffer, recvBufSize, position);
+      }
+    }
+  } else {
+    // send remote data
+    for (auto lp = 0U; lp < bc.size(); ++lp) {
+      // add size for number of bc surfaces
+      // determine size of buffer to send
+      auto sendBufSize = 0;
+      auto tempSize = 0;
+      MPI_Pack_size(3, MPI_INT, MPI_COMM_WORLD, &tempSize);
+      sendBufSize += tempSize;
+      // add size for BCs
+      // 8x because iMin, iMax, jMin, jMax, kMin, kMax, tags, string sizes
+      MPI_Pack_size(bc[lp].NumSurfaces() * 8, MPI_INT, MPI_COMM_WORLD,
+                    &tempSize);
+      sendBufSize += tempSize;
+
+      auto stringSize = 0;
+      for (auto jj = 0; jj < bc[lp].NumSurfaces(); ++jj) {
+        // add size for bc_ types (+1 for c_str end character)
+        MPI_Pack_size(bc[lp].GetBCTypes(jj).size() + 1, MPI_CHAR,
+                      MPI_COMM_WORLD, &tempSize);
+        stringSize += tempSize;
+      }
+      sendBufSize += stringSize;
+
+      // allocate buffer to pack data into
+      // use unique_ptr to manage memory; use underlying pointer with MPI calls
+      auto sendBuffer = std::make_unique<char[]>(sendBufSize);
+      auto *rawSendBuffer = sendBuffer.get();
+      auto position = 0;
+      bc[lp].PackBC(rawSendBuffer, sendBufSize, position);
+      const auto globalPos = decomp.GlobalPos(rank, lp);
+      MPI_Send(rawSendBuffer, sendBufSize, MPI_PACKED, ROOTP, globalPos,
+               MPI_COMM_WORLD);
+    }
+  }
+  return allBCs;
+}
+
+/* Function to go through the boundary conditions and pair the connection
+   BCs together and determine their orientation. This function first gathers
+   the BCs and grids to rank 0, then finds the connection BCs. Finally it
+   broadcasts the connections to all processors.*/
+vector<connection> GetConnectionBCsPar(const vector<boundaryConditions> &bc,
+                                       const vector<plot3dBlock> &grid,
+                                       const decomposition &decomp,
+                                       const input &inp, const int &rank,
+                                       const MPI_Datatype &MPI_connection,
+                                       const MPI_Datatype &MPI_vec3d) {
+  // bc -- vector of boundaryConditions for all blocks
+  // grid -- vector of plot3Dblocks for entire computational mesh
+  // decomp -- decomposition of grid onto processors
+  // inp -- input variables
+  MSG_ASSERT(bc.size() == grid.size(), "BC and block size mismatch");
+
+  // gather all the bcs on rank 0
+  const auto allBCs = GatherBCs(bc, decomp, rank);
+  const auto allGrids = GatherP3ds(grid, decomp, rank, MPI_vec3d);
+
+  // find connection BCs on rank 0
+  vector<connection> conn;
+  if (rank == ROOTP) {
+    conn = GetConnectionBCs(allBCs, allGrids, decomp, inp);
+  }
+
+  // broadcast connections to all procs
+  auto numConn = conn.size();
+  MPI_Bcast(&numConn, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  conn.resize(numConn);  // allocate space to receive connections
+
+  // broadcast all connections to all processors
+  MPI_Bcast(&(*std::begin(conn)), conn.size(), MPI_connection, ROOTP,
+            MPI_COMM_WORLD);
+
+  return conn;
 }
 
 /* Function to go through the boundary conditions and pair the connection
@@ -1106,6 +1222,38 @@ vector<pair<boundarySurface, boundarySurface>> boundaryConditions::CGridPairs(
     }
   }
   return pairs;
+}
+
+bool boundaryConditions::IsSurfaceBoundary(const string &dir,
+                                           const int &ind) const {
+  MSG_ASSERT(dir == "i" || dir == "j" || dir == "k",
+             "direction not recognized");
+  auto isBoundary = false;
+  if (dir == "i") {
+    isBoundary = std::any_of(std::begin(surfs_), std::end(surfs_),
+                             [&ind](const auto &surf) {
+                               return surf.IMin() == ind || surf.IMax() == ind;
+                             });
+  } else if (dir == "j") {
+    isBoundary = std::any_of(std::begin(surfs_), std::end(surfs_),
+                             [&ind](const auto &surf) {
+                               return surf.JMin() == ind || surf.JMax() == ind;
+                             });
+  } else {
+    isBoundary = std::any_of(std::begin(surfs_), std::end(surfs_),
+                             [&ind](const auto &surf) {
+                               return surf.KMin() == ind || surf.KMax() == ind;
+                             });
+  }
+  return isBoundary;
+}
+
+void boundaryConditions::UpdateSurfacesForCoarseMesh(const string &dir,
+                                                     const int &oldIndex,
+                                                     const int &newIndex) {
+  for (auto &surf : surfs_) {
+    surf.UpdateForCoarseMesh(dir, oldIndex, newIndex);
+  }
 }
 
 /* Member function to split boundary conditions along a given direction at a
@@ -2245,7 +2393,7 @@ void boundarySurface::UnpackBoundarySurface(char *(&recvBuffer),
 
   // unpack boundary condition names
   // allocate buffer to store BC name
-  auto nameBuf = unique_ptr<char>(new char[strLength]);
+  auto nameBuf = std::make_unique<char[]>(strLength);
   MPI_Unpack(recvBuffer, recvBufSize, &position, nameBuf.get(), strLength,
              MPI_CHAR, MPI_COMM_WORLD);
   // create string of bc name (-1 to exclude c_str end character)
@@ -2347,6 +2495,34 @@ int boundarySurface::PartnerSurface() const {
     }
 
     return surf;
+  }
+}
+
+void boundarySurface::UpdateForCoarseMesh(const string &dir, const int &oldInd,
+                                          const int &newInd) {
+  MSG_ASSERT(dir == "i" || dir == "j" || dir == "k",
+             "direction not recognized");
+  if (dir == "i") {
+    if (this->IMin() == oldInd) {
+      data_[0] = newInd;
+    }
+    if (this->IMax() == oldInd) {
+      data_[1] = newInd;
+    }
+  } else if (dir == "j") {
+    if (this->JMin() == oldInd) {
+      data_[2] = newInd;
+    }
+    if (this->JMax() == oldInd) {
+      data_[3] = newInd;
+    }
+  } else {
+    if (this->KMin() == oldInd) {
+      data_[4] = newInd;
+    }
+    if (this->KMax() == oldInd) {
+      data_[5] = newInd;
+    }
   }
 }
 

@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (mnucci@pm.me)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -143,6 +143,8 @@ class boundarySurface {
   bool operator==(const boundarySurface &) const;
   bool operator!=(const boundarySurface &s) const { return !(*this == s); };
   bool operator<(const boundarySurface &s) const;
+
+  void UpdateForCoarseMesh(const string &, const int &, const int &);
 
   // Destructor
   ~boundarySurface() noexcept {}
@@ -309,6 +311,9 @@ class boundaryConditions {
 
   vector<pair<boundarySurface, boundarySurface>> CGridPairs(const int &) const;
 
+  bool IsSurfaceBoundary(const string &, const int &) const;
+  void UpdateSurfacesForCoarseMesh(const string &, const int &, const int &);
+
   // Destructor
   ~boundaryConditions() noexcept {}
 };
@@ -432,6 +437,14 @@ class connection {
 vector<connection> GetConnectionBCs(const vector<boundaryConditions>&,
                                     const vector<plot3dBlock>&,
                                     const decomposition&, const input&);
+vector<connection> GetConnectionBCsPar(const vector<boundaryConditions> &,
+                                       const vector<plot3dBlock> &,
+                                       const decomposition &, const input &,
+                                       const int &, const MPI_Datatype &,
+                                       const MPI_Datatype &);
+vector<boundaryConditions> GatherBCs(const vector<boundaryConditions> &,
+                                     const decomposition &, const int &);
+
 map<boundarySurface, pair<boundarySurface, int>> GetBlockInterConnBCs(
     const vector<boundaryConditions> &, const vector<plot3dBlock> &,
     const int &);

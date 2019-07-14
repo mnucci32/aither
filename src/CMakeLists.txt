@@ -35,13 +35,17 @@ set(sources
   fluid.cpp
   fluxJacobian.cpp
   ghostStates.cpp
+  gridLevel.cpp
   input.cpp
   inputStates.cpp
   inviscidFlux.cpp
   kdtree.cpp
   limiter.cpp
+  linearSolver.cpp
+  logFileManager.cpp
   matMultiArray3d.cpp
   matrix.cpp
+  mgSolution.cpp
   output.cpp
   parallel.cpp
   plot3d.cpp

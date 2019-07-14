@@ -35,8 +35,8 @@ Multispecies flow is supported and a Schmidt number based model is used for
 diffusion. Reacting flow is modeled with a finite rate chemistry model.
 
 ### To Do List
-* Add multigrid scheme for improved convergence
 * Performance improvements
+* User guide
 
 ### Dependencies
 * MPI - OpenMPI, MPICH, & MS-MPI have been used

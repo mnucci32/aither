@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (mnucci@pm.me)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -58,6 +58,10 @@ class range {
   bool IsInside(const range &r) const {
     return start_ >= r.start_ && start_ < r.end_ && end_ > r.start_ &&
         end_ <= r.end_;
+  }
+  bool IsInclusive(const range &r) const {
+    return start_ <= r.start_ && start_ < r.end_ && end_ > r.start_ &&
+        end_ >= r.end_;
   }
   bool IsValid() const {
     return end_ > start_;

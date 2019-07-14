@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (mnucci@pm.me)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <vector>    // vector
 #include <string>    // string
 #include <memory>    // unique_ptr
+#include <type_traits>
 #include "mpi.h"
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"  // connection
@@ -207,12 +208,161 @@ class blkMultiArray3d : public multiArray3d<double> {
   blkMultiArray3d<T> GrowJ() const;
   blkMultiArray3d<T> GrowK() const;
 
+  // arithmetic with same type
+  template <typename T2>
+  inline typename std::enable_if_t<std::is_base_of<varArray, T>::value &&
+                                       std::is_base_of<varArray, T2>::value &&
+                                       std::is_base_of<T2, T>::value,
+                                   blkMultiArray3d<T>>
+      &operator+=(const blkMultiArray3d<T2> &arr) {
+    for (auto rr = 0; rr < this->Size(); ++rr) {
+      (*this)[rr] += arr[rr];
+    }
+    return *this;
+  }
+
+  template <typename T2>
+  inline typename std::enable_if_t<std::is_base_of<varArray, T>::value &&
+                                       std::is_base_of<varArray, T2>::value &&
+                                       std::is_base_of<T2, T>::value,
+                                   blkMultiArray3d<T>>
+      &operator-=(const blkMultiArray3d<T2> &arr) {
+    for (auto rr = 0; rr < this->Size(); rr++) {
+      (*this)[rr] -= arr[rr];
+    }
+    return *this;
+  }
+
+  template <typename T2>
+  inline typename std::enable_if_t<std::is_base_of<varArray, T>::value &&
+                                       std::is_base_of<varArray, T2>::value &&
+                                       std::is_base_of<T2, T>::value,
+                                   blkMultiArray3d<T>>
+      &operator*=(const blkMultiArray3d<T2> &arr) {
+    for (auto rr = 0; rr < this->Size(); rr++) {
+      (*this)[rr] *= arr[rr];
+    }
+    return *this;
+  }
+
+  template <typename T2>
+  inline typename std::enable_if_t<std::is_base_of<varArray, T>::value &&
+                                       std::is_base_of<varArray, T2>::value &&
+                                       std::is_base_of<T2, T>::value,
+                                   blkMultiArray3d<T>>
+      &operator/=(const blkMultiArray3d<T2> &arr) {
+    for (auto rr = 0; rr < this->Size(); rr++) {
+      (*this)[rr] /= arr[rr];
+    }
+    return *this;
+  }
+
+  // arithmetic with scalar
+  inline blkMultiArray3d<T> & operator+=(const double &);
+  inline blkMultiArray3d<T> & operator-=(const double &);
+  inline blkMultiArray3d<T> & operator*=(const double &);
+  inline blkMultiArray3d<T> & operator/=(const double &);
+
+
   // destructor
   ~blkMultiArray3d() noexcept {}
 };
 
 // ---------------------------------------------------------------------------
-// member function definitions
+// Same type operator overloads
+template <typename T>
+inline const blkMultiArray3d<T> operator+(blkMultiArray3d<T> lhs,
+                                          const blkMultiArray3d<T> &rhs) {
+  return lhs += rhs;
+}
+
+template <typename T>
+inline const blkMultiArray3d<T> operator-(blkMultiArray3d<T> lhs,
+                                          const blkMultiArray3d<T> &rhs) {
+  return lhs -= rhs;
+}
+
+template <typename T>
+inline const blkMultiArray3d<T> operator*(blkMultiArray3d<T> lhs,
+                                          const blkMultiArray3d<T> &rhs) {
+  return lhs *= rhs;
+}
+
+template <typename T>
+inline const blkMultiArray3d<T> operator/(blkMultiArray3d<T> lhs,
+                                          const blkMultiArray3d<T> &rhs) {
+  return lhs /= rhs;
+}
+
+// -------------------------------------------------------------------------
+// operator overload for addition
+template <typename T>
+blkMultiArray3d<T> & blkMultiArray3d<T>::operator+=(const double &scalar) {
+  for (auto rr = 0; rr < this->Size(); ++rr) {
+    (*this)[rr] += scalar;
+  }
+  return *this;
+}
+
+// operator overload for subtraction
+template <typename T>
+blkMultiArray3d<T> & blkMultiArray3d<T>::operator-=(const double &scalar) {
+  for (auto rr = 0; rr < this->Size(); ++rr) {
+    (*this)[rr] -= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise multiplication
+template <typename T>
+blkMultiArray3d<T> & blkMultiArray3d<T>::operator*=(const double &scalar) {
+  for (auto rr = 0; rr < this->Size(); ++rr) {
+    (*this)[rr] *= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise division
+template <typename T>
+blkMultiArray3d<T> & blkMultiArray3d<T>::operator/=(const double &scalar) {
+  for (auto rr = 0; rr < this->Size(); ++rr) {
+    (*this)[rr] /= scalar;
+  }
+  return *this;
+}
+
+template <typename T>
+inline const blkMultiArray3d<T> operator+(const double &lhs,
+                                          blkMultiArray3d<T> rhs) {
+  return rhs += lhs;
+}
+
+template <typename T>
+inline const blkMultiArray3d<T> operator-(const double &lhs,
+                                          blkMultiArray3d<T> rhs) {
+  for (auto rr = 0; rr < rhs.Size(); ++rr) {
+    rhs(rr) = lhs - rhs(rr);
+  }
+  return rhs;
+}
+
+template <typename T>
+inline const blkMultiArray3d<T> operator*(const double &lhs,
+                                          blkMultiArray3d<T> rhs) {
+  return rhs *= lhs;
+}
+
+template <typename T>
+inline const blkMultiArray3d<T> operator/(const double &lhs,
+                                          blkMultiArray3d<T> rhs) {
+  for (auto rr = 0; rr < rhs.Size(); ++rr) {
+    rhs(rr) = lhs / rhs(rr);
+  }
+  return rhs;
+}
+
+// ----------------------------------------------------------------
+
 
 // operation overload for << - allows use of cout, cerr, etc.
 template <typename T>
@@ -231,6 +381,7 @@ ostream &operator<<(ostream &os, const blkMultiArray3d<T> &arr) {
   return os;
 }
 
+// member function definitions
 // member function to return a slice of the array
 // this is the main slice function that all other overloaded slice functions call
 template <typename T>

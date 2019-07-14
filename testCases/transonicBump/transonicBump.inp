@@ -24,6 +24,9 @@ matrixSolver: dplur
 matrixSweeps: 4
 matrixRelaxation: 1.0
 
+multigridLevels: 3
+multigridCycle: W
+
 boundaryStates: <characteristic(tag=1; pressure=101300; density=1.2256; velocity=[238, 0, 0])>
 
 #---------------------------------------------------------------------------#
