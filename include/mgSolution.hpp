@@ -80,7 +80,7 @@ class mgSolution {
   const gridLevel& operator[](const int &a) const { return solution_[a]; }
   gridLevel& operator[](const int &a) { return solution_[a]; }
   const gridLevel& Finest() const { return solution_.front(); }
-  constexpr int FinestIndex() const { return 0; }
+  int FinestIndex() const { return 0; }
   const gridLevel& Coarsest() const { return solution_.back(); }
 
   void ConstructFinestLevel(const vector<plot3dBlock>& mesh,

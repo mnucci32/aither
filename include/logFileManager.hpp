@@ -32,12 +32,8 @@ class logFileManager {
   std::ofstream time_;
   int rank_;
   residual l2First_;
-  std::chrono::time_point<std::chrono::_V2::system_clock,
-                          std::chrono::nanoseconds>
-      simStartTime_;
-  std::chrono::time_point<std::chrono::_V2::system_clock,
-                          std::chrono::nanoseconds>
-      iterStartTime_;
+  std::chrono::high_resolution_clock::time_point simStartTime_;
+  std::chrono::high_resolution_clock::time_point iterStartTime_;
 
  public:
   // Constructor
