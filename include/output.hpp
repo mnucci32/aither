@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -51,25 +51,36 @@ class resid;
 class input;
 class primitive;
 class residual;
+class gridLevel;
 
 // function definitions
 template<typename T>
 void WriteBlockDims(ofstream &, const vector<T> &, int = 0);
 
+void WriteNodes(const string &, const vector<plot3dBlock>&);
 void WriteCellCenter(const string &, const vector<procBlock> &,
                      const decomposition &, const input &);
 void WriteWallFaceCenter(const string &, const vector<procBlock> &,
                          const double &);
-void WriteFun(const vector<procBlock> &, const physics &phys, const int &,
-              const decomposition &, const input &);
+void WriteOutput(const vector<procBlock> &, const physics &, const int &,
+                 const decomposition &, const input &);
+void WriteFunFile(const vector<procBlock> &, const vector<procBlock> &,
+                  const physics &, const decomposition &, const string &,
+                  const input &);
+void WriteCenterFun(const vector<procBlock> &, const vector<procBlock> &,
+                    const physics &, const int &, const decomposition &,
+                    const input &);
+void WriteNodeFun(const vector<procBlock> &, vector<procBlock> &,
+                  const physics &phys, const int &, const decomposition &,
+                  const input &);
 void WriteWallFun(const vector<procBlock> &, const physics &phys, const int &,
                   const input &);
-void WriteMeta(const input &, const int &);
+void WriteMeta(const input &, const int &, const bool &);
 void WriteWallMeta(const input &, const int &);
 
 void WriteRestart(const vector<procBlock> &, const physics &, const int &,
                   const decomposition &, const input &, const residual &);
-void ReadRestart(vector<procBlock> &, const string &, const decomposition &,
+void ReadRestart(gridLevel &, const string &, const decomposition &,
                  input &, const physics &, residual &,
                  const vector<vector3d<int>> &);
 
@@ -84,8 +95,6 @@ blkMultiArray3d<conserved> ReadSolNm1FromRestart(ifstream &, const input &,
                                                  const int &, const int &,
                                                  const int &, const int &);
 
-void WriteResiduals(const input &, residual &, const residual &, const resid &,
-                    const double &, const int &, const int &, ostream &);
 void PrintResiduals(const input &, residual &, const residual &, const resid &,
                     const double &, const int &, const int &, ostream &);
 void PrintHeaders(const input &, ostream &);

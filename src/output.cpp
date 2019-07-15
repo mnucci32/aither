@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@
 #include "conserved.hpp"           // conserved
 #include "varArray.hpp"            // residual
 #include "utility.hpp"
+#include "gridLevel.hpp"
 
 using std::cout;
 using std::endl;
@@ -99,6 +100,46 @@ void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
   if (inp.NumWallVarsOutput() > 0) {
     WriteWallFaceCenter(gridName, recombVars, inp.LRef());
   }
+}
+
+// function to write out cell centers of grid in plot3d format
+void WriteNodes(const string &gridName, const vector<plot3dBlock> &blks) {
+  // open binary output file
+  const string fEnd = "_nodes";
+  const string fPostfix = ".xyz";
+  const auto writeName = gridName + fEnd + fPostfix;
+  ofstream outFile(writeName, ios::out | ios::binary);
+
+  // check to see if file opened correctly
+  if (outFile.fail()) {
+    cerr << "ERROR: Grid file " << writeName << " did not open correctly!!!"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  WriteBlockDims(outFile, blks);
+
+  // write out x, y, z coordinates of cell centers
+  for (const auto &blk : blks) {
+    for (auto nn = 0; nn < 3; nn++) {  // loop over dimensions (3)
+      for (auto kk = 0; kk < blk.NumK(); kk++) {
+        for (auto jj = 0; jj < blk.NumJ(); jj++) {
+          for (auto ii = 0; ii < blk.NumI(); ii++) {
+            // get the cell center coordinates (dimensionalized)
+            auto dumVec = blk.Coords(ii, jj, kk);
+            // for a given block, first write out all x coordinates, then all y
+            // coordinates, then all z coordinates
+            auto dumDouble = dumVec[nn];
+            // write to file
+            outFile.write(reinterpret_cast<char *>(&dumDouble),
+                          sizeof(dumDouble));
+          }
+        }
+      }
+    }
+  }
+  // close output file
+  outFile.close();
 }
 
 // function to write out wall face centers of grid in plot3d format
@@ -165,17 +206,11 @@ void WriteWallFaceCenter(const string &gridName, const vector<procBlock> &vars,
 
 //----------------------------------------------------------------------
 // function to write out variables in function file format
-void WriteFun(const vector<procBlock> &vars, const physics &phys,
-              const int &solIter, const decomposition &decomp,
-              const input &inp) {
-  // recombine blocks into original structure
-  auto recombVars = Recombine(vars, decomp);
-
+void WriteFunFile(const vector<procBlock> &vars,
+                  const vector<procBlock> &recombVars, const physics &phys,
+                  const decomposition &decomp, const string &writeName,
+                  const input &inp) {
   // open binary plot3d function file
-  const string fEnd = "_center";
-  const string fPostfix = ".fun";
-  const auto writeName = inp.SimNameRoot() + "_" + to_string(solIter) + fEnd +
-      fPostfix;
   ofstream outFile(writeName, ios::out | ios::binary);
 
   // check to see if file opened correctly
@@ -398,10 +433,39 @@ void WriteFun(const vector<procBlock> &vars, const physics &phys,
 
   // close plot3d function file
   outFile.close();
+}
 
-  if (inp.NumWallVarsOutput() > 0) {
-    WriteWallFun(recombVars, phys, solIter, inp);
+// function to write out variables in function file format
+void WriteCenterFun(const vector<procBlock> &vars,
+                    const vector<procBlock> &recombVars, const physics &phys,
+                    const int &solIter, const decomposition &decomp,
+                    const input &inp) {
+  // open binary plot3d function file
+  const string fEnd = "_center";
+  const string fPostfix = ".fun";
+  const auto writeName = inp.SimNameRoot() + "_" + to_string(solIter) + fEnd +
+      fPostfix;
+  WriteFunFile(vars, recombVars, phys, decomp, writeName, inp);
+}
+
+// function to write out variables in function file format
+void WriteNodeFun(const vector<procBlock> &vars,
+                  vector<procBlock> &recombVarsCells, const physics &phys,
+                  const int &solIter, const decomposition &decomp,
+                  const input &inp) {
+  // interpolate data from cell centers to nodes
+  vector<procBlock> recombVars;
+  recombVars.reserve(recombVarsCells.size());
+  for (auto &rvc : recombVarsCells) {
+    rvc.AssignCornerGhostCells();
+    recombVars.push_back(rvc.CellToNode());
   }
+
+  // open binary plot3d function file
+  const string fPostfix = ".fun";
+  const auto writeName =
+      inp.SimNameRoot() + "_" + to_string(solIter) + fPostfix;
+  WriteFunFile(vars, recombVars, phys, decomp, writeName, inp);
 }
 
 // function to write out variables in function file format
@@ -504,6 +568,23 @@ void WriteWallFun(const vector<procBlock> &vars, const physics &phys,
 
   // close plot3d function file
   outFile.close();
+}
+
+void WriteOutput(const vector<procBlock> &vars, const physics &phys,
+                 const int &solIter, const decomposition &decomp,
+                 const input &inp) {
+  auto recombVarsCells = Recombine(vars, decomp);
+  WriteCenterFun(vars, recombVarsCells, phys, solIter, decomp, inp);
+  WriteMeta(inp, solIter, true);
+  if (inp.NumWallVarsOutput() > 0) {
+    WriteWallFun(recombVarsCells, phys, solIter, inp);
+    WriteWallMeta(inp, solIter);
+  }
+
+  if (inp.OutputNodalVariables()) {
+    WriteNodeFun(vars, recombVarsCells, phys, solIter, decomp, inp);
+    WriteMeta(inp, solIter, false);
+  }
 }
 
 // function to write out restart variables
@@ -672,7 +753,7 @@ void WriteRestart(const vector<procBlock> &splitVars, const physics &phys,
   outFile.close();
 }
 
-void ReadRestart(vector<procBlock> &vars, const string &restartName,
+void ReadRestart(gridLevel &vars, const string &restartName,
                  const decomposition &decomp, input &inp, const physics &phys,
                  residual &residL2First,
                  const vector<vector3d<int>> &gridSizes) {
@@ -719,7 +800,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
     size_t nameSize = 0;
     fName.read(reinterpret_cast<char *>(&nameSize), sizeof(nameSize));
     
-    auto buffer = unique_ptr<char>(new char[nameSize]);
+    auto buffer = std::make_unique<char[]>(nameSize);
     fName.read(buffer.get(), nameSize * sizeof(char));
     string sname(buffer.get(), nameSize);
     speciesNames[ii] = sname;
@@ -783,7 +864,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
 
   // assign to procBlocks
   for (auto ii = 0U; ii < solN.size(); ++ii) {
-    vars[ii].GetStatesFromRestart(solN[ii]);
+    vars.Block(ii).GetStatesFromRestart(solN[ii]);
   }
 
   if (inp.IsMultilevelInTime()) {
@@ -800,15 +881,15 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
 
       // assign to procBlocks
       for (auto ii = 0U; ii < solNm1.size(); ++ii) {
-        vars[ii].GetSolNm1FromRestart(solNm1[ii]);
+        vars.Block(ii).GetSolNm1FromRestart(solNm1[ii]);
       }
 
     } else {
       cerr << "WARNING: Using multilevel time integration scheme, but only one "
            << "time level found in restart file" << endl;
       // assign solution at time n to n-1
-      AssignSolToTimeN(vars, phys);
-      AssignSolToTimeNm1(vars);
+      vars.AssignSolToTimeN(phys);
+      vars.AssignSolToTimeNm1();
     }
   }
 
@@ -819,10 +900,10 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
 
 
 // function to write out plot3d meta data for Paraview
-void WriteMeta(const input &inp, const int &iter) {
+void WriteMeta(const input &inp, const int &iter, const bool &isCenter) {
   // open meta file
   const string fMetaPostfix = ".p3d";
-  const string fEnd = "_center";
+  const string fEnd = isCenter ? "_center" : "";
   const auto metaName = inp.SimNameRoot() + fEnd + fMetaPostfix;
   ofstream metaFile(metaName, ios::out);
 
@@ -876,10 +957,6 @@ void WriteMeta(const input &inp, const int &iter) {
 
   // Close results file
   metaFile.close();
-
-  if (inp.NumWallVarsOutput() > 0) {
-    WriteWallMeta(inp, iter);
-  }
 }
 
 // function to write out plot3d meta data for Paraview
@@ -925,30 +1002,6 @@ void WriteWallMeta(const input &inp, const int &iter) {
 
   // Close results file
   metaFile.close();
-}
-
-
-// function to write out residual information
-void WriteResiduals(const input &inp, residual &residL2First,
-                    const residual &residL2, const resid &residLinf,
-                    const double &matrixResid, const int &nn, const int &mm,
-                    ostream &resFile) {
-  // if first iteration write headers to residual file
-  if (nn == 0 && mm == 0) {
-    PrintHeaders(inp, resFile);
-  }
-
-  // write out column headers every 100 iterations to standard out
-  if (nn % 100 == 0 && mm == 0) {
-    PrintHeaders(inp, cout);
-  }
-
-  // print residuals to standard out
-  PrintResiduals(inp, residL2First, residL2, residLinf, matrixResid, nn, mm,
-                 cout);
-  // print residuals to residual file
-  PrintResiduals(inp, residL2First, residL2, residLinf, matrixResid, nn, mm,
-                 resFile);
 }
 
 void PrintHeaders(const input &inp, ostream &os) {

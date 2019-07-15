@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <utility>
+#include <map>
 #include "procBlock.hpp"
 #include "plot3d.hpp"              // plot3d
 #include "eos.hpp"                 // equation of state
@@ -41,6 +43,7 @@
 #include "ghostStates.hpp"
 #include "matMultiArray3d.hpp"
 #include "physicsModels.hpp"
+#include "output.hpp"
 
 using std::cout;
 using std::endl;
@@ -60,10 +63,11 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   // numBlk -- the block number of blk (the parent block)
   // bound -- boundary conditions for block
   // pos -- global position of block, an identifying number unique to this block
-  // r -- processor rank_ that procBlock should be on
+  // r -- processor rank that procBlock should be on
   // lpos -- local position of block on processor
   // inp -- input variables
 
+  nodes_ = blk;
   numGhosts_ = inp.NumberGhostLayers();
   parBlock_ = numBlk;
 
@@ -212,6 +216,7 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   } else {
     consVarsNm1_ = {};
   }
+  nodes_ = {ni + 1, nj + 1, nk + 1};
   center_ = {ni, nj, nk, numGhosts_};
   fAreaI_ = {ni + 1, nj, nk, numGhosts_};
   fAreaJ_ = {ni, nj + 1, nk, numGhosts_};
@@ -1028,31 +1033,6 @@ varArray procBlock::SolDeltaNm1(const int &ii, const int &jj, const int &kk,
   }
 }
 
-void procBlock::InvertDiagonal(matMultiArray3d &mainDiagonal,
-                               const input &inp) const {
-  // mainDiagonal -- main diagonal in implicit operator
-  // inp -- input variables
-
-  // loop over physical cells
-  for (auto kk = 0; kk < this->NumK(); kk++) {
-    for (auto jj = 0; jj < this->NumJ(); jj++) {
-      for (auto ii = 0; ii < this->NumI(); ii++) {
-        auto diagVolTime = this->SolDeltaNCoeff(ii, jj, kk, inp);
-        if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
-          // equal to volume / tau
-          diagVolTime += specRadius_(ii, jj, kk).Max() /
-              inp.DualTimeCFL();
-        }
-
-        // add volume and time term
-        mainDiagonal.MultiplyOnDiagonal(ii, jj, kk, inp.MatrixRelaxation());
-        mainDiagonal.AddOnDiagonal(ii, jj, kk, diagVolTime);
-        mainDiagonal.Inverse(ii, jj, kk);
-      }
-    }
-  }
-}
-
 // assign current solution held in state_ to time n solution held in consVarsN_
 void procBlock::AssignSolToTimeN(const physics &phys) {
   // loop over physical cells
@@ -1073,575 +1053,112 @@ void procBlock::AssignSolToTimeNm1() {
 }
 
 
-/* Member function to calculate update to solution implicitly using Lower-Upper
-Symmetric Gauss Seidel (LUSGS) method.
-
-Un+1 = Un - t/V * Rn+1
-
-The above equation shows a simple first order implicit method to calculate the
-solution at the next time step (n+1). The equation shows that this method
-requires the residual (R) at time n+1 which is unknown. In the equation, t is
-the time step, and V is the volume. Since the residual at n+1 in unknown, it
-must be linearized about time n as shown below.
-
-Rn+1 = Rn + dRn/dUn * FD(Un)
-
-In the above equation FD is the forward difference operator in time (FD(Un) =
-Un+1 - Un). The derivative of the residual term can be further simplified as
-below.
-
-Rn = (sum over all faces) Fni
-
-In the above equation n refers to the time level and i refers to the face index.
-The summation over all faces operator will now be abbreviated as (SF).
-Substituting the second and third equations into the first and rearranging we
-get the following.
-
-[d(SF)Fni/dUnj + V/t] * FD(Un) = -Rn
-
-In the above equation the index j refers to all of the cells in the stencil
-going into the calculation of the flux at face i. The above equation
-can be simplified to A*x=b. The matrix A is an MxM block matrix where M is the
-number of cells in the block. Each block is an LxL block where L
-is the number of equations being solved for. The sparsity of A depends on the
-stencil used in flux calculation. In 3D for a first order simulation
-the matrix A is block pentadiagonal. For a second order approximation it would
-have 13 diagonals. This increases the storage requirements so in
-practice a first order approximation is used. The order of accuracy is
-determined by the residual calculation. The accuracy of the matrix A helps
-with convergence. A poorer approximation will eventually get the correct answer
-with enough iteration (defect correction). Fully implicit methods
-calculate and store the flux jacobians needed to populate the matrix A. The
-LUSGS method does not do this and instead calculates an approximate
-flux jacobian "on-the-fly" so there is no need for storage. Because an
-approximate flux jacobian is being used, there is no need for a highly
-accurate linear solver. Therefore the Symmetric Gauss-Seidel (SGS) method is a
-good candidate, and only one iteration is needed. This approximate
-flux jacobian along with the SGS linear solver form the basics of the LUSGS
-method (Jameson & Yoon). The LUSGS method begins by factoring the
-matrix A as shown below.
-
-A = (D + L) * D^-1 * (D + U)
-
-In the above equation D is the diagonal of A, L is the lower triangular portion
-of A, and U is the upper triangular portion of A. This allows the equation A*x=b
-to be solved in one SGS sweep as shown below.
-
-Forward sweep:  (D + L) * FD(Un*) = -Rn
-Backward sweep: (D + U) * FD(Un) = D * FD(Un*)
-
-Another key component of the LUSGS scheme is to sweep along hyperplanes.
-Hyperplanes are planes of i+j+k=constant within a plot3d block. The diagram
-below shows a 2D example of a block reordered to sweep along hyperplanes
-           ____ ____ ____ ____ ____ ____ ____ ____
-          | 20 | 26 | 32 | 37 | 41 | 44 | 46 | 47 |
-          |____|____|____|____|____|____|____|____|
-          | 14 | 19 | 25 | 31 | 36 | 40 | 43 | 45 |
-          |____|____|____|____|____|____|____|____|
-          | 9  | 13 | 18 | 24 | 30 | 35 | 39 | 42 |
-   A=     |____|____|____|____|____|____|____|____|
-          | 5  | 8  | 12 | 17 | 23 | 29 | 34 | 38 |
-          |____|____|____|____|____|____|____|____|
-          | 2  | 4  | 7  | 11 | 16 | 22 | 28 | 33 |
-          |____|____|____|____|____|____|____|____|
-          | 0  | 1  | 3  | 6  | 10 | 15 | 21 | 27 |
-          |____|____|____|____|____|____|____|____|
-
-This is advantageous because on the forward sweep the lower matrix L can be
-calculated with data from time n+1 because all of the cells contributing
-to L would already have been updated. The same is true with the upper matrix U
-for the backward sweep. This removes the need for any storage of the
-matrix. For a given location (say A12) the matrix L would be constructed of A8
-and A7, and the matrix U would be constructed of A18 and A17. This
-requires the product of the flux jacobian multiplied with the update (FD(Un)) to
-be calculated at these locations. For the LUSGS method the flux
-jacobians are approximated as follows:
-
-A * S = 0.5 * (Ac * S + K * I)
-
-A is the flux jacobian, S is the face area, Ac is the convective flux jacobian
-(dF/dU), K is the spectral radius multiplied by a factor, and I is
-the identity matrix. The addition of the spectrial radius improves diagonal
-dominance which improves stability at the cost of convergence. When the
-factor multiplied by K is 1, the method is SGS, when it is < 1, it is successive
-overrelaxation. Reducing the factor improves convergence but hurts
-stability. The product of the approximate flux jacobian with the update is
-calculated as shown below.
-
-A * S * FD(Unj) = 0.5 * (Ac * FD(Unj) * S + K * I * FD(Unj)) = 0.5 * ( dFi/dUnj
-* FD(Unj) * S + K * I * FD(Unj)) = 0.5 * (dFi * S + K * I * FD(Unj))
-
-The above equation shows that all that is needed to calculate the RHS of A*x=b
-is the update of the convective flux, and the update to the convervative
-variabes (FD(Unj)) which is known due to sweeping along hyperplanes.
-
-For viscous simulations, the viscous contribution to the spectral radius K is
-used, and everything else remains the same.
- */
-void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
-                              blkMultiArray3d<varArray> &x, const physics &phys,
-                              const input &inp, const matMultiArray3d &aInv,
-                              const int &sweep) const {
-  // reorder -- order of cells to visit (this should be ordered in hyperplanes)
-  // x -- correction - added to solution at time n to get to time n+1 (assumed
-  //      to be zero to start)
-  // phys -- physics models
-  // inp -- all input variables
-  // aInv -- inverse of main diagonal
-  // sweep -- sweep number through domain
-
-  const auto thetaInv = 1.0 / inp.Theta();
-
-  //--------------------------------------------------------------------
-  // forward sweep over all physical cells
-  for (auto nn = 0; nn < this->NumCells(); ++nn) {
-    // indices for variables without ghost cells
-    const auto ii = reorder[nn].X();
-    const auto jj = reorder[nn].Y();
-    const auto kk = reorder[nn].Z();
-
-    // initialize term for contribution from lower/upper triangular matrix
-    varArray L(inp.NumEquations(), inp.NumSpecies());
-    varArray U(inp.NumEquations(), inp.NumSpecies());
-
-    // if i lower diagonal cell is in physical location there is a contribution
-    // from it
-    if (this->IsPhysical(ii - 1, jj, kk) ||
-        bc_.BCIsConnection(ii, jj, kk, 1)) {
-      // calculate projected center to center distance along face area
-      const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
-
-      // update L matrix
-      L += OffDiagonal(
-          state_(ii - 1, jj, kk), state_(ii, jj, kk), x(ii - 1, jj, kk),
-          fAreaI_(ii, jj, kk), this->Viscosity(ii - 1, jj, kk),
-          this->EddyViscosity(ii - 1, jj, kk), this->F1(ii - 1, jj, kk),
-          projDist, this->VelGrad(ii - 1, jj, kk), phys, inp, true);
-    }
-
-    // -----------------------------------------------------------------------
-    // if j lower diagonal cell is in physical location there is a contribution
-    // from it
-    if (this->IsPhysical(ii, jj - 1, kk) ||
-        bc_.BCIsConnection(ii, jj, kk, 3)) {
-      // calculate projected center to center distance along face area
-      const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
-
-      // update L matrix
-      L += OffDiagonal(
-          state_(ii, jj - 1, kk), state_(ii, jj, kk), x(ii, jj - 1, kk),
-          fAreaJ_(ii, jj, kk), this->Viscosity(ii, jj - 1, kk),
-          this->EddyViscosity(ii, jj - 1, kk), this->F1(ii, jj - 1, kk),
-          projDist, this->VelGrad(ii, jj - 1, kk), phys, inp, true);
-    }
-
-    // -----------------------------------------------------------------------
-    // if k lower diagonal cell is in physical location there is a contribution
-    // from it
-    if (this->IsPhysical(ii, jj, kk - 1) ||
-        bc_.BCIsConnection(ii, jj, kk, 5)) {
-      // calculate projected center to center distance along face area
-      const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
-
-      // update L matrix
-      L += OffDiagonal(
-          state_(ii, jj, kk - 1), state_(ii, jj, kk), x(ii, jj, kk - 1),
-          fAreaK_(ii, jj, kk), this->Viscosity(ii, jj, kk - 1),
-          this->EddyViscosity(ii, jj, kk - 1), this->F1(ii, jj, kk - 1),
-          projDist, this->VelGrad(ii, jj, kk - 1), phys, inp, true);
-    }
-
-    // Only need to calculate contribution for U if matrix update has been
-    // initialized, or if this is not the first sweep through the domain.
-    // If the matrix is not initialized, the update x is 0 for the first
-    // sweep, so U is 0.
-    if (sweep > 0 || inp.MatrixRequiresInitialization()) {
-      // -----------------------------------------------------------------------
-      // if i upper cell is in physical location there is a contribution
-      // from it
-      if (this->IsPhysical(ii + 1, jj, kk) ||
-          bc_.BCIsConnection(ii + 1, jj, kk, 2)) {
-        // calculate projected center to center distance along face area
-        const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
-
-        // update U matrix
-        U += OffDiagonal(
-            state_(ii + 1, jj, kk), state_(ii, jj, kk), x(ii + 1, jj, kk),
-            fAreaI_(ii + 1, jj, kk), this->Viscosity(ii + 1, jj, kk),
-            this->EddyViscosity(ii + 1, jj, kk), this->F1(ii + 1, jj, kk),
-            projDist, this->VelGrad(ii + 1, jj, kk), phys, inp, false);
-      }
-
-      // -----------------------------------------------------------------------
-      // if j upper cell is in physical location there is a contribution
-      // from it
-      if (this->IsPhysical(ii, jj + 1, kk) ||
-          bc_.BCIsConnection(ii, jj + 1, kk, 4)) {
-        // calculate projected center to center distance along face area
-        const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
-
-        // update U matrix
-        U += OffDiagonal(
-            state_(ii, jj + 1, kk), state_(ii, jj, kk), x(ii, jj + 1, kk),
-            fAreaJ_(ii, jj + 1, kk), this->Viscosity(ii, jj + 1, kk),
-            this->EddyViscosity(ii, jj + 1, kk), this->F1(ii, jj + 1, kk),
-            projDist, this->VelGrad(ii, jj + 1, kk), phys, inp, false);
-      }
-
-      // -----------------------------------------------------------------------
-      // if k upper cell is in physical location there is a contribution
-      // from it
-      if (this->IsPhysical(ii, jj, kk + 1) ||
-          bc_.BCIsConnection(ii, jj, kk + 1, 6)) {
-        // calculate projected center to center distance along face area
-        const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
-
-        // update U matrix
-        U += OffDiagonal(
-            state_(ii, jj, kk + 1), state_(ii, jj, kk), x(ii, jj, kk + 1),
-            fAreaK_(ii, jj, kk + 1), this->Viscosity(ii, jj, kk + 1),
-            this->EddyViscosity(ii, jj, kk + 1), this->F1(ii, jj, kk + 1),
-            projDist, this->VelGrad(ii, jj, kk + 1), phys, inp, false);
-      }
-    }
-    // -----------------------------------------------------------------------
-    const auto solDeltaNm1 = this->SolDeltaNm1(ii, jj, kk, inp);
-    const auto solDeltaMmN = this->SolDeltaMmN(ii, jj, kk, inp, phys);
-
-    // calculate intermediate update
-    // normal at lower boundaries needs to be reversed, so add instead
-    // of subtract L
-    x.InsertBlock(ii, jj, kk,
-                  aInv.ArrayMult(ii, jj, kk,
-                                 -thetaInv * residual_(ii, jj, kk) +
-                                     solDeltaNm1 - solDeltaMmN + L - U));
-  }  // end forward sweep
-}
-
-double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
-                                 blkMultiArray3d<varArray> &x,
-                                 const physics &phys, const input &inp,
-                                 const matMultiArray3d &aInv,
-                                 const int &sweep) const {
-  // reorder -- order of cells to visit (this should be ordered in hyperplanes)
-  // x -- correction - added to solution at time n to get to time n+1 (assumed
-  //      to be zero to start)
-  // phys -- physics models
-  // inp -- all input variables
-  // aInv -- inverse of main diagonal
-  // sweep -- sweep number through domain
-
-  const auto thetaInv = 1.0 / inp.Theta();
-
-  varArray l2Error(inp.NumEquations(), inp.NumSpecies());
-
-  // backward sweep over all physical cells
-  for (auto nn = this->NumCells() - 1; nn >= 0; nn--) {
-    // indices for variables without ghost cells
-    const auto ii = reorder[nn].X();
-    const auto jj = reorder[nn].Y();
-    const auto kk = reorder[nn].Z();
-
-    // initialize term for contribution from upper/lower triangular matrix
-    varArray U(inp.NumEquations(), inp.NumSpecies());
-    varArray L(inp.NumEquations(), inp.NumSpecies());
-
-    // -----------------------------------------------------------------------
-    // if i upper diagonal cell is in physical location there is a contribution
-    // from it
-    if (this->IsPhysical(ii + 1, jj, kk) ||
-        bc_.BCIsConnection(ii + 1, jj, kk, 2)) {
-      // calculate projected center to center distance along face area
-      const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
-
-      // update U matrix
-      U += OffDiagonal(
-          state_(ii + 1, jj, kk), state_(ii, jj, kk), x(ii + 1, jj, kk),
-          fAreaI_(ii + 1, jj, kk), this->Viscosity(ii + 1, jj, kk),
-          this->EddyViscosity(ii + 1, jj, kk), this->F1(ii + 1, jj, kk),
-          projDist, this->VelGrad(ii + 1, jj, kk), phys, inp, false);
-    }
-
-    // -----------------------------------------------------------------------
-    // if j upper diagonal cell is in physical location there is a contribution
-    // from it
-    if (this->IsPhysical(ii, jj + 1, kk) ||
-        bc_.BCIsConnection(ii, jj + 1, kk, 4)) {
-      // calculate projected center to center distance along face area
-      const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
-
-      // update U matrix
-      U += OffDiagonal(
-          state_(ii, jj + 1, kk), state_(ii, jj, kk), x(ii, jj + 1, kk),
-          fAreaJ_(ii, jj + 1, kk), this->Viscosity(ii, jj + 1, kk),
-          this->EddyViscosity(ii, jj + 1, kk), this->F1(ii, jj + 1, kk),
-          projDist, this->VelGrad(ii, jj + 1, kk), phys, inp, false);
-    }
-
-    // -----------------------------------------------------------------------
-    // if k upper diagonal cell is in physical location there is a contribution
-    // from it
-    if (this->IsPhysical(ii, jj, kk + 1) ||
-        bc_.BCIsConnection(ii, jj, kk + 1, 6)) {
-      // calculate projected center to center distance along face area
-      const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
-
-      // update U matrix
-      U += OffDiagonal(
-          state_(ii, jj, kk + 1), state_(ii, jj, kk), x(ii, jj, kk + 1),
-          fAreaK_(ii, jj, kk + 1), this->Viscosity(ii, jj, kk + 1),
-          this->EddyViscosity(ii, jj, kk + 1), this->F1(ii, jj, kk + 1),
-          projDist, this->VelGrad(ii, jj, kk + 1), phys, inp, false);
-    }
-
-    // Only need to calculate contribution for L if matrix update has been
-    // initialized, or if this is not the first sweep through the domain.
-    // If the matrix is not initialized, then b - Lx^* was already solved for
-    // in the forward sweep, so L is not needed
-    if (sweep > 0 || inp.MatrixRequiresInitialization()) {
-      // -----------------------------------------------------------------------
-      // if i lower cell is in physical location there is a contribution
-      // from it
-      if (this->IsPhysical(ii - 1, jj, kk) ||
-          bc_.BCIsConnection(ii, jj, kk, 1)) {
-        // calculate projected center to center distance along face area
-        const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
-
-        // update U matrix
-        L += OffDiagonal(
-            state_(ii - 1, jj, kk), state_(ii, jj, kk), x(ii - 1, jj, kk),
-            fAreaI_(ii, jj, kk), this->Viscosity(ii - 1, jj, kk),
-            this->EddyViscosity(ii - 1, jj, kk), this->F1(ii - 1, jj, kk),
-            projDist, this->VelGrad(ii - 1, jj, kk), phys, inp, true);
-      }
-
-      // -----------------------------------------------------------------------
-      // if j lower cell is in physical location there is a contribution
-      // from it
-      if (this->IsPhysical(ii, jj - 1, kk) ||
-          bc_.BCIsConnection(ii, jj, kk, 3)) {
-        // calculate projected center to center distance along face area
-        const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
-
-        // update U matrix
-        L += OffDiagonal(
-            state_(ii, jj - 1, kk), state_(ii, jj, kk), x(ii, jj - 1, kk),
-            fAreaJ_(ii, jj, kk), this->Viscosity(ii, jj - 1, kk),
-            this->EddyViscosity(ii, jj - 1, kk), this->F1(ii, jj - 1, kk),
-            projDist, this->VelGrad(ii, jj - 1, kk), phys, inp, true);
-      }
-
-      // -----------------------------------------------------------------------
-      // if k lower cell is in physical location there is a contribution
-      // from it
-      if (this->IsPhysical(ii, jj, kk - 1) ||
-          bc_.BCIsConnection(ii, jj, kk, 5)) {
-        // calculate projected center to center distance along face area
-        const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
-
-        // update U matrix
-        L += OffDiagonal(
-            state_(ii, jj, kk - 1), state_(ii, jj, kk), x(ii, jj, kk - 1),
-            fAreaK_(ii, jj, kk), this->Viscosity(ii, jj, kk - 1),
-            this->EddyViscosity(ii, jj, kk - 1), this->F1(ii, jj, kk - 1),
-            projDist, this->VelGrad(ii, jj, kk - 1), phys, inp, true);
-      }
-    }
-    // -----------------------------------------------------------------------
-    const auto solDeltaNm1 = this->SolDeltaNm1(ii, jj, kk, inp);
-    const auto solDeltaMmN = this->SolDeltaMmN(ii, jj, kk, inp, phys);
-
-    // calculate update
-    const auto xold = x.GetCopy(ii, jj, kk);
-    if (sweep > 0 || inp.MatrixRequiresInitialization()) {
-      x.InsertBlock(ii, jj, kk,
-                    aInv.ArrayMult(ii, jj, kk,
-                                   -thetaInv * residual_(ii, jj, kk) +
-                                       solDeltaNm1 - solDeltaMmN + L - U));
-    } else {
-      x.InsertBlock(ii, jj, kk, xold - aInv.ArrayMult(ii, jj, kk, U));
-    }
-    const auto error = x(ii, jj, kk) - xold;
-    l2Error += error * error;
-  }  // end backward sweep
-
-  return l2Error.Sum();
-}
-
-
-/* Member function to calculate the implicit update via the DP-LUR method
- */
-double procBlock::DPLUR(blkMultiArray3d<varArray> &x, const physics &phys,
-                        const input &inp, const matMultiArray3d &aInv) const {
-  // x -- correction - added to solution at time n to get to time n+1 (assumed
-  //                   to be zero to start)
-  // phys --  physics models
-  // inp -- all input variables
-  // aInv -- inverse of main diagonal
-
-  const auto thetaInv = 1.0 / inp.Theta();
-
-  // initialize residuals
-  varArray l2Error(inp.NumEquations(), inp.NumSpecies());
-
-  // copy old update
-  const auto xold = x;
-
-  for (auto kk = 0; kk < this->NumK(); kk++) {
-    for (auto jj = 0; jj < this->NumJ(); jj++) {
-      for (auto ii = 0; ii < this->NumI(); ii++) {
-        // calculate off diagonal terms - initialize to zero
-        varArray offDiagonal(inp.NumEquations(), inp.NumSpecies());
-
-        // -------------------------------------------------------------
-        // if i lower diagonal cell is in physical location there is a
-        // contribution from it
-        if (this->IsPhysical(ii - 1, jj, kk) ||
-            bc_.BCIsConnection(ii, jj, kk, 1)) {
-          // calculate projected center to center distance
-          const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
-
-          // update off diagonal
-          offDiagonal += OffDiagonal(
-              state_(ii - 1, jj, kk), state_(ii, jj, kk), xold(ii - 1, jj, kk),
-              fAreaI_(ii, jj, kk), this->Viscosity(ii - 1, jj, kk),
-              this->EddyViscosity(ii - 1, jj, kk), this->F1(ii - 1, jj, kk),
-              projDist, this->VelGrad(ii - 1, jj, kk), phys, inp, true);
-        }
-
-        // --------------------------------------------------------------
-        // if j lower diagonal cell is in physical location there is a
-        // constribution from it
-        if (this->IsPhysical(ii, jj - 1, kk) ||
-            bc_.BCIsConnection(ii, jj, kk, 3)) {
-          // calculate projected center to center distance
-          const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
-
-          // update off diagonal
-          offDiagonal += OffDiagonal(
-              state_(ii, jj - 1, kk), state_(ii, jj, kk), xold(ii, jj - 1, kk),
-              fAreaJ_(ii, jj, kk), this->Viscosity(ii, jj - 1, kk),
-              this->EddyViscosity(ii, jj - 1, kk), this->F1(ii, jj - 1, kk),
-              projDist, this->VelGrad(ii, jj - 1, kk), phys, inp, true);
-        }
-
-        // --------------------------------------------------------------
-        // if k lower diagonal cell is in physical location there is a
-        // contribution from it
-        if (this->IsPhysical(ii, jj, kk - 1) ||
-            bc_.BCIsConnection(ii, jj, kk, 5)) {
-          // calculate projected center to center distance
-          const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
-
-          // update off diagonal
-          offDiagonal += OffDiagonal(
-              state_(ii, jj, kk - 1), state_(ii, jj, kk), xold(ii, jj, kk - 1),
-              fAreaK_(ii, jj, kk), this->Viscosity(ii, jj, kk - 1),
-              this->EddyViscosity(ii, jj, kk - 1), this->F1(ii, jj, kk - 1),
-              projDist, this->VelGrad(ii, jj, kk - 1), phys, inp, true);
-        }
-
-        // --------------------------------------------------------------
-        // if i upper diagonal cell is in physical location there is a
-        // contribution from it
-        if (this->IsPhysical(ii + 1, jj, kk) ||
-            bc_.BCIsConnection(ii + 1, jj, kk, 2)) {
-          // calculate projected center to center distance
-          const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
-
-          // update off diagonal
-          offDiagonal -= OffDiagonal(
-              state_(ii + 1, jj, kk), state_(ii, jj, kk), xold(ii + 1, jj, kk),
-              fAreaI_(ii + 1, jj, kk), this->Viscosity(ii + 1, jj, kk),
-              this->EddyViscosity(ii + 1, jj, kk), this->F1(ii + 1, jj, kk),
-              projDist, this->VelGrad(ii + 1, jj, kk), phys, inp, false);
-        }
-
-        // --------------------------------------------------------------
-        // if j upper diagonal cell is in physical location there is a
-        // contribution from it
-        if (this->IsPhysical(ii, jj + 1, kk) ||
-            bc_.BCIsConnection(ii, jj + 1, kk, 4)) {
-          // calculate projected center to center distance
-          const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
-
-          // update off diagonal
-          offDiagonal -= OffDiagonal(
-              state_(ii, jj + 1, kk), state_(ii, jj, kk), xold(ii, jj + 1, kk),
-              fAreaJ_(ii, jj + 1, kk), this->Viscosity(ii, jj + 1, kk),
-              this->EddyViscosity(ii, jj + 1, kk), this->F1(ii, jj + 1, kk),
-              projDist, this->VelGrad(ii, jj + 1, kk), phys, inp, false);
-        }
-
-        // --------------------------------------------------------------
-        // if k upper diagonal cell is in physical location there is a
-        // contribution from it
-        if (this->IsPhysical(ii, jj, kk + 1) ||
-            bc_.BCIsConnection(ii, jj, kk + 1, 6)) {
-          // calculate projected center to center distance
-          const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
-
-          // update off diagonal
-          offDiagonal -= OffDiagonal(
-              state_(ii, jj, kk + 1), state_(ii, jj, kk), xold(ii, jj, kk + 1),
-              fAreaK_(ii, jj, kk + 1), this->Viscosity(ii, jj, kk + 1),
-              this->EddyViscosity(ii, jj, kk + 1), this->F1(ii, jj, kk + 1),
-              projDist, this->VelGrad(ii, jj, kk + 1), phys, inp, false);
-        }
-
-        // --------------------------------------------------------------
-        const auto solDeltaNm1 = this->SolDeltaNm1(ii, jj, kk, inp);
-        const auto solDeltaMmN = this->SolDeltaMmN(ii, jj, kk, inp, phys);
-
-        // calculate update
-        x.InsertBlock(
-            ii, jj, kk,
-            aInv.ArrayMult(ii, jj, kk,
-                           -thetaInv * residual_(ii, jj, kk) + solDeltaNm1 -
-                               solDeltaMmN + offDiagonal));
-
-        // calculate matrix error
-        const auto error = x(ii, jj, kk) - xold(ii, jj, kk);
-        l2Error += error * error;
-      }
-    }
+varArray procBlock::ImplicitLower(const int &ii, const int &jj, const int &kk,
+                                  const blkMultiArray3d<varArray> &du,
+                                  const physics &phys, const input &inp) const {
+  // initialize term for contribution from lower triangular matrix
+  varArray L(inp.NumEquations(), inp.NumSpecies());
+
+  // if i lower diagonal cell is in physical location there is a contribution
+  // from it
+  if (this->IsPhysical(ii - 1, jj, kk) || bc_.BCIsConnection(ii, jj, kk, 1)) {
+    // calculate projected center to center distance along face area
+    const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
+
+    // update L matrix
+    L += OffDiagonal(
+        state_(ii - 1, jj, kk), state_(ii, jj, kk), du(ii - 1, jj, kk),
+        fAreaI_(ii, jj, kk), this->Viscosity(ii - 1, jj, kk),
+        this->EddyViscosity(ii - 1, jj, kk), this->F1(ii - 1, jj, kk), projDist,
+        this->VelGrad(ii - 1, jj, kk), phys, inp, true);
   }
 
-  return l2Error.Sum();
-}
+  // if j lower diagonal cell is in physical location there is a contribution
+  // from it
+  if (this->IsPhysical(ii, jj - 1, kk) || bc_.BCIsConnection(ii, jj, kk, 3)) {
+    // calculate projected center to center distance along face area
+    const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
-blkMultiArray3d<varArray> procBlock::InitializeMatrixUpdate(
-    const input &inp, const physics &phys, const matMultiArray3d &aInv) const {
-  // inp -- input variables
-  // phys -- physics models
-  // aInv -- inverse of main diagonal
-
-  // allocate multiarray for update
-  blkMultiArray3d<varArray> x(this->NumI(), this->NumJ(), this->NumK(),
-                              numGhosts_, inp.NumEquations(), inp.NumSpecies(),
-                              0.0);
-
-  if (inp.MatrixRequiresInitialization()) {
-    const auto thetaInv = 1.0 / inp.Theta();
-
-    for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-      for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-        for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-          // calculate update
-          x.InsertBlock(
-              ii, jj, kk,
-              aInv.ArrayMult(ii, jj, kk,
-                             -thetaInv * residual_(ii, jj, kk) +
-                                 this->SolDeltaNm1(ii, jj, kk, inp) -
-                                 this->SolDeltaMmN(ii, jj, kk, inp, phys)));
-        }
-      }
-    }
+    // update L matrix
+    L += OffDiagonal(
+        state_(ii, jj - 1, kk), state_(ii, jj, kk), du(ii, jj - 1, kk),
+        fAreaJ_(ii, jj, kk), this->Viscosity(ii, jj - 1, kk),
+        this->EddyViscosity(ii, jj - 1, kk), this->F1(ii, jj - 1, kk), projDist,
+        this->VelGrad(ii, jj - 1, kk), phys, inp, true);
   }
 
-  return x;
+  // if k lower diagonal cell is in physical location there is a contribution
+  // from it
+  if (this->IsPhysical(ii, jj, kk - 1) || bc_.BCIsConnection(ii, jj, kk, 5)) {
+    // calculate projected center to center distance along face area
+    const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
+
+    // update L matrix
+    L += OffDiagonal(
+        state_(ii, jj, kk - 1), state_(ii, jj, kk), du(ii, jj, kk - 1),
+        fAreaK_(ii, jj, kk), this->Viscosity(ii, jj, kk - 1),
+        this->EddyViscosity(ii, jj, kk - 1), this->F1(ii, jj, kk - 1), projDist,
+        this->VelGrad(ii, jj, kk - 1), phys, inp, true);
+  }
+  return L;
 }
 
+varArray procBlock::ImplicitUpper(const int &ii, const int &jj, const int &kk,
+                                  const blkMultiArray3d<varArray> &du,
+                                  const physics &phys, const input &inp) const {
+  // initialize term for contribution from upper/lower triangular matrix
+  varArray U(inp.NumEquations(), inp.NumSpecies());
+
+  // -----------------------------------------------------------------------
+  // if i upper diagonal cell is in physical location there is a contribution
+  // from it
+  if (this->IsPhysical(ii + 1, jj, kk) ||
+      bc_.BCIsConnection(ii + 1, jj, kk, 2)) {
+    // calculate projected center to center distance along face area
+    const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
+
+    // update U matrix
+    U += OffDiagonal(
+        state_(ii + 1, jj, kk), state_(ii, jj, kk), du(ii + 1, jj, kk),
+        fAreaI_(ii + 1, jj, kk), this->Viscosity(ii + 1, jj, kk),
+        this->EddyViscosity(ii + 1, jj, kk), this->F1(ii + 1, jj, kk), projDist,
+        this->VelGrad(ii + 1, jj, kk), phys, inp, false);
+  }
+
+  // -----------------------------------------------------------------------
+  // if j upper diagonal cell is in physical location there is a contribution
+  // from it
+  if (this->IsPhysical(ii, jj + 1, kk) ||
+      bc_.BCIsConnection(ii, jj + 1, kk, 4)) {
+    // calculate projected center to center distance along face area
+    const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
+
+    // update U matrix
+    U += OffDiagonal(
+        state_(ii, jj + 1, kk), state_(ii, jj, kk), du(ii, jj + 1, kk),
+        fAreaJ_(ii, jj + 1, kk), this->Viscosity(ii, jj + 1, kk),
+        this->EddyViscosity(ii, jj + 1, kk), this->F1(ii, jj + 1, kk), projDist,
+        this->VelGrad(ii, jj + 1, kk), phys, inp, false);
+  }
+
+  // -----------------------------------------------------------------------
+  // if k upper diagonal cell is in physical location there is a contribution
+  // from it
+  if (this->IsPhysical(ii, jj, kk + 1) ||
+      bc_.BCIsConnection(ii, jj, kk + 1, 6)) {
+    // calculate projected center to center distance along face area
+    const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
+
+    // update U matrix
+    U += OffDiagonal(
+        state_(ii, jj, kk + 1), state_(ii, jj, kk), du(ii, jj, kk + 1),
+        fAreaK_(ii, jj, kk + 1), this->Viscosity(ii, jj, kk + 1),
+        this->EddyViscosity(ii, jj, kk + 1), this->F1(ii, jj, kk + 1), projDist,
+        this->VelGrad(ii, jj, kk + 1), phys, inp, false);
+  }
+
+  return U;
+}
 
 /* Function to calculate the viscous fluxes on the i-faces. All phyiscal
 (non-ghost) i-faces are looped over. The left and right states are
@@ -1892,7 +1409,7 @@ void procBlock::CalcViscFluxI(const physics &phys, const input &inp,
           }
           if (isMultiSpecies_) {
             for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-              mixtureGrad_(ii - 1, jj, kk, ss) += sixth * mixGrad[ii];
+              mixtureGrad_(ii - 1, jj, kk, ss) += sixth * mixGrad[ss];
             }
           }
 
@@ -1927,7 +1444,7 @@ void procBlock::CalcViscFluxI(const physics &phys, const input &inp,
           }
           if (isMultiSpecies_) {
             for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ii];
+              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ss];
             }
           }
 
@@ -2215,7 +1732,7 @@ void procBlock::CalcViscFluxJ(const physics &phys, const input &inp,
           }
           if (isMultiSpecies_) {
             for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-              mixtureGrad_(ii, jj - 1, kk, ss) += sixth * mixGrad[ii];
+              mixtureGrad_(ii, jj - 1, kk, ss) += sixth * mixGrad[ss];
             }
           }
 
@@ -2250,7 +1767,7 @@ void procBlock::CalcViscFluxJ(const physics &phys, const input &inp,
           }
           if (isMultiSpecies_) {
             for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ii];
+              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ss];
             }
           }
 
@@ -2544,7 +2061,7 @@ void procBlock::CalcViscFluxK(const physics &phys, const input &inp,
           }
           if (isMultiSpecies_) {
             for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-              mixtureGrad_(ii, jj, kk - 1, ss) += sixth * mixGrad[ii];
+              mixtureGrad_(ii, jj, kk - 1, ss) += sixth * mixGrad[ss];
             }
           }
 
@@ -2579,7 +2096,7 @@ void procBlock::CalcViscFluxK(const physics &phys, const input &inp,
           }
           if (isMultiSpecies_) {
             for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
-              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ii];
+              mixtureGrad_(ii, jj, kk, ss) += sixth * mixGrad[ss];
             }
           }
 
@@ -2740,9 +2257,6 @@ void procBlock::AssignGhostCellsGeom() {
         center_.Insert(dir, gCell, r1, r2,
                        center_.Slice(dir, pCell, r1, r2) + distC2C);
       }
-
-      // fill ghost cell edge lines with geometric values
-      // (*this).AssignGhostCellsGeomEdge();
     }
   }
 }
@@ -2855,8 +2369,9 @@ void procBlock::AssignGhostCellsGeomEdge() {
               center_.Slice(dir, pCellD2, pCellD3, true);
 
           // assign centroids
-          center_.Insert(dir, gCellD2, gCellD3, distC2C +
-                         center_.Slice(dir, pCellD2, gCellD3, true), true);
+          center_.Insert(dir, gCellD2, gCellD3,
+                         distC2C + center_.Slice(dir, pCellD2, gCellD3, true),
+                         true);
 
           // assign face centers
           // use lambda to get distance to move for i, j, k face data
@@ -2937,9 +2452,9 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
   // phys -- physics models
 
   // loop over all layers of ghost cells
-  for (auto layer = 1; layer <= numGhosts_; layer++) {
+  for (auto layer = 1; layer <= numGhosts_; ++layer) {
     // loop over all boundary surfaces
-    for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
+    for (auto ii = 0; ii < bc_.NumSurfaces(); ++ii) {
       // get ranges for boundary surface
       const auto r1 = bc_.RangeDir1(ii);
       const auto r2 = bc_.RangeDir2(ii);
@@ -3011,8 +2526,6 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       }
     }
   }
-  // assign values to edge ghost cells
-  // (*this).AssignInviscidGhostCellsEdge(inp, eos, trans);
 }
 
 /* Member function to assign values to ghost cells located on the 12 block edges
@@ -3198,6 +2711,45 @@ void procBlock::AssignInviscidGhostCellsEdge(
       }
     }
   }
+}
+
+void procBlock::AssignCornerGhostCells() {
+  // assign "corner" cells - only used for cell to node interpolation
+  constexpr auto third = 1.0 / 3.0;
+  auto ig = state_.PhysStartI() - 1;
+  auto jg = state_.PhysStartJ() - 1;
+  auto kg = state_.PhysStartK() - 1;
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig + 1, jg, kg) + state_(ig, jg + 1, kg) +
+                              state_(ig, jg, kg + 1)));
+  ig = state_.PhysEndI();
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig - 1, jg, kg) + state_(ig, jg + 1, kg) +
+                              state_(ig, jg, kg + 1)));
+  jg = state_.PhysEndJ();
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig - 1, jg, kg) + state_(ig, jg - 1, kg) +
+                              state_(ig, jg, kg + 1)));
+  ig = state_.PhysStartI() - 1;
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig + 1, jg, kg) + state_(ig, jg - 1, kg) +
+                              state_(ig, jg, kg + 1)));
+  kg = state_.PhysEndK();
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig + 1, jg, kg) + state_(ig, jg - 1, kg) +
+                              state_(ig, jg, kg - 1)));
+  ig = state_.PhysEndI();
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig - 1, jg, kg) + state_(ig, jg - 1, kg) +
+                              state_(ig, jg, kg - 1)));
+  jg = state_.PhysStartJ() - 1;
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig - 1, jg, kg) + state_(ig, jg + 1, kg) +
+                              state_(ig, jg, kg - 1)));
+  ig = state_.PhysStartI() - 1;
+  state_.InsertBlock(ig, jg, kg,
+                     third * (state_(ig + 1, jg, kg) + state_(ig, jg + 1, kg) +
+                              state_(ig, jg, kg - 1)));
 }
 
 /* Member function to assign ghost cells for the viscous flow calculation. This
@@ -3475,194 +3027,6 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
     }
   }
 }
-
-/* Member function to determine where in padded plot3dBlock an index is located.
-It takes in an i, j, k cell location and returns a boolean indicating
-if the given i, j, k location corresponds to a physical cell location.
- */
-bool procBlock::IsPhysical(const int &ii, const int &jj, const int &kk) const {
-  // ii -- i index of location to test
-  // jj -- j index of location to test
-  // kk -- k index of location to test
-
-  auto isPhysical = true;
-
-  // if any of (i, j, & k) are outside of the limits of physical cells, location
-  // is non-physical
-  if ((ii < 0 || ii >= this->NumI()) ||
-      (jj < 0 || jj >= this->NumJ()) ||
-      (kk < 0 || kk >= this->NumK())) {
-    isPhysical = false;
-  }
-
-  return isPhysical;
-}
-
-/* Member function to determine where in padded plot3dBlock an index is located.
-It takes in an i, j, k cell location and returns a boolean indicating
-if the given i, j, k location corresponds to a corner location. Corner locations
-are not used at all. This function is NOT USED in the code but is useful
-for debugging purposes.
- */
-bool procBlock::AtCorner(const int &ii, const int &jj, const int &kk) const {
-  // ii -- i index of location to test
-  // jj -- j index of location to test
-  // kk -- k index of location to test
-  // includeGhost -- flag to determine if inputs include ghost cells or not
-
-  auto atCorner = false;
-
-  // if all (i, j, & k) are outside of the limits of physical cells, location is
-  // a corner location
-  if ((ii < 0 || ii > this->NumI() - 1) &&
-      (jj < 0 || jj > this->NumJ() - 1) &&
-      (kk < 0 || kk > this->NumK() - 1)) {
-    atCorner = true;
-  }
-
-  return atCorner;
-}
-
-/* Member function to determine where in padded plot3dBlock an index is located.
-It takes in an i, j, k cell location and returns a boolean indicating
-if the given i, j, k location corresponds to a edge location. Edge locations are
-used in the gradient calculations.
- */
-bool procBlock::AtEdge(const int &ii, const int &jj, const int &kk,
-                       string &dir) const {
-  // ii -- i index of location to test
-  // jj -- j index of location to test
-  // kk -- k index of location to test
-  // dir -- direction that edge runs in
-
-  auto atEdge = false;
-
-  // at i-edge - i in physical cell range, j/k at first level of ghost cells
-  if ((ii >= 0 && ii < this->NumI()) &&
-      (jj == -1 || jj == this->NumJ()) &&
-      (kk == -1 || kk == this->NumK())) {
-    atEdge = true;
-    dir = "i";
-  // at j-edge - j in physical cell range, i/k at first level of ghost cells
-  } else if ((ii == -1 || ii == this->NumI()) &&
-             (jj >= 0 && jj < this->NumJ()) &&
-             (kk == -1 || kk == this->NumK())) {
-    atEdge = true;
-    dir = "j";
-  // at k-edge - k in physical cell range, i/j at first level of ghost cells
-  } else if ((ii == -1 || ii == this->NumI()) &&
-             (jj == -1 || jj == this->NumJ()) &&
-             (kk >= 0 && kk < this->NumK())) {
-    atEdge = true;
-    dir = "k";
-  }
-
-  return atEdge;
-}
-
-/* This member function differs from AtEdge in that it returns true for any
-   line of edge cells. In the example below, AtEdge returns true only for 1,
-   whereas AtEdgeInclusive returns true for 0, 1, 2, & 3.
-
-           |
-   ghost   | physical
-    ___ ___|__________
-   | 0 | 1 |
-   |___|___| ghost 
-   | 2 | 3 |
-   |___|___|
-   
-*/
-bool procBlock::AtEdgeInclusive(const int &ii, const int &jj, const int &kk,
-                                string &dir) const {
-  // ii -- i index of location to test
-  // jj -- j index of location to test
-  // kk -- k index of location to test
-  // dir -- direction that edge runs in
-
-  auto atEdge = false;
-
-  // at i-edge - i in physical cell range, j/k in ghost cells
-  if ((ii >= 0 && ii < this->NumI()) &&
-      (jj < 0 || jj >= this->NumJ()) &&
-      (kk < 0 || kk >= this->NumK())) {
-    atEdge = true;
-    dir = "i";
-  // at j-edge - j in physical cell range, i/k in ghost cells
-  } else if ((ii < 0 || ii >= this->NumI()) &&
-             (jj >= 0 && jj < this->NumJ()) &&
-             (kk < 0 || kk >= this->NumK())) {
-    atEdge = true;
-    dir = "j";
-  // at k-edge - k in physical cell range, i/j in ghost cells
-  } else if ((ii < 0 || ii >= this->NumI()) &&
-             (jj < 0 || jj >= this->NumJ()) &&
-             (kk >= 0 && kk < this->NumK())) {
-    atEdge = true;
-    dir = "k";
-  }
-
-  return atEdge;
-}
-
-// returns true if the given indices are for a regular ghost cell, and not an
-// edge ghost cell or physical cell. Also returns surface type of ghost cell
-bool procBlock::AtGhostNonEdge(const int &ii, const int &jj, const int &kk,
-                               string &dir, int &type) const {
-  // ii -- i index of location to test
-  // jj -- j index of location to test
-  // kk -- k index of location to test
-  // dir -- direction that edge runs in
-
-  auto atGhost = false;
-
-  // at il ghost cells - i in ghost cell range, j/k in physical cells
-  if (ii >= this->StartIG() && ii < this->StartI() &&
-      jj >= this->StartJG() && jj < this->EndJG() &&
-      kk >= this->StartKG() && kk < this->EndKG()) {
-    atGhost = true;
-    dir = "il";
-    type = 1;
-  // at jl - j in ghost cell range, i/k in physical cells
-  } else if (jj >= this->StartJG() && jj < this->StartJ() &&
-             ii >= this->StartIG() && ii < this->EndIG() &&
-             kk >= this->StartKG() && kk < this->EndKG()) {
-    atGhost = true;
-    dir = "jl";
-    type = 3;
-  // at kl - k in ghost cell range, i/j in physical cells
-  } else if (kk >= this->StartKG() && kk < this->StartK() &&
-             jj >= this->StartJG() && jj < this->EndJG() &&
-             ii >= this->StartIG() && ii < this->EndIG()) {
-    atGhost = true;
-    dir = "kl";
-    type = 5;
-  // at iu ghost cells - i in ghost cell range, j/k in physical cells
-  } else if (ii >= this->EndI() && ii < this->EndIG() &&
-             jj >= this->StartJG() && jj < this->EndJG() &&
-             kk >= this->StartKG() && kk < this->EndKG()) {
-    atGhost = true;
-    dir = "iu";
-    type = 2;
-  // at ju - j in ghost cell range, i/k in physical cells
-  } else if (jj >= this->EndJ() && jj < this->EndJG() &&
-             ii >= this->StartIG() && ii < this->EndIG() &&
-             kk >= this->StartKG() && kk < this->EndKG()) {
-    atGhost = true;
-    dir = "ju";
-    type = 4;
-  // at ku - k in ghost cell range, i/j in physical cells
-  } else if (kk >= this->EndK() && kk < this->EndKG() &&
-             jj >= this->StartJG() && jj < this->EndJG() &&
-             ii >= this->StartIG() && ii < this->EndIG()) {
-    atGhost = true;
-    dir = "ku";
-    type = 6;
-  }
-  
-  return atGhost;
-}
-
 
 /* Function to swap ghost cells between two blocks at an connection
 boundary. Slices are removed from the physical cells (extending into ghost cells
@@ -4697,6 +4061,9 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
   MPI_Pack_size(consVarsNm1_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for solution n-1
   sendBufSize += tempSize;
+  MPI_Pack_size(nodes_.Size(), MPI_vec3d, MPI_COMM_WORLD,
+                &tempSize);  // add size for nodes
+  sendBufSize += tempSize;
   MPI_Pack_size(center_.Size(), MPI_vec3d, MPI_COMM_WORLD,
                 &tempSize);  // add size for cell centers
   sendBufSize += tempSize;
@@ -4744,8 +4111,8 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
 
   // allocate buffer to pack data into
   // use unique_ptr to manage memory; use underlying pointer with MPI calls
-  auto unqSendBuffer = unique_ptr<char>(new char[sendBufSize]);
-  auto *sendBuffer = unqSendBuffer.get();
+  auto sendBuffer = std::make_unique<char[]>(sendBufSize);
+  auto *rawSendBuffer = sendBuffer.get();
 
   const auto numI = this->NumI();
   const auto numJ = this->NumJ();
@@ -4754,67 +4121,69 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_vec3d,
   // pack data to send into buffer
   auto position = 0;
   // int and vector data
-  MPI_Pack(&numI, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&numI, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&numJ, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&numJ, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&numK, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&numK, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&numGhosts_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&numGhosts_, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&parBlock_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&parBlock_, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&rank_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&rank_, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&localPos_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&localPos_, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&globalPos_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&globalPos_, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&isViscous_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&isTurbulent_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&isRANS_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&storeTimeN_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
+  MPI_Pack(&isViscous_, 1, MPI_CXX_BOOL, rawSendBuffer, sendBufSize,
            &position, MPI_COMM_WORLD);
-  MPI_Pack(&isMultiLevelTime_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
+  MPI_Pack(&isTurbulent_, 1, MPI_CXX_BOOL, rawSendBuffer, sendBufSize,
            &position, MPI_COMM_WORLD);
-  MPI_Pack(&isMultiSpecies_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
+  MPI_Pack(&isRANS_, 1, MPI_CXX_BOOL, rawSendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&storeTimeN_, 1, MPI_CXX_BOOL, rawSendBuffer, sendBufSize,
            &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_DOUBLE, sendBuffer,
+  MPI_Pack(&isMultiLevelTime_, 1, MPI_CXX_BOOL, rawSendBuffer, sendBufSize,
+           &position, MPI_COMM_WORLD);
+  MPI_Pack(&isMultiSpecies_, 1, MPI_CXX_BOOL, rawSendBuffer, sendBufSize,
+           &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_DOUBLE, rawSendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
   if (isMultiLevelTime_) {
     MPI_Pack(&(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_DOUBLE,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
-  MPI_Pack(&(*std::begin(center_)), center_.Size(), MPI_vec3d, sendBuffer,
+  MPI_Pack(&(*std::begin(nodes_)), nodes_.Size(), MPI_vec3d, rawSendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(center_)), center_.Size(), MPI_vec3d,
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fAreaI_)), fAreaI_.Size(), MPI_vec3dMag,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fAreaJ_)), fAreaJ_.Size(), MPI_vec3dMag,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fAreaK_)), fAreaK_.Size(), MPI_vec3dMag,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fCenterI_)), fCenterI_.Size(), MPI_vec3d,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fCenterJ_)), fCenterJ_.Size(), MPI_vec3d,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fCenterK_)), fCenterK_.Size(), MPI_vec3d,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*std::begin(vol_)), vol_.Size(), MPI_DOUBLE, sendBuffer,
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(vol_)), vol_.Size(), MPI_DOUBLE, rawSendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
 
   // pack boundary condition data
-  bc_.PackBC(sendBuffer, sendBufSize, position);
+  bc_.PackBC(rawSendBuffer, sendBufSize, position);
 
   // pack wall data
   for (auto &wd : wallData_) {
-    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_vec3d);
+    wd.PackWallData(rawSendBuffer, sendBufSize, position, MPI_vec3d);
   }
 
   // send buffer to appropriate processor
-  MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, rank_, 2,
+  MPI_Send(rawSendBuffer, sendBufSize, MPI_PACKED, rank_, 2,
            MPI_COMM_WORLD);
 }
 
@@ -4835,45 +4204,45 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_vec3d,
 
   // allocate buffer of correct size
   // use unique_ptr to manage memory; use underlying pointer with MPI
-  auto unqRecvBuffer = unique_ptr<char>(new char[recvBufSize]);
-  auto *recvBuffer = unqRecvBuffer.get();
+  auto recvBuffer = std::make_unique<char[]>(recvBufSize);
+  auto *rawRecvBuffer = recvBuffer.get();
 
   // receive message from ROOT
-  MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, ROOTP, 2, MPI_COMM_WORLD,
+  MPI_Recv(rawRecvBuffer, recvBufSize, MPI_PACKED, ROOTP, 2, MPI_COMM_WORLD,
            &status);
 
   auto numI = 0, numJ = 0, numK = 0;
   // unpack procBlock INTs
   auto position = 0;
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &numI, 1,
-             MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &numJ, 1,
-             MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &numK, 1,
-             MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &numGhosts_, 1,
-             MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &parBlock_, 1, MPI_INT,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &numI, 1, MPI_INT,
              MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &rank_, 1, MPI_INT,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &numJ, 1, MPI_INT,
              MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &localPos_, 1, MPI_INT,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &numK, 1, MPI_INT,
              MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &globalPos_, 1,
-             MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &numGhosts_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &parBlock_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &rank_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &localPos_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &globalPos_, 1, MPI_INT,
+             MPI_COMM_WORLD);
 
   // unpack procBlock bools
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &isViscous_, 1,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &isViscous_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &isTurbulent_, 1,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &isTurbulent_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &isRANS_, 1,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &isRANS_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &storeTimeN_, 1,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &storeTimeN_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &isMultiLevelTime_, 1,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &isMultiLevelTime_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &isMultiSpecies_, 1,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &isMultiSpecies_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
 
   // clean and resize the vectors in the class to
@@ -4881,46 +4250,49 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_vec3d,
                         inp.NumSpecies());
 
   // unpack vector data into allocated vectors
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(state_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(state_)),
              state_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack states
   if (isMultiLevelTime_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(consVarsNm1_)),
-               consVarsNm1_.Size(), MPI_DOUBLE,
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+               &(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack sol n-1
   }
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(center_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(nodes_)),
+             nodes_.Size(), MPI_vec3d,
+             MPI_COMM_WORLD);  // unpack nodes
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(center_)),
              center_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack cell centers
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fAreaI_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(fAreaI_)),
              fAreaI_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area I
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fAreaJ_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(fAreaJ_)),
              fAreaJ_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area J
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fAreaK_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(fAreaK_)),
              fAreaK_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area K
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterI_)),
-             fCenterI_.Size(), MPI_vec3d,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(fCenterI_)), fCenterI_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center I
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterJ_)),
-             fCenterJ_.Size(), MPI_vec3d,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(fCenterJ_)), fCenterJ_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center J
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterK_)),
-             fCenterK_.Size(), MPI_vec3d,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(fCenterK_)), fCenterK_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center K
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(vol_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(vol_)),
              vol_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack volumes
 
   // unpack boundary conditions
-  bc_.UnpackBC(recvBuffer, recvBufSize, position);
+  bc_.UnpackBC(rawRecvBuffer, recvBufSize, position);
 
   // unpack wall data
   wallData_.resize(bc_.NumViscousSurfaces());
   for (auto &wd : wallData_) {
-    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_vec3d, inp);
+    wd.UnpackWallData(rawRecvBuffer, recvBufSize, position, MPI_vec3d, inp);
   }
 }
 
@@ -4942,6 +4314,7 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
     consVarsNm1_.ClearResize(numI, numJ, numK, 0, numEqns, numSpecies);
   }
 
+  nodes_.ClearResize(numI + 1, numJ + 1, numK + 1);
   center_.ClearResize(numI, numJ, numK, numGhosts);
   vol_.ClearResize(numI, numJ, numK, numGhosts);
 
@@ -5014,98 +4387,101 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
                                                    // allocated with chars
   // allocate buffer of correct size
   // use unique_ptr to manage memory; use underlying pointer for MPI calls
-  auto unqRecvBuffer = unique_ptr<char>(new char[recvBufSize]);
-  auto *recvBuffer = unqRecvBuffer.get();
+  auto recvBuffer = std::make_unique<char[]>(recvBufSize);
+  auto *rawRecvBuffer = recvBuffer.get();
 
   // receive message from non-ROOT
-  MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, rank_, globalPos_,
+  MPI_Recv(rawRecvBuffer, recvBufSize, MPI_PACKED, rank_, globalPos_,
            MPI_COMM_WORLD, &status);
 
   // unpack vector data into allocated vectors
   auto position = 0;
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(state_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(state_)),
              state_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack states
   if (isMultiLevelTime_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(consVarsNm1_)),
-               consVarsNm1_.Size(), MPI_DOUBLE,
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+               &(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack states
   }
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(residual_)),
-             residual_.Size(), MPI_DOUBLE,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(residual_)), residual_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack residuals
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(dt_)),
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(dt_)),
              dt_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack time steps
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(cellWidthI_)),
-             cellWidthI_.Size(), MPI_DOUBLE,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(cellWidthI_)), cellWidthI_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack cell width I
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(cellWidthJ_)),
-             cellWidthJ_.Size(), MPI_DOUBLE,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(cellWidthJ_)), cellWidthJ_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack cell width J
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(cellWidthK_)),
-             cellWidthK_.Size(), MPI_DOUBLE,
-             MPI_COMM_WORLD);  // unpack cell width K                          
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(wallDist_)),
-             wallDist_.Size(), MPI_DOUBLE,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(cellWidthK_)), cellWidthK_.Size(), MPI_DOUBLE,
+             MPI_COMM_WORLD);  // unpack cell width K
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(wallDist_)), wallDist_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack wall distance
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(specRadius_)),
-             specRadius_.Size(), MPI_uncoupledScalar,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(specRadius_)), specRadius_.Size(),
+             MPI_uncoupledScalar,
              MPI_COMM_WORLD);  // unpack average wave speeds
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(temperature_)),
-             temperature_.Size(), MPI_DOUBLE,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(temperature_)), temperature_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack temperature
 
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(velocityGrad_)),
-             velocityGrad_.Size(), MPI_tensorDouble,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+             &(*std::begin(velocityGrad_)), velocityGrad_.Size(),
+             MPI_tensorDouble,
              MPI_COMM_WORLD);  // unpack velocity gradient
-  MPI_Unpack(recvBuffer, recvBufSize, &position,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
              &(*std::begin(temperatureGrad_)), temperatureGrad_.Size(),
              MPI_vec3d, MPI_COMM_WORLD);  // unpack temperature gradient
-  MPI_Unpack(recvBuffer, recvBufSize, &position,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
              &(*std::begin(densityGrad_)), densityGrad_.Size(),
              MPI_vec3d, MPI_COMM_WORLD);  // unpack density gradient
-  MPI_Unpack(recvBuffer, recvBufSize, &position,
+  MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
              &(*std::begin(pressureGrad_)), pressureGrad_.Size(),
              MPI_vec3d, MPI_COMM_WORLD);  // unpack pressure gradient
 
   if (isViscous_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(viscosity_)),
-               viscosity_.Size(), MPI_DOUBLE,
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+               &(*std::begin(viscosity_)), viscosity_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack viscosity
   }
 
   if (isTurbulent_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position,
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
                &(*std::begin(eddyViscosity_)), eddyViscosity_.Size(),
                MPI_DOUBLE, MPI_COMM_WORLD);  // unpack eddy viscosity
   }
 
   if (isRANS_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(f1_)),
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(f1_)),
                f1_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack blending variable f1
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(f2_)),
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &(*std::begin(f2_)),
                f2_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack blending variable f2
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(tkeGrad_)),
-               tkeGrad_.Size(), MPI_vec3d,
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+               &(*std::begin(tkeGrad_)), tkeGrad_.Size(), MPI_vec3d,
                MPI_COMM_WORLD);  // unpack tke gradient
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(omegaGrad_)),
-               omegaGrad_.Size(), MPI_vec3d,
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+               &(*std::begin(omegaGrad_)), omegaGrad_.Size(), MPI_vec3d,
                MPI_COMM_WORLD);  // unpack omega gradient
   }
 
   if (isMultiSpecies_) {
     // unpack mixture gradients
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(mixtureGrad_)),
-               mixtureGrad_.Size(), MPI_vec3d, MPI_COMM_WORLD);
+    MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+               &(*std::begin(mixtureGrad_)), mixtureGrad_.Size(), MPI_vec3d,
+               MPI_COMM_WORLD);
   }
 
   // unpack wall data
   wallData_.resize(bc_.NumViscousSurfaces());
   for (auto &wd : wallData_) {
-    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_vec3d, inp);
+    wd.UnpackWallData(rawRecvBuffer, recvBufSize, position, MPI_vec3d, inp);
   }
 }
 
@@ -5207,77 +4583,77 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_uncoupledScalar,
 
   // allocate buffer to pack data into
   // use unique_ptr to manage memory; use underlying pointer for MPI calls
-  auto unqSendBuffer = unique_ptr<char>(new char[sendBufSize]);
-  auto *sendBuffer = unqSendBuffer.get();
+  auto sendBuffer = std::make_unique<char[]>(sendBufSize);
+  auto *rawSendBuffer = sendBuffer.get();
 
   // pack data to send into buffer
   auto position = 0;
-  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_DOUBLE, sendBuffer,
+  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_DOUBLE, rawSendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
   if (isMultiLevelTime_) {
     MPI_Pack(&(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_DOUBLE,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
   MPI_Pack(&(*std::begin(residual_)), residual_.Size(), MPI_DOUBLE,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*std::begin(dt_)), dt_.Size(), MPI_DOUBLE, sendBuffer,
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(dt_)), dt_.Size(), MPI_DOUBLE, rawSendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(cellWidthI_)), cellWidthI_.Size(), MPI_DOUBLE,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(cellWidthJ_)), cellWidthJ_.Size(), MPI_DOUBLE,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(cellWidthK_)), cellWidthK_.Size(), MPI_DOUBLE,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);           
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);           
   MPI_Pack(&(*std::begin(wallDist_)), wallDist_.Size(), MPI_DOUBLE,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(specRadius_)), specRadius_.Size(), MPI_uncoupledScalar,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(temperature_)), temperature_.Size(), MPI_DOUBLE,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 
   MPI_Pack(&(*std::begin(velocityGrad_)), velocityGrad_.Size(),
-           MPI_tensorDouble, sendBuffer, sendBufSize, &position,
+           MPI_tensorDouble, rawSendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(temperatureGrad_)), temperatureGrad_.Size(), MPI_vec3d,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(densityGrad_)), densityGrad_.Size(), MPI_vec3d,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(pressureGrad_)), pressureGrad_.Size(), MPI_vec3d,
-           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+           rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 
   if (isViscous_) {
     MPI_Pack(&(*std::begin(viscosity_)), viscosity_.Size(), MPI_DOUBLE,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
   if (isTurbulent_) {
     MPI_Pack(&(*std::begin(eddyViscosity_)), eddyViscosity_.Size(), MPI_DOUBLE,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
   if (isRANS_) {
     MPI_Pack(&(*std::begin(f1_)), f1_.Size(), MPI_DOUBLE,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
     MPI_Pack(&(*std::begin(f2_)), f2_.Size(), MPI_DOUBLE,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
     MPI_Pack(&(*std::begin(tkeGrad_)), tkeGrad_.Size(), MPI_vec3d,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
     MPI_Pack(&(*std::begin(omegaGrad_)), omegaGrad_.Size(), MPI_vec3d,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
   if (isMultiSpecies_) {
     MPI_Pack(&(*std::begin(mixtureGrad_)), mixtureGrad_.Size(), MPI_vec3d,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+             rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
   // pack wall data
   for (auto &wd : wallData_) {
-    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_vec3d);
+    wd.PackWallData(rawSendBuffer, sendBufSize, position, MPI_vec3d);
   }
 
   // send buffer to appropriate processor
-  MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, ROOTP, globalPos_,
+  MPI_Send(rawSendBuffer, sendBufSize, MPI_PACKED, ROOTP, globalPos_,
            MPI_COMM_WORLD);
 }
 
@@ -5336,6 +4712,9 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
 
   blk1.parBlock_ = parBlock_;
   blk2.parBlock_ = parBlock_;
+
+  blk1.nodes_ = nodes_;
+  blk2.nodes_ = blk1.nodes_.Split(dir, ind);
 
   // ------------------------------------------------------------------
   // assign variables for lower split
@@ -5515,6 +4894,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
   newBlk.wallData_ = wallData_;
   newBlk.JoinWallData(blk.wallData_, dir);
+  newBlk.nodes_ = nodes_;
+  newBlk.nodes_.Join(blk.nodes_, dir);
 
   // assign variables from lower block -----------------------------
   // assign cell variables with ghost cells
@@ -7085,4 +6466,386 @@ void procBlock::JoinWallData(const vector<wallData> &upper, const string &dir) {
       wallData_.push_back(upper[ii]);
     }
   }
+}
+
+void procBlock::GetCoarseMeshAndBCs(
+    vector<plot3dBlock> &mesh, vector<boundaryConditions> &bcs,
+    vector<multiArray3d<vector3d<int>>> &toCoarse,
+    vector<multiArray3d<double>> &volFac) const {
+  bcs.push_back(this->BC());
+
+  // determine the i-indices of the fine mesh to keep
+  vector<int> iIndex;
+  auto sinceLastKept = 0;
+  iIndex.reserve(nodes_.NumI() / 2);
+  for (auto ii = 0; ii < nodes_.NumI(); ++ii) {
+    // if index is part of a surface patch, need to keep it
+    if (bc_.IsSurfaceBoundary("i", ii)) {
+      iIndex.push_back(ii);
+      bcs.back().UpdateSurfacesForCoarseMesh("i", ii, iIndex.size() - 1);
+      sinceLastKept = 0;
+    } else if (sinceLastKept > 0) {  // keep every other index
+      iIndex.push_back(ii);
+      sinceLastKept = 0;
+    } else {
+      sinceLastKept++;
+    }
+  }
+
+  // determine the j-indices of the fine mesh to keep
+  vector<int> jIndex;
+  sinceLastKept = 0;
+  jIndex.reserve(nodes_.NumJ() / 2);
+  for (auto jj = 0; jj < nodes_.NumJ(); ++jj) {
+    // if index is part of a surface patch, need to keep it
+    if (bc_.IsSurfaceBoundary("j", jj)) {
+      jIndex.push_back(jj);
+      bcs.back().UpdateSurfacesForCoarseMesh("j", jj, jIndex.size() - 1);
+      sinceLastKept = 0;
+    } else if (sinceLastKept > 0) {  // keep every other index
+      jIndex.push_back(jj);
+      sinceLastKept = 0;
+    } else {
+      sinceLastKept++;
+    }
+  }
+
+  // determine the k-indices of the fine mesh to keep
+  vector<int> kIndex;
+  sinceLastKept = 0;
+  kIndex.reserve(nodes_.NumK() / 2);
+  for (auto kk = 0; kk < nodes_.NumK(); ++kk) {
+    // if index is part of a surface patch, need to keep it
+    if (bc_.IsSurfaceBoundary("k", kk)) {
+      kIndex.push_back(kk);
+      bcs.back().UpdateSurfacesForCoarseMesh("k", kk, kIndex.size() - 1);
+      sinceLastKept = 0;
+    } else if (sinceLastKept > 0) {  // keep every other index
+      kIndex.push_back(kk);
+      sinceLastKept = 0;
+    } else {
+      sinceLastKept++;
+    }
+  }
+
+  // create plot3dBlk of coarse nodes
+  multiArray3d<vector3d<double>> coarseNodes(iIndex.size(), jIndex.size(),
+                                             kIndex.size(), 0);
+  for (auto kk = coarseNodes.StartK(); kk < coarseNodes.EndK(); ++kk) {
+    for (auto jj = coarseNodes.StartJ(); jj < coarseNodes.EndJ(); ++jj) {
+      for (auto ii = coarseNodes.StartI(); ii < coarseNodes.EndI(); ++ii) {
+        coarseNodes(ii, jj, kk) =
+            this->Node(iIndex[ii], jIndex[jj], kIndex[kk]);
+      }
+    }
+  }
+  mesh.emplace_back(coarseNodes);
+  WriteNodes("coarse", mesh);
+
+  // create map of fine to coarse cells
+  toCoarse.emplace_back(this->NumI(), this->NumJ(), this->NumK(), 0);
+  // custom comparator for vector3d<>
+  auto compareV3d = [](const auto &ll, const auto &rr) {
+    if (ll[0] != rr[0]) {
+      return ll[0] < rr[0];
+    } else if (ll[1] != rr[1]) {
+      return ll[1] < rr[1];
+    } else {
+      return ll[2] < rr[2];
+    }
+  };
+  std::multimap<vector3d<int>, vector3d<int>, decltype(compareV3d)>
+      coarseToFine(compareV3d);
+
+  for (auto fk = this->StartK(); fk < this->EndK(); ++fk) {
+    for (auto fj = this->StartJ(); fj < this->EndJ(); ++fj) {
+      for (auto fi = this->StartI(); fi < this->EndI(); ++fi) {
+        // find first coarse i, j, k index >= fi, fj, fk
+        int ci = std::distance(
+            std::begin(iIndex),
+            std::find_if(std::begin(iIndex), std::end(iIndex),
+                         [&fi](const auto &ind) { return ind > fi; }));
+        if (ci != this->StartI()) {ci--;}  // convert to cell index
+        int cj = std::distance(
+            std::begin(jIndex),
+            std::find_if(std::begin(jIndex), std::end(jIndex),
+                         [&fj](const auto &ind) { return ind > fj; }));
+        if (cj != this->StartJ()) {cj--;}  // convert to cell index
+        int ck = std::distance(
+            std::begin(kIndex),
+            std::find_if(std::begin(kIndex), std::end(kIndex),
+                         [&fk](const auto &ind) { return ind > fk; }));
+        if (ck != this->StartK()) {ck--;}  // convert to cell index
+        toCoarse.back()(fi, fj, fk) = {ci, cj, ck};
+        coarseToFine.insert(std::make_pair(vector3d<int>(ci, cj, ck),
+                                           vector3d<int>(fi, fj, fk)));
+      }
+    }
+  }
+
+  // populate volume weighting factor
+  volFac.emplace_back(this->NumI(), this->NumJ(), this->NumK(), 0);
+  for (auto ck = coarseNodes.StartK(); ck < coarseNodes.EndK() - 1; ++ck) {
+    for (auto cj = coarseNodes.StartJ(); cj < coarseNodes.EndJ() - 1; ++cj) {
+      for (auto ci = coarseNodes.StartI(); ci < coarseNodes.EndI() - 1; ++ci) {
+        auto range = coarseToFine.equal_range({ci, cj, ck});
+        // iterate over range and sum all volumes that map to same coarse cell
+        auto volSum = 0.0;
+        for (auto ii = range.first; ii != range.second; ++ii) {
+          volSum += vol_(ii->second[0], ii->second[1], ii->second[2]);
+        }
+        // iterate over same loops and normalize fine volume by sum
+        for (auto ii = range.first; ii != range.second; ++ii) {
+          volFac.back()(ii->second[0], ii->second[1], ii->second[2]) =
+              vol_(ii->second[0], ii->second[1], ii->second[2]) / volSum;
+        }
+      }
+    }
+  }
+}
+
+procBlock procBlock::CellToNode() const {
+  procBlock nodeData(this->NumI() + 1, this->NumJ() + 1, this->NumK() + 1, 0, 
+                     this->NumEquations(), this->NumSpecies(), 
+                     isViscous_, isTurbulent_, isRANS_,
+                     storeTimeN_, isMultiLevelTime_, isMultiSpecies_);
+  // solution data
+  nodeData.state_ = ConvertCellToNode(state_);
+  nodeData.residual_ = ConvertCellToNode(residual_, true);
+  nodeData.dt_ = ConvertCellToNode(dt_, true);
+  nodeData.wallDist_ = ConvertCellToNode(wallDist_, true);
+  nodeData.temperature_ = ConvertCellToNode(temperature_);
+  nodeData.viscosity_ = ConvertCellToNode(viscosity_);
+  nodeData.eddyViscosity_ = ConvertCellToNode(eddyViscosity_);
+  nodeData.f1_ = ConvertCellToNode(f1_);
+  nodeData.f2_ = ConvertCellToNode(f2_);
+
+  // gradients -------------------
+  // i-faces
+  for (auto kk = fAreaI_.PhysStartK(); kk < fAreaI_.PhysEndK(); ++kk) {
+    for (auto jj = fAreaI_.PhysStartJ(); jj < fAreaI_.PhysEndJ(); ++jj) {
+      for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ++ii) {
+        // calculate gradients
+        tensor<double> velGrad;
+        vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        vector<vector3d<double>> mixGrad;
+        this->CalcGradsI(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
+                         tkeGrad, omegaGrad, mixGrad);
+
+        nodeData.velocityGrad_(ii, jj, kk) += velGrad;
+        nodeData.velocityGrad_(ii, jj + 1, kk) += velGrad;
+        nodeData.velocityGrad_(ii, jj, kk + 1) += velGrad;
+        nodeData.velocityGrad_(ii, jj + 1, kk + 1) += velGrad;
+
+        nodeData.temperatureGrad_(ii, jj, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii, jj + 1, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii, jj, kk + 1) += tempGrad;
+        nodeData.temperatureGrad_(ii, jj + 1, kk + 1) += tempGrad;
+
+        nodeData.densityGrad_(ii, jj, kk) += denGrad;
+        nodeData.densityGrad_(ii, jj + 1, kk) += denGrad;
+        nodeData.densityGrad_(ii, jj, kk + 1) += denGrad;
+        nodeData.densityGrad_(ii, jj + 1, kk + 1) += denGrad;
+
+        nodeData.pressureGrad_(ii, jj, kk) += pressGrad;
+        nodeData.pressureGrad_(ii, jj + 1, kk) += pressGrad;
+        nodeData.pressureGrad_(ii, jj, kk + 1) += pressGrad;
+        nodeData.pressureGrad_(ii, jj + 1, kk + 1) += pressGrad;
+
+        nodeData.tkeGrad_(ii, jj, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii, jj + 1, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii, jj, kk + 1) += tkeGrad;
+        nodeData.tkeGrad_(ii, jj + 1, kk + 1) += tkeGrad;
+
+        nodeData.omegaGrad_(ii, jj, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii, jj + 1, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii, jj, kk + 1) += omegaGrad;
+        nodeData.omegaGrad_(ii, jj + 1, kk + 1) += omegaGrad;
+
+        if (isMultiSpecies_) {
+          for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+            nodeData.mixtureGrad_(ii, jj, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii, jj + 1, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii, jj, kk + 1, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii, jj + 1, kk + 1, ss) += mixGrad[ss];
+          }
+        }
+      }
+    }
+  }
+
+  // j-faces
+  for (auto kk = fAreaJ_.PhysStartK(); kk < fAreaJ_.PhysEndK(); ++kk) {
+    for (auto jj = fAreaJ_.PhysStartJ(); jj < fAreaJ_.PhysEndJ(); ++jj) {
+      for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ++ii) {
+        // calculate gradients
+        tensor<double> velGrad;
+        vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        vector<vector3d<double>> mixGrad;
+        this->CalcGradsJ(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
+                         tkeGrad, omegaGrad, mixGrad);
+
+        nodeData.velocityGrad_(ii, jj, kk) += velGrad;
+        nodeData.velocityGrad_(ii + 1, jj, kk) += velGrad;
+        nodeData.velocityGrad_(ii, jj, kk + 1) += velGrad;
+        nodeData.velocityGrad_(ii + 1, jj, kk + 1) += velGrad;
+
+        nodeData.temperatureGrad_(ii, jj, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii + 1, jj, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii, jj, kk + 1) += tempGrad;
+        nodeData.temperatureGrad_(ii + 1, jj, kk + 1) += tempGrad;
+
+        nodeData.densityGrad_(ii, jj, kk) += denGrad;
+        nodeData.densityGrad_(ii + 1, jj, kk) += denGrad;
+        nodeData.densityGrad_(ii, jj, kk + 1) += denGrad;
+        nodeData.densityGrad_(ii + 1, jj, kk + 1) += denGrad;
+
+        nodeData.pressureGrad_(ii, jj, kk) += pressGrad;
+        nodeData.pressureGrad_(ii + 1, jj, kk) += pressGrad;
+        nodeData.pressureGrad_(ii, jj, kk + 1) += pressGrad;
+        nodeData.pressureGrad_(ii + 1, jj, kk + 1) += pressGrad;
+
+        nodeData.tkeGrad_(ii, jj, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii + 1, jj, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii, jj, kk + 1) += tkeGrad;
+        nodeData.tkeGrad_(ii + 1, jj, kk + 1) += tkeGrad;
+
+        nodeData.omegaGrad_(ii, jj, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii + 1, jj, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii, jj, kk + 1) += omegaGrad;
+        nodeData.omegaGrad_(ii + 1, jj, kk + 1) += omegaGrad;
+
+        if (isMultiSpecies_) {
+          for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+            nodeData.mixtureGrad_(ii, jj, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii + 1, jj, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii, jj, kk + 1, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii + 1, jj, kk + 1, ss) += mixGrad[ss];
+          }
+        }
+      }
+    }
+  }
+
+  // k-faces
+  for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); ++kk) {
+    for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); ++jj) {
+      for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ++ii) {
+        // calculate gradients
+        tensor<double> velGrad;
+        vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        vector<vector3d<double>> mixGrad;
+        this->CalcGradsK(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
+                         tkeGrad, omegaGrad, mixGrad);
+
+        nodeData.velocityGrad_(ii, jj, kk) += velGrad;
+        nodeData.velocityGrad_(ii + 1, jj, kk) += velGrad;
+        nodeData.velocityGrad_(ii, jj + 1, kk) += velGrad;
+        nodeData.velocityGrad_(ii + 1, jj + 1, kk) += velGrad;
+
+        nodeData.temperatureGrad_(ii, jj, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii + 1, jj, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii, jj + 1, kk) += tempGrad;
+        nodeData.temperatureGrad_(ii + 1, jj + 1, kk) += tempGrad;
+
+        nodeData.densityGrad_(ii, jj, kk) += denGrad;
+        nodeData.densityGrad_(ii + 1, jj, kk) += denGrad;
+        nodeData.densityGrad_(ii, jj + 1, kk) += denGrad;
+        nodeData.densityGrad_(ii + 1, jj + 1, kk) += denGrad;
+
+        nodeData.pressureGrad_(ii, jj, kk) += pressGrad;
+        nodeData.pressureGrad_(ii + 1, jj, kk) += pressGrad;
+        nodeData.pressureGrad_(ii, jj + 1, kk) += pressGrad;
+        nodeData.pressureGrad_(ii + 1, jj + 1, kk) += pressGrad;
+
+        nodeData.tkeGrad_(ii, jj, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii + 1, jj, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii, jj + 1, kk) += tkeGrad;
+        nodeData.tkeGrad_(ii + 1, jj + 1, kk) += tkeGrad;
+
+        nodeData.omegaGrad_(ii, jj, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii + 1, jj, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii, jj + 1, kk) += omegaGrad;
+        nodeData.omegaGrad_(ii + 1, jj + 1, kk) += omegaGrad;
+        if (isMultiSpecies_) {
+          for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+            nodeData.mixtureGrad_(ii, jj, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii + 1, jj, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii, jj + 1, kk, ss) += mixGrad[ss];
+            nodeData.mixtureGrad_(ii + 1, jj + 1, kk, ss) += mixGrad[ss];
+          }
+        }
+      }
+    }
+  }
+
+  constexpr auto interiorFactor = 1.0 / 12.0;
+  constexpr auto boundaryFactor = 1.0 / 8.0;
+  constexpr auto edgeFactor = 1.0 / 5.0;
+  constexpr auto cornerFactor = 1.0 / 3.0;
+  string edge = "";
+  auto bnd = 0;
+  for (auto kk = nodeData.StartK(); kk < nodeData.EndK(); ++kk) {
+    for (auto jj = nodeData.StartJ(); jj < nodeData.EndJ(); ++jj) {
+      for (auto ii = nodeData.StartI(); ii < nodeData.EndI(); ++ii) {
+        if (nodeData.velocityGrad_.AtInteriorCorner(ii, jj, kk)) {
+          nodeData.velocityGrad_(ii, jj, kk) *= cornerFactor;
+          nodeData.temperatureGrad_(ii, jj, kk) *= cornerFactor;
+          nodeData.densityGrad_(ii, jj, kk) *= cornerFactor;
+          nodeData.pressureGrad_(ii, jj, kk) *= cornerFactor;
+          nodeData.tkeGrad_(ii, jj, kk) *= cornerFactor;
+          nodeData.omegaGrad_(ii, jj, kk) *= cornerFactor;
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              nodeData.mixtureGrad_(ii, jj, kk, ss) *= cornerFactor;
+            }
+          }
+        } else if (nodeData.velocityGrad_.AtInteriorEdge(ii, jj, kk, edge)) {
+          nodeData.velocityGrad_(ii, jj, kk) *= edgeFactor;
+          nodeData.temperatureGrad_(ii, jj, kk) *= edgeFactor;
+          nodeData.densityGrad_(ii, jj, kk) *= edgeFactor;
+          nodeData.pressureGrad_(ii, jj, kk) *= edgeFactor;
+          nodeData.tkeGrad_(ii, jj, kk) *= edgeFactor;
+          nodeData.omegaGrad_(ii, jj, kk) *= edgeFactor;
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              nodeData.mixtureGrad_(ii, jj, kk, ss) *= edgeFactor;
+            }
+          }
+        } else if (nodeData.velocityGrad_.AtInterior(ii, jj, kk, edge, bnd)) {
+          nodeData.velocityGrad_(ii, jj, kk) *= boundaryFactor;
+          nodeData.temperatureGrad_(ii, jj, kk) *= boundaryFactor;
+          nodeData.densityGrad_(ii, jj, kk) *= boundaryFactor;
+          nodeData.pressureGrad_(ii, jj, kk) *= boundaryFactor;
+          nodeData.tkeGrad_(ii, jj, kk) *= boundaryFactor;
+          nodeData.omegaGrad_(ii, jj, kk) *= boundaryFactor;
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              nodeData.mixtureGrad_(ii, jj, kk, ss) *= boundaryFactor;
+            }
+          }
+        } else {
+          nodeData.velocityGrad_(ii, jj, kk) *= interiorFactor;
+          nodeData.temperatureGrad_(ii, jj, kk) *= interiorFactor;
+          nodeData.densityGrad_(ii, jj, kk) *= interiorFactor;
+          nodeData.pressureGrad_(ii, jj, kk) *= interiorFactor;
+          nodeData.tkeGrad_(ii, jj, kk) *= interiorFactor;
+          nodeData.omegaGrad_(ii, jj, kk) *= interiorFactor;
+          if (isMultiSpecies_) {
+            for (auto ss = 0; ss < this->NumSpecies(); ++ss) {
+              nodeData.mixtureGrad_(ii, jj, kk, ss) *= interiorFactor;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return nodeData;
+}
+
+void procBlock::Restriction(const procBlock &fine,
+                            const multiArray3d<vector3d<int>> &toCoarse,
+                            const multiArray3d<double> &volWeightFactor) {
+  BlockRestriction(fine.state_, toCoarse, volWeightFactor, state_);
 }

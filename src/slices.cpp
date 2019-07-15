@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -170,4 +170,130 @@ geomSlice::geomSlice(const procBlock &blk, const range &ir, const range &jr,
       }
     }
   }
+}
+
+void geomSlice::SameSizeResize(const int &numI, const int &numJ,
+                               const int &numK, const int &ng) {
+  center_.SameSizeResize(numI, numJ, numK);
+  fAreaI_.SameSizeResize(numI + 1, numJ, numK);
+  fAreaJ_.SameSizeResize(numI, numJ + 1, numK);
+  fAreaK_.SameSizeResize(numI, numJ, numK + 1);
+  fCenterI_.SameSizeResize(numI + 1, numJ, numK);
+  fCenterJ_.SameSizeResize(numI, numJ + 1, numK);
+  fCenterK_.SameSizeResize(numI, numJ, numK + 1);
+  vol_.SameSizeResize(numI, numJ, numK);
+}
+
+void geomSlice::PackSwapUnpackMPI(const connection &inter,
+                                  const MPI_Datatype &MPI_vec3d,
+                                  const MPI_Datatype &MPI_vec3dMag,
+                                  const int &rank, const int &tag) {
+  // swap with mpi_send_recv_replace
+  // pack data into buffer, but first get size
+  auto bufSize = 0;
+  auto tempSize = 0;
+  // add size for centers
+  MPI_Pack_size(center_.Size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize);
+  bufSize += tempSize;
+  // add size for face areas
+  MPI_Pack_size(fAreaI_.Size(), MPI_vec3dMag, MPI_COMM_WORLD, &tempSize);
+  bufSize += tempSize;
+  MPI_Pack_size(fAreaJ_.Size(), MPI_vec3dMag, MPI_COMM_WORLD, &tempSize);
+  bufSize += tempSize;
+  MPI_Pack_size(fAreaK_.Size(), MPI_vec3dMag, MPI_COMM_WORLD, &tempSize);
+  bufSize += tempSize;
+  // add size for face centers
+  MPI_Pack_size(fCenterI_.Size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize);
+  bufSize += tempSize;
+  MPI_Pack_size(fCenterJ_.Size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize);
+  bufSize += tempSize;
+  MPI_Pack_size(fCenterK_.Size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize);
+  bufSize += tempSize;
+  // add size for volume
+  MPI_Pack_size(vol_.Size(), MPI_DOUBLE, MPI_COMM_WORLD, &tempSize);
+  bufSize += tempSize;
+  // add size for 5 ints for multiArray3d dims, ghost layers, and parent block
+  MPI_Pack_size(5, MPI_INT, MPI_COMM_WORLD, &tempSize);
+  bufSize += tempSize;
+
+  // allocate buffer to pack data into
+  // use unique_ptr to manage memory; use underlying pointer for MPI calls
+  auto buffer = std::make_unique<char[]>(bufSize);
+  auto *rawBuffer = buffer.get();
+
+  // pack data into buffer
+  auto numI = this->NumI();
+  auto numJ = this->NumJ();
+  auto numK = this->NumK();
+  auto numGhosts = this->GhostLayers();
+  auto position = 0;
+  // pack ints
+  MPI_Pack(&numI, 1, MPI_INT, rawBuffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&numJ, 1, MPI_INT, rawBuffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&numK, 1, MPI_INT, rawBuffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&numGhosts, 1, MPI_INT, rawBuffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&parBlock_, 1, MPI_INT, rawBuffer, bufSize, &position, MPI_COMM_WORLD);
+  // pack center
+  MPI_Pack(&(*std::begin(center_)), center_.Size(), MPI_vec3d, rawBuffer,
+           bufSize, &position, MPI_COMM_WORLD);
+  // pack face areas
+  MPI_Pack(&(*std::begin(fAreaI_)), fAreaI_.Size(), MPI_vec3dMag, rawBuffer,
+           bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(fAreaJ_)), fAreaJ_.Size(), MPI_vec3dMag, rawBuffer,
+           bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(fAreaK_)), fAreaK_.Size(), MPI_vec3dMag, rawBuffer,
+           bufSize, &position, MPI_COMM_WORLD);
+  // pack face centers
+  MPI_Pack(&(*std::begin(fCenterI_)), fCenterI_.Size(), MPI_vec3d, rawBuffer,
+           bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(fCenterJ_)), fCenterJ_.Size(), MPI_vec3d, rawBuffer,
+           bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(fCenterK_)), fCenterK_.Size(), MPI_vec3d, rawBuffer,
+           bufSize, &position, MPI_COMM_WORLD);
+  // pack volume
+  MPI_Pack(&(*std::begin(vol_)), vol_.Size(), MPI_DOUBLE, rawBuffer, bufSize,
+           &position, MPI_COMM_WORLD);
+
+  MPI_Status status;
+  if (rank == inter.RankFirst()) {  // send/recv with second entry in connection
+    MPI_Sendrecv_replace(rawBuffer, bufSize, MPI_PACKED, inter.RankSecond(),
+                         tag, inter.RankSecond(), tag, MPI_COMM_WORLD, &status);
+  } else {  // send/recv with first entry in connection
+    MPI_Sendrecv_replace(rawBuffer, bufSize, MPI_PACKED, inter.RankFirst(), tag,
+                         inter.RankFirst(), tag, MPI_COMM_WORLD, &status);
+  }
+
+  // put slice back into geomSlice
+  position = 0;
+  MPI_Unpack(rawBuffer, bufSize, &position, &numI, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(rawBuffer, bufSize, &position, &numJ, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(rawBuffer, bufSize, &position, &numK, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(rawBuffer, bufSize, &position, &numGhosts, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(rawBuffer, bufSize, &position, &parBlock_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+
+  // resize slice
+  this->SameSizeResize(numI, numJ, numK, numGhosts);
+  // unpack center
+  MPI_Unpack(rawBuffer, bufSize, &position, &(*std::begin(center_)),
+             center_.Size(), MPI_vec3d, MPI_COMM_WORLD);
+  // unpack face areas
+  MPI_Unpack(rawBuffer, bufSize, &position, &(*std::begin(fAreaI_)),
+             fAreaI_.Size(), MPI_vec3dMag, MPI_COMM_WORLD);
+  MPI_Unpack(rawBuffer, bufSize, &position, &(*std::begin(fAreaJ_)),
+             fAreaJ_.Size(), MPI_vec3dMag, MPI_COMM_WORLD);
+  MPI_Unpack(rawBuffer, bufSize, &position, &(*std::begin(fAreaK_)),
+             fAreaK_.Size(), MPI_vec3dMag, MPI_COMM_WORLD);
+  // unpack face centers
+  MPI_Unpack(rawBuffer, bufSize, &position, &(*std::begin(fCenterI_)),
+             fCenterI_.Size(), MPI_vec3d, MPI_COMM_WORLD);
+  MPI_Unpack(rawBuffer, bufSize, &position, &(*std::begin(fCenterJ_)),
+             fCenterJ_.Size(), MPI_vec3d, MPI_COMM_WORLD);
+  MPI_Unpack(rawBuffer, bufSize, &position, &(*std::begin(fCenterK_)),
+             fCenterK_.Size(), MPI_vec3d, MPI_COMM_WORLD);
+  // unpack volume
+  MPI_Unpack(rawBuffer, bufSize, &position, &(*std::begin(vol_)), vol_.Size(),
+             MPI_DOUBLE, MPI_COMM_WORLD);
 }

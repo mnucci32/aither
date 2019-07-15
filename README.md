@@ -35,8 +35,8 @@ Multispecies flow is supported and a Schmidt number based model is used for
 diffusion. Reacting flow is modeled with a finite rate chemistry model.
 
 ### To Do List
-* Add multigrid scheme for improved convergence
 * Performance improvements
+* User guide
 
 ### Dependencies
 * MPI - OpenMPI, MPICH, & MS-MPI have been used
@@ -58,10 +58,6 @@ Cmake will automatically look for an MPI package. To specify a specific
 installation, set **-DMPI_DIR** to the MPI installation directory. In addition 
 to **release**, other supported build types are **debug**, **profile**,
 **relwithdebinfo**, and **minsizerel**.
-
-The **AITHER_FLUID_DATABASE** environment variable should be set to the 
-**fluidDatabase** folder inside of the installation directory. This tells aither
-where to look for fluid properties.
 
 ### How To Run
 ```bash

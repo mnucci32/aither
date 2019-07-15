@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,9 +24,11 @@
 #include <iostream>
 #include <memory>
 #include <algorithm>
+#include <cstdlib>
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
 #include "multiArray3d.hpp"        // multiArray3d
+#include "plot3d.hpp"              // plot3dBlk
 #include "blkMultiArray3d.hpp"     // blkMultiArray3d
 #include "tensor.hpp"              // tensor
 #include "primitive.hpp"           // primitive
@@ -36,6 +38,7 @@
 #include "macros.hpp"
 #include "uncoupledScalar.hpp"     // uncoupledScalar
 #include "wallData.hpp"
+#include "utility.hpp"
 
 using std::vector;
 using std::string;
@@ -50,7 +53,6 @@ class viscousFlux;
 class input;
 class geomSlice;
 class source;
-class plot3dBlock;
 class resid;
 class kdtree;
 class conserved;
@@ -70,6 +72,7 @@ class procBlock {
   multiArray3d<unitVec3dMag<double>> fAreaJ_;  // face area vector for j-faces
   multiArray3d<unitVec3dMag<double>> fAreaK_;  // face area vector for k-faces
 
+  plot3dBlock nodes_;  // coordinates of nodes
   multiArray3d<vector3d<double>> center_;  // coordinates of cell center
   multiArray3d<vector3d<double>> fCenterI_;  // coordinates of i-face centers
   multiArray3d<vector3d<double>> fCenterJ_;  // coordinates of j-face centers
@@ -208,20 +211,23 @@ class procBlock {
     }
   }
 
-  int NumGhosts() const {return numGhosts_;}
-  int ParentBlock() const {return parBlock_;}
-  int LocalPosition() const {return localPos_;}
-  int Rank() const {return rank_;}
-  int GlobalPos() const {return globalPos_;}
-  bool IsViscous() const {return isViscous_;}
-  bool IsTurbulent() const {return isTurbulent_;}
-  bool IsRANS() const {return isRANS_;}
+  const int & NumGhosts() const {return numGhosts_;}
+  const int & ParentBlock() const {return parBlock_;}
+  const int & LocalPosition() const {return localPos_;}
+  const int & Rank() const {return rank_;}
+  const int & GlobalPos() const {return globalPos_;}
+  const bool & IsViscous() const {return isViscous_;}
+  const bool & IsTurbulent() const {return isTurbulent_;}
+  const bool & IsRANS() const {return isRANS_;}
 
-  boundaryConditions BC() const {return bc_;}
+  const boundaryConditions & BC() const {return bc_;}
 
   primitiveView State(const int &ii, const int &jj, const int &kk) const {
     return state_(ii, jj, kk);
   }
+  void Restriction(const procBlock &fine,
+                   const multiArray3d<vector3d<int>> &toCoarse,
+                   const multiArray3d<double> &volWeightFactor);
   conservedView ConsVarsN(const int &ii, const int &jj, const int &kk) const {
     return consVarsN_(ii, jj, kk);
   }
@@ -245,9 +251,14 @@ class procBlock {
   varArray SolDeltaNm1(const int &, const int &, const int &,
                        const input &) const;
 
-  double Vol(const int &ii, const int &jj, const int &kk) const {
+  const double &Vol(const int &ii, const int &jj, const int &kk) const {
     return vol_(ii, jj, kk);
   }
+  const vector3d<double> &Node(const int &ii, const int &jj,
+                               const int &kk) const {
+    return nodes_.Coords(ii, jj, kk);
+  }
+  const plot3dBlock &Nodes() const { return nodes_; }
   vector3d<double> Center(const int &ii, const int &jj, const int &kk) const {
     return center_(ii, jj, kk);
   }
@@ -272,36 +283,39 @@ class procBlock {
   double FAreaMagK(const int &ii, const int &jj, const int &kk) const {
     return fAreaK_(ii, jj, kk).Mag();
   }
-  unitVec3dMag<double> FAreaI(const int &ii, const int &jj,
-                              const int &kk) const {
+  const unitVec3dMag<double> &FAreaI(const int &ii, const int &jj,
+                                     const int &kk) const {
     return fAreaI_(ii, jj, kk);
   }
-  unitVec3dMag<double> FAreaJ(const int &ii, const int &jj,
-                              const int &kk) const {
+  const unitVec3dMag<double> &FAreaJ(const int &ii, const int &jj,
+                                     const int &kk) const {
     return fAreaJ_(ii, jj, kk);
   }
-  unitVec3dMag<double> FAreaK(const int &ii, const int &jj,
-                              const int &kk) const {
+  const unitVec3dMag<double> &FAreaK(const int &ii, const int &jj,
+                                     const int &kk) const {
     return fAreaK_(ii, jj, kk);
   }
 
-  vector3d<double> FCenterI(const int &ii, const int &jj, const int &kk) const {
+  const vector3d<double> &FCenterI(const int &ii, const int &jj,
+                                   const int &kk) const {
     return fCenterI_(ii, jj, kk);
   }
-  vector3d<double> FCenterJ(const int &ii, const int &jj, const int &kk) const {
+  const vector3d<double> &FCenterJ(const int &ii, const int &jj,
+                                   const int &kk) const {
     return fCenterJ_(ii, jj, kk);
   }
-  vector3d<double> FCenterK(const int &ii, const int &jj, const int &kk) const {
+  const vector3d<double> &FCenterK(const int &ii, const int &jj,
+                                   const int &kk) const {
     return fCenterK_(ii, jj, kk);
   }
 
-  double CellWidthI(const int &ii, const int &jj, const int &kk) const {
+  const double &CellWidthI(const int &ii, const int &jj, const int &kk) const {
     return cellWidthI_(ii, jj, kk);
   }
-  double CellWidthJ(const int &ii, const int &jj, const int &kk) const {
+  const double &CellWidthJ(const int &ii, const int &jj, const int &kk) const {
     return cellWidthJ_(ii, jj, kk);
   }
-  double CellWidthK(const int &ii, const int &jj, const int &kk) const {
+  const double &CellWidthK(const int &ii, const int &jj, const int &kk) const {
     return cellWidthK_(ii, jj, kk);
   }
   double MaxCellWidth(const int &ii, const int &jj, const int &kk) const {
@@ -313,37 +327,40 @@ class procBlock {
                     cellWidthK_(ii, jj, kk));
   }
 
-  uncoupledScalar SpectralRadius(const int &ii, const int &jj,
-                                 const int &kk) const {
+  const uncoupledScalar &SpectralRadius(const int &ii, const int &jj,
+                                        const int &kk) const {
     return specRadius_(ii, jj, kk);
   }
-  double Dt(const int &ii, const int &jj, const int &kk) const {
+  const double &Dt(const int &ii, const int &jj, const int &kk) const {
     return dt_(ii, jj, kk);
   }
-  double WallDist(const int &ii, const int &jj, const int &kk) const {
+  const double &WallDist(const int &ii, const int &jj, const int &kk) const {
     return wallDist_(ii, jj, kk);
   }
 
   residualView Residual(const int &ii, const int &jj, const int &kk) const {
     return residual_(ii, jj, kk);
   }
-  double Residual(const int &ii, const int &jj, const int &kk,
-                  const int &a) const {
+  const double &Residual(const int &ii, const int &jj, const int &kk,
+                         const int &a) const {
     return residual_(ii, jj, kk)[a];
   }
+  const blkMultiArray3d<residual> &Residuals() const { return residual_; }
 
-  tensor<double> VelGrad(const int &ii, const int &jj, const int &kk) const {
+  const tensor<double> &VelGrad(const int &ii, const int &jj,
+                                const int &kk) const {
     return velocityGrad_(ii, jj, kk);
   }
-  vector3d<double> TempGrad(const int &ii, const int &jj, const int &kk) const {
+  const vector3d<double> &TempGrad(const int &ii, const int &jj,
+                                   const int &kk) const {
     return temperatureGrad_(ii, jj, kk);
   }
-  vector3d<double> DensityGrad(const int &ii, const int &jj,
-                               const int &kk) const {
+  const vector3d<double> &DensityGrad(const int &ii, const int &jj,
+                                      const int &kk) const {
     return densityGrad_(ii, jj, kk);
   }
-  vector3d<double> PressureGrad(const int &ii, const int &jj,
-                                const int &kk) const {
+  const vector3d<double> &PressureGrad(const int &ii, const int &jj,
+                                       const int &kk) const {
     return pressureGrad_(ii, jj, kk);
   }
   vector3d<double> TkeGrad(const int &ii, const int &jj, const int &kk) const {
@@ -358,7 +375,7 @@ class procBlock {
     return isMultiSpecies_ ? mixtureGrad_(ii, jj, kk, ll) : vector3d<double>();
   }
 
-  double Temperature(const int &ii, const int &jj, const int &kk) const {
+  const double &Temperature(const int &ii, const int &jj, const int &kk) const {
     return temperature_(ii, jj, kk);
   }
   double Viscosity(const int &ii, const int &jj, const int &kk) const {
@@ -395,7 +412,7 @@ class procBlock {
 
   void AssignInviscidGhostCells(const input &, const physics &);
   void AssignInviscidGhostCellsEdge(const input &, const physics &);
-
+  void AssignCornerGhostCells();
   void AssignViscousGhostCells(const input &, const physics &);
   void AssignViscousGhostCellsEdge(const input &, const physics &);
   blkMultiArray3d<primitive> GetGhostStates(
@@ -423,27 +440,30 @@ class procBlock {
 
   void CalcWallDistance(const kdtree &);
 
-  void InvertDiagonal(matMultiArray3d &, const input &) const;
+  varArray ImplicitLower(const int &, const int &, const int &,
+                         const blkMultiArray3d<varArray> &, const physics &,
+                         const input &) const;
+  varArray ImplicitUpper(const int &, const int &, const int &,
+                         const blkMultiArray3d<varArray> &, const physics &,
+                         const input &) const;
 
-  blkMultiArray3d<varArray> InitializeMatrixUpdate(
-      const input &, const physics &, const matMultiArray3d &) const;
-  void LUSGS_Forward(const vector<vector3d<int>> &, blkMultiArray3d<varArray> &,
-                     const physics &, const input &, const matMultiArray3d &,
-                     const int &) const;
-  double LUSGS_Backward(const vector<vector3d<int>> &,
-                        blkMultiArray3d<varArray> &, const physics &,
-                        const input &, const matMultiArray3d &,
-                        const int &) const;
-
-  double DPLUR(blkMultiArray3d<varArray> &, const physics &, const input &,
-               const matMultiArray3d &) const;
-
-  bool IsPhysical(const int &, const int &, const int &) const;
-  bool AtCorner(const int &, const int &, const int &) const;
-  bool AtEdge(const int &, const int &, const int &, string &) const;
-  bool AtEdgeInclusive(const int &, const int &, const int &, string &) const;
-  bool AtGhostNonEdge(const int &, const int &, const int &, string &,
-                      int &) const;
+  bool IsPhysical(const int &ii, const int &jj, const int &kk) const {
+    return state_.IsPhysical(ii, jj, kk);
+  }
+  bool AtCorner(const int &ii, const int &jj, const int &kk) const {
+    return state_.AtCorner(ii, jj, kk);
+  }
+  bool AtEdge(const int &ii, const int &jj, const int &kk, string &dir) const {
+    return state_.AtEdge(ii, jj, kk, dir);
+  }
+  bool AtEdgeInclusive(const int &ii, const int &jj, const int &kk,
+                       string &dir) const {
+    return state_.AtEdgeInclusive(ii, jj, kk, dir);
+  }
+  bool AtGhostNonEdge(const int &ii, const int &jj, const int &kk, string &dir,
+                      int &type) const {
+    return state_.AtGhostNonEdge(ii, jj, kk, dir, type);
+  }
 
   vector<bool> PutGeomSlice(const geomSlice &, connection &, const int &);
   void PutStateSlice(const blkMultiArray3d<primitive> &, const connection &,
@@ -482,6 +502,8 @@ class procBlock {
   void CalcCellWidths();
   void GetStatesFromRestart(const blkMultiArray3d<primitive> &);
   void GetSolNm1FromRestart(const blkMultiArray3d<conserved> &);
+  // DEBUG
+  const blkMultiArray3d<primitive> &States() const { return state_; }
 
   int WallDataIndex(const boundarySurface &) const;
   int WallDataSize() const {return wallData_.size();}
@@ -535,6 +557,14 @@ class procBlock {
   double WallSdr(const int &ss, const int &ii, const int &jj,
                  const int &kk) const {
     return wallData_[ss].WallSdr(ii, jj, kk);
+  }
+  void GetCoarseMeshAndBCs(vector<plot3dBlock> &mesh,
+                           vector<boundaryConditions> &bcs,
+                           vector<multiArray3d<vector3d<int>>> &toCoarse,
+                           vector<multiArray3d<double>> &volFac) const;
+  procBlock CellToNode() const;
+  void AddCoarseGridCorrection(const blkMultiArray3d<varArray> &correction) {
+    state_ += correction;
   }
 
   // destructor
@@ -600,6 +630,63 @@ T PadWithGhosts(const T &var, const int &numGhosts) {
 
   padBlk.Insert(var.RangeI(), var.RangeJ(), var.RangeK(), var);
   return padBlk;
+}
+
+
+template <typename T1, typename T2>
+void BlockRestriction(const blkMultiArray3d<T1>& fine,
+                      const multiArray3d<vector3d<int>>& toCoarse,
+                      const multiArray3d<double>& volFac,
+                      blkMultiArray3d<T2>& coarse) {
+  // use volume weighted average
+  coarse.Zero();
+  for (auto kk = fine.PhysStartK(); kk < fine.PhysEndK(); ++kk) {
+    for (auto jj = fine.PhysStartJ(); jj < fine.PhysEndJ(); ++jj) {
+      for (auto ii = fine.PhysStartI(); ii < fine.PhysEndI(); ++ii) {
+        const auto ci = toCoarse(ii, jj, kk);
+        T2 restricted =
+            coarse(ci[0], ci[1], ci[2]) + volFac(ii, jj, kk) * fine(ii, jj, kk);
+        coarse.InsertBlock(ci[0], ci[1], ci[2], restricted);
+      }
+    }
+  }
+}
+
+template <typename T1, typename T2>
+void BlockRestriction(const blkMultiArray3d<T1>& fine,
+                      const multiArray3d<vector3d<int>>& toCoarse,
+                      blkMultiArray3d<T2>& coarse) {
+  // use sum of all fine cells inside a coarse cell
+  coarse.Zero();
+  for (auto kk = fine.PhysStartK(); kk < fine.PhysEndK(); ++kk) {
+    for (auto jj = fine.PhysStartJ(); jj < fine.PhysEndJ(); ++jj) {
+      for (auto ii = fine.PhysStartI(); ii < fine.PhysEndI(); ++ii) {
+        const auto ci = toCoarse(ii, jj, kk);
+        T2 restricted = coarse(ci[0], ci[1], ci[2]) + fine(ii, jj, kk);
+        coarse.InsertBlock(ci[0], ci[1], ci[2], restricted);
+      }
+    }
+  }
+}
+
+template <typename T>
+void BlockRestriction(const multiArray3d<T>& fine,
+                      const multiArray3d<vector3d<int>>& toCoarse,
+                      const multiArray3d<double>& volFac,
+                      multiArray3d<T>& coarse) {
+  // use volume weighted average
+  coarse.Zero();
+  for (auto kk = fine.PhysStartK(); kk < fine.PhysEndK(); ++kk) {
+    for (auto jj = fine.PhysStartJ(); jj < fine.PhysEndJ(); ++jj) {
+      for (auto ii = fine.PhysStartI(); ii < fine.PhysEndI(); ++ii) {
+        const auto ci = toCoarse(ii, jj, kk);
+        // auto and not T to deal with view types
+        auto restricted =
+            coarse(ci[0], ci[1], ci[2]) + volFac(ii, jj, kk) * fine(ii, jj, kk);
+        coarse.InsertBlock(ci[0], ci[1], ci[2], restricted);
+      }
+    }
+  }
 }
 
 #endif

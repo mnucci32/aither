@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -130,6 +130,13 @@ class fluxJacobian {
     if (hasTurb) {
       this->TurbJacobian(0, 0) = specRad.TurbVariable();
     }
+  }
+  fluxJacobian(const vector<double>::const_iterator &fb, const int &flowSize,
+               const vector<double>::const_iterator &tb, const int &turbSize)
+      : fluxJacobian(flowSize, turbSize) {
+    std::copy(fb, fb + flowSize * flowSize, data_.begin());
+    std::copy(tb, tb + turbSize * turbSize,
+              data_.begin() + flowSize * flowSize);
   }
 
   // move constructor and assignment operator

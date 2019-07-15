@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "vector3d.hpp"
 #include "input.hpp"
 #include "procBlock.hpp"
+#include "gridLevel.hpp"
 #include "primitive.hpp"
 #include "physicsModels.hpp"
 #include "thermodynamic.hpp"
@@ -43,6 +44,8 @@
 #include "fluxJacobian.hpp"
 #include "utility.hpp"
 #include "matMultiArray3d.hpp"
+#include "mgSolution.hpp"
+#include "logFileManager.hpp"
 
 using std::cout;
 using std::cerr;
@@ -70,9 +73,6 @@ int main(int argc, char *argv[]) {
     cout << "Using " << numProcs << " processors" << endl;
   }
   MPI_Barrier(MPI_COMM_WORLD);
-
-  // Start clock to time simulation
-  const auto start = std::chrono::high_resolution_clock::now();
 
   // Enable exceptions so code won't run with NANs
 #ifdef __linux__
@@ -104,6 +104,7 @@ int main(int argc, char *argv[]) {
 
   // Parse input file
   inp.ReadInput(rank);
+  logFileManager logs(inp, rank);
 
   // nondimensionalize fluid data
   inp.NondimensionalizeFluid();
@@ -114,24 +115,14 @@ int main(int argc, char *argv[]) {
   // Nondimensionalize BC & IC data
   inp.NondimensionalizeStateData(phys.EoS());
 
-  vector<plot3dBlock> mesh;
-  vector<connection> connections;
-  vector<procBlock> stateBlocks;
+  mgSolution solution;  // only keep finest grid level globally
   vector<vector3d<double>> viscFaces;
-  // l2 norm residuals to normalize by
-  residual residL2First(inp.NumEquations(), inp.NumSpecies());
 
   if (rank == ROOTP) {
     cout << "Number of equations: " << inp.NumEquations() << endl << endl;
 
     // Read grid
-    mesh = ReadP3dGrid(inp.GridName(), inp.LRef(), totalCells);
-    vector<vector3d<int>> gridSizes(mesh.size());
-    for (auto ii = 0U; ii < mesh.size(); ++ii) {
-      gridSizes[ii] = {mesh[ii].NumCellsI(), mesh[ii].NumCellsJ(),
-                       mesh[ii].NumCellsK()};
-    }
-
+    auto mesh = ReadP3dGrid(inp.GridName(), inp.LRef(), totalCells);
     // Get BCs for blocks
     auto bcs = inp.AllBC();
 
@@ -146,36 +137,11 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
 
-    // Get connection BCs
-    connections = GetConnectionBCs(bcs, mesh, decomp, inp);
-
-    // Initialize the whole mesh with ICs and assign ghost cells geometry
-    stateBlocks.resize(mesh.size());
-    for (auto ll = 0U; ll < mesh.size(); ll++) {
-      stateBlocks[ll] =
-          procBlock(mesh[ll], decomp.ParentBlock(ll), bcs[ll], ll,
-                    decomp.Rank(ll), decomp.LocalPosition(ll), inp);
-      stateBlocks[ll].InitializeStates(inp, phys);
-      stateBlocks[ll].AssignGhostCellsGeom();
-    }
-    // if restart, get data from restart file
-    if (inp.IsRestart()) {
-      ReadRestart(stateBlocks, restartFile, decomp, inp, phys, residL2First,
-                  gridSizes);
-    }
-
-    // Swap geometry for connection BCs
-    for (auto &conn : connections) {
-      SwapGeomSlice(conn, stateBlocks[conn.BlockFirst()],
-                    stateBlocks[conn.BlockSecond()]);
-    }
-    // Get ghost cell edge data
-    for (auto &block : stateBlocks) {
-      block.AssignGhostCellsGeomEdge();
-    }
+    solution.ConstructFinestLevel(mesh, bcs, decomp, phys, restartFile, inp,
+                                  logs.L2First());
 
     // Get face centers of faces with viscous wall BC
-    viscFaces = GetViscousFaceCenters(stateBlocks);
+    viscFaces = GetViscousFaceCenters(solution.Finest().Blocks());
 
     cout << "Solution Initialized" << endl << endl;
     //---------------------------------------------------------------------
@@ -187,22 +153,20 @@ int main(int argc, char *argv[]) {
   SetDataTypesMPI(MPI_vec3d, MPI_procBlockInts, MPI_connection, MPI_DOUBLE_5INT,
                   MPI_vec3dMag, MPI_uncoupledScalar, MPI_tensorDouble);
 
+  // Broadcast decomposition to all processors
+  decomp.Broadcast();
+
   // Send number of procBlocks to all processors
   SendNumProcBlocks(decomp.NumBlocksOnAllProc(), numProcBlock);
 
-  // Send procBlocks to appropriate processor
-  auto localStateBlocks =
-      SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_vec3d, MPI_vec3dMag,
-                     inp);
+  // Send finest gridLevel to appropriate processor
+  auto localSolution = solution.SendFinestGridLevel(
+      rank, numProcBlock, MPI_vec3d, MPI_vec3dMag, MPI_connection, inp);
+  localSolution.ConstructMultigrids(decomp, inp, phys, rank, MPI_connection,
+                                    MPI_vec3d, MPI_vec3dMag);
 
   // Update auxillary variables (temperature, viscosity, etc), cell widths
-  for (auto &block : localStateBlocks) {
-    block.UpdateAuxillaryVariables(phys, false);
-    block.CalcCellWidths();
-  }
-
-  // Send connections to all processors
-  SendConnections(connections, MPI_connection);
+  localSolution.AuxillaryAndWidths(phys);
 
   // Broadcast viscous face centers to all processors
   BroadcastViscFaces(MPI_vec3d, viscFaces);
@@ -223,6 +187,7 @@ int main(int argc, char *argv[]) {
   }
 
   // Construct k-d tree for wall distance calculation
+  // Using finest grid level faces for all levels
   kdtree tree(viscFaces);
 
   if (rank == ROOTP) {
@@ -233,8 +198,8 @@ int main(int argc, char *argv[]) {
   }
 
   if (tree.Size() > 0) {
-    CalcWallDistance(localStateBlocks, tree);
-    SwapWallDist(localStateBlocks, connections, rank, inp.NumberGhostLayers());
+    localSolution.CalcWallDistance(tree);
+    localSolution.SwapWallDist(rank, inp.NumberGhostLayers());
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -246,78 +211,43 @@ int main(int argc, char *argv[]) {
   }
 
   //-----------------------------------------------------------------------
-  // Allocate array for flux jacobian
-  vector<matMultiArray3d> mainDiagonal(numProcBlock);
-  if (inp.IsImplicit()) {
-    ResizeArrays(localStateBlocks, inp, mainDiagonal);
-  }
-
   // Send/recv solutions - necessary to get wall distances
-  GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_uncoupledScalar,
-                MPI_vec3d, MPI_tensorDouble, inp);
+  solution.GetFinestGridLevel(localSolution, rank, MPI_uncoupledScalar,
+                              MPI_vec3d, MPI_tensorDouble, inp);
 
-  ofstream resFile;
   if (rank == ROOTP) {
-    // Open residual file
-    if (inp.IsRestart()) {
-      resFile.open(inp.SimNameRoot() + ".resid", ios::app);
-    } else {
-      resFile.open(inp.SimNameRoot() + ".resid", ios::out);
-    }
-    if (resFile.fail()) {
-      cerr << "ERROR: Could not open residual file!" << endl;
-      exit(EXIT_FAILURE);
-    }
-
     // Write out cell centers grid file
-    WriteCellCenter(inp.GridName(), stateBlocks, decomp, inp);
+    WriteCellCenter(inp.GridName(), solution.Finest().Blocks(), decomp, inp);
 
     // Write out initial results
-    WriteFun(stateBlocks, phys, inp.IterationStart(), decomp, inp);
-    WriteMeta(inp, inp.IterationStart());
+    WriteOutput(solution.Finest().Blocks(), phys, inp.IterationStart(), decomp,
+                inp);
   }
 
   // ----------------------------------------------------------------------
   // ----------------------- Start Main Loop ------------------------------
   // ----------------------------------------------------------------------
   // loop over time
-  for (auto nn = 0; nn < inp.Iterations(); nn++) {
+  for (auto nn = 0; nn < inp.Iterations(); ++nn) {
     MPI_Barrier(MPI_COMM_WORLD);
+    logs.GetIterStart();
 
     // Calculate cfl number
     inp.CalcCFL(nn);
 
     // Store time-n solution, for time integration methods that require it
-    if (inp.NeedToStoreTimeN()) {
-      AssignSolToTimeN(localStateBlocks, phys);
-      if (!inp.IsRestart() && inp.IsMultilevelInTime() && nn == 0) {
-        AssignSolToTimeNm1(localStateBlocks);
-      }
-    }
+    localSolution.StoreOldSolution(inp, phys, nn);
 
     // loop over nonlinear iterations
-    for (auto mm = 0; mm < inp.NonlinearIterations(); mm++) {
-      // Get boundary conditions for all blocks
-      GetBoundaryConditions(localStateBlocks, inp, phys, connections, rank);
-
-      // Calculate residual (RHS)
-      CalcResidual(localStateBlocks, mainDiagonal, phys, inp, connections, rank,
-                   MPI_tensorDouble, MPI_vec3d);
-
-      // Calculate time step
-      CalcTimeStep(localStateBlocks, inp);
-
+    for (auto mm = 0; mm < inp.NonlinearIterations(); ++mm) {
       // Initialize residual variables
       // l2 norm residuals
       residual residL2(inp.NumEquations(), inp.NumSpecies());
       resid residLinf;  // linf residuals
-      auto matrixResid = 0.0;
-      if (inp.IsImplicit()) {
-        matrixResid = ImplicitUpdate(localStateBlocks, mainDiagonal, inp, phys,
-                                     mm, residL2, residLinf, connections, rank);
-      } else {  // explicit time integration
-        ExplicitUpdate(localStateBlocks, inp, phys, mm, residL2, residLinf);
-      }
+
+      // advance an iteration
+      auto matrixResid = localSolution.Iterate(
+          inp, phys, MPI_tensorDouble, MPI_vec3d, mm, rank, residL2, residLinf);
 
       // ----------------------------------------------------------------------
       // Get residuals from all processors
@@ -341,51 +271,47 @@ int main(int argc, char *argv[]) {
         matrixResid = sqrt(matrixResid/(totalCells * inp.NumEquations()));
 
         // Print out run information
-        WriteResiduals(inp, residL2First, residL2, residLinf, matrixResid,
-                       nn + inp.IterationStart(), mm, resFile);
+        logs.WriteResiduals(inp, residL2, residLinf, matrixResid,
+                            nn + inp.IterationStart(), mm);
       }
     }  // loop for nonlinear iterations ---------------------------------------
 
     // write out function file
     if (inp.WriteOutput(nn) || inp.WriteRestart(nn)) {
       // Send/recv solutions
-      GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_uncoupledScalar,
-                    MPI_vec3d, MPI_tensorDouble, inp);
+      solution.GetFinestGridLevel(localSolution, rank, MPI_uncoupledScalar,
+                                  MPI_vec3d, MPI_tensorDouble, inp);
 
       if (rank == ROOTP && inp.WriteOutput(nn)) {
         cout << "writing out function file at iteration "
              << nn + inp.IterationStart()<< endl;
         // Write out function file
-        WriteFun(stateBlocks, phys, (nn + inp.IterationStart() + 1), decomp,
-                 inp);
-        WriteMeta(inp, (nn + inp.IterationStart() + 1));
+        WriteOutput(solution.Finest().Blocks(), phys,
+                    (nn + inp.IterationStart() + 1), decomp, inp);
       }
       if (rank == ROOTP && inp.WriteRestart(nn)) {
         cout << "writing out restart file at iteration "
              << nn + inp.IterationStart()<< endl;
         // Write out restart file
-        WriteRestart(stateBlocks, phys, (nn + inp.IterationStart() + 1), decomp,
-                     inp, residL2First);
+        WriteRestart(solution.Finest().Blocks(), phys,
+                     (nn + inp.IterationStart() + 1), decomp, inp,
+                     logs.L2First());
       }
     }
+    logs.WriteTime(nn);
   }  // loop for time step -----------------------------------------------------
 
   if (rank == ROOTP) {
-    // close residual file
-    resFile.close();
-
     cout << endl << "Program Complete" << endl;
     PrintTime();
-
-    const auto simEnd = std::chrono::high_resolution_clock::now();
-    const std::chrono::duration<double> duration = simEnd - start;
-    cout << "Total Time: " << duration.count() << " seconds" << endl;
   }
 
   // Free datatypes previously created
   FreeDataTypesMPI(MPI_vec3d, MPI_procBlockInts, MPI_connection,
                    MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar,
                    MPI_tensorDouble);
+  // Free operation previously created
+  MPI_Op_free(&MPI_MAX_LINF);
 
   MPI_Finalize();
 

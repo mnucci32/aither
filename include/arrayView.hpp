@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -66,6 +66,8 @@ class arrayView {
         momentumIndex_(numSpecies),
         energyIndex_(momentumIndex_ + 3),
         turbulenceIndex_(energyIndex_ + 1) {}
+  arrayView(const T1 &arr)
+      : arrayView(arr.begin(), arr.end(), arr.NumSpecies()) {}
 
   // move constructor and assignment operator
   arrayView(arrayView&&) noexcept = default;

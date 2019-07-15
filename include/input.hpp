@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,6 +42,8 @@ class thermodynamic;
 class diffusion;
 class physics;
 class chemistry;
+class linearSolver;
+class gridLevel;
 
 class input {
   string simName_;  // simulation name
@@ -94,6 +96,11 @@ class input {
   int iterationStart_;  // starting number for iterations
   double schmidtNumber_;  // schmidt number for species diffusion
   double freezingTemperature_;  // temperature below which reactions cease
+  int mgLevels_;  // number of multigrid levels
+  bool outputNodalVariables_;
+  int mgPreSweeps_;  // pre-relaxation sweeps
+  int mgPostSweeps_;  // post-relaxation sweeps
+  string mgCycle_;  // multigrid cycle type
 
   set<string> outputVariables_;  // variables to output
   set<string> wallOutputVariables_;  // wall variables to output
@@ -109,6 +116,7 @@ class input {
   void CheckSpecies() const;
   void CheckNonreflecting() const;
   void CheckChemistryMechanism() const;
+  void CheckMultigrid() const;
   unique_ptr<turbModel> AssignTurbulenceModel() const;
   unique_ptr<eos> AssignEquationOfState() const;
   unique_ptr<transport> AssignTransportModel() const;
@@ -186,6 +194,7 @@ class input {
   int OutputFrequency() const {return outputFrequency_;}
   int RestartFrequency() const {return restartFrequency_;}
   set<string> OutputVariables() const {return outputVariables_;}
+  bool OutputNodalVariables() const { return outputNodalVariables_; }
   set<string> WallOutputVariables() const {return wallOutputVariables_;}
 
   bool WriteOutput(const int &nn) const {return (nn + 1) % outputFrequency_ == 0;}
@@ -199,6 +208,7 @@ class input {
   int MatrixSweeps() const {return matrixSweeps_;}
   double MatrixRelaxation() const {return matrixRelaxation_;}
   bool MatrixRequiresInitialization() const;
+  unique_ptr<linearSolver> AssignLinearSolver(const gridLevel &) const;
 
   double Theta() const {return timeIntTheta_;}
   double Zeta() const {return timeIntZeta_;}
@@ -263,6 +273,18 @@ class input {
 
   double SchmidtNumber() const { return schmidtNumber_; }
   double FreezingTemperature() const { return freezingTemperature_; }
+
+  int MultigridLevels() const { return mgLevels_; }
+  int MultigridPreSweeps() const { return mgPreSweeps_; }
+  int MultigridPostSweeps() const { return mgPostSweeps_; }
+  string MultigridCycleType() const { return mgCycle_; }
+  int MultigridCycleIndex() const {
+    if (mgCycle_ == "W") {
+      return 2;
+    } else {
+      return 1;
+    }
+  }
 
   // destructor
   ~input() noexcept {}

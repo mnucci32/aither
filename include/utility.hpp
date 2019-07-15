@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include <vector>                  // vector
 #include <memory>
 #include <cmath>
+#include <array>
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
 #include "multiArray3d.hpp"        // multiArray3d
@@ -60,46 +61,15 @@ vector3d<double> ScalarGradGG(
     const vector3d<double> &, const double &);
 
 void SwapGeomSlice(connection &, procBlock &, procBlock &);
-
-void GetBoundaryConditions(vector<procBlock> &, const input &,
-                           const physics &phys, vector<connection> &,
-                           const int &);
-
+void SwapGeomSliceMPI(connection &inter, procBlock &blk, const int &tag,
+                      const MPI_Datatype &MPI_vec3d,
+                      const MPI_Datatype &MPI_vec3dMag);
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
-void CalcWallDistance(vector<procBlock> &, const kdtree &);
-
-void AssignSolToTimeN(vector<procBlock> &, const physics &phys);
-void AssignSolToTimeNm1(vector<procBlock> &);
-
-void ExplicitUpdate(vector<procBlock> &, const input &, const physics &phys,
-                    const int &, residual &, resid &);
-double ImplicitUpdate(vector<procBlock> &, vector<matMultiArray3d> &,
-                      const input &, const physics &phys, const int &,
-                      residual &, resid &, const vector<connection> &,
-                      const int &);
-
 void SwapImplicitUpdate(vector<blkMultiArray3d<varArray>> &,
                         const vector<connection> &, const int &, const int &);
-void SwapTurbVars(vector<procBlock> &, const vector<connection> &, const int &,
-                  const int &);
-void SwapWallDist(vector<procBlock> &, const vector<connection> &, const int &,
-                  const int &);
-void SwapEddyViscAndGradients(vector<procBlock> &, const vector<connection> &,
-                              const int &, const MPI_Datatype &,
-                              const MPI_Datatype &, const int &);
-
-void CalcResidual(vector<procBlock> &, vector<matMultiArray3d> &,
-                  const physics &phys, const input &,
-                  const vector<connection> &, const int &, const MPI_Datatype &,
-                  const MPI_Datatype &);
-
-void CalcTimeStep(vector<procBlock> &, const input &);
 
 // function to reorder block by hyperplanes
 vector<vector3d<int>> HyperplaneReorder(const int &, const int &, const int &);
-
-void ResizeArrays(const vector<procBlock> &, const input &,
-                  vector<matMultiArray3d> &);
 
 vector3d<double> TauNormal(const tensor<double> &, const vector3d<double> &,
                            const double &, const double &,
@@ -211,6 +181,194 @@ T1 FindRoot(const T2 &func, T1 x1, T1 x2, const T1 &tol,
 
   cerr << "ERROR: FindRoot did not converge!" << endl;
   return x4;
+}
+
+template <typename T>
+T ConvertCellToNode(const T &cellData, const bool &ignoreEdge = false,
+                    const bool &ignoreGhosts = false) {
+  T nodeData(cellData.NumINoGhosts() + 1, cellData.NumJNoGhosts() + 1,
+             cellData.NumKNoGhosts() + 1, 0, cellData.BlockInfo());
+  const auto haveGhosts = ignoreGhosts ? false : cellData.GhostLayers() > 0;
+  if (haveGhosts) {
+    string dir = "";
+    for (auto kk = cellData.PhysStartK() - 1; kk <= cellData.PhysEndK(); ++kk) {
+      for (auto jj = cellData.PhysStartJ() - 1; jj <= cellData.PhysEndJ();
+           ++jj) {
+        for (auto ii = cellData.PhysStartI() - 1; ii <= cellData.PhysEndI();
+             ++ii) {
+          if (cellData.IsPhysical(ii, jj, kk)) {
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj, kk, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj + 1, kk + 1, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii + 1, jj, kk, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii + 1, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii + 1, jj + 1, kk + 1, bb) += cellData(ii, jj, kk, bb);
+            }
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii + 1, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
+            }
+          } else if (!(ignoreEdge && (cellData.AtEdge(ii, jj, kk, dir) ||
+                                      cellData.AtCorner(ii, jj, kk)))) {
+            // cell data is ghost cell - or -
+            // we are ignoring edge and corner ghost cells, and not at 
+            // edge/corner
+            if (nodeData.IsInRange(ii, jj, kk)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii, jj, kk, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii, jj + 1, kk)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii, jj, kk + 1)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii, jj + 1, kk + 1)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii, jj + 1, kk + 1, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii + 1, jj, kk)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii + 1, jj, kk, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii + 1, jj + 1, kk)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii + 1, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii + 1, jj, kk + 1)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii + 1, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
+              }
+            }
+            if (nodeData.IsInRange(ii + 1, jj + 1, kk + 1)) {
+              for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+                nodeData(ii + 1, jj + 1, kk + 1, bb) +=
+                    cellData(ii, jj, kk, bb);
+              }
+            }
+          }
+        }
+      }
+    }
+  } else {  // no ghost layers in cell data
+    for (auto kk = cellData.PhysStartK(); kk < cellData.PhysEndK(); ++kk) {
+      for (auto jj = cellData.PhysStartJ(); jj < cellData.PhysEndJ(); ++jj) {
+        for (auto ii = cellData.PhysStartI(); ii < cellData.PhysEndI(); ++ii) {
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii, jj, kk, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii, jj + 1, kk + 1, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii + 1, jj, kk, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii + 1, jj + 1, kk, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii + 1, jj + 1, kk + 1, bb) += cellData(ii, jj, kk, bb);
+          }
+          for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+            nodeData(ii + 1, jj, kk + 1, bb) += cellData(ii, jj, kk, bb);
+          }
+        }
+      }
+    }
+  }
+  constexpr auto eighth = 1.0 / 8.0;
+  if (ignoreEdge) {
+    const auto edgeFactor = haveGhosts ? 1.0 / 6.0 : 1.0 / 2.0;
+    const auto cornerFactor = haveGhosts ? 1.0 / 4.0 : 1.0;
+    string edge = "";
+    for (auto kk = nodeData.PhysStartK(); kk < nodeData.PhysEndK(); ++kk) {
+      for (auto jj = nodeData.PhysStartJ(); jj < nodeData.PhysEndJ(); ++jj) {
+        for (auto ii = nodeData.PhysStartI(); ii < nodeData.PhysEndI(); ++ii) {
+          if (nodeData.AtInteriorCorner(ii, jj, kk)) {
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj, kk, bb) *= cornerFactor;
+            }
+          } else if (nodeData.AtInteriorEdge(ii, jj, kk, edge)) {
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj, kk, bb) *= edgeFactor;
+            }
+          } else {
+            for (auto bb = 0; bb < nodeData.BlockSize(); ++bb) {
+              nodeData(ii, jj, kk, bb) *= eighth;
+            }
+          }
+        }
+      }
+    }
+  } else {
+    nodeData *= eighth;
+  }
+  return nodeData;
+}
+
+double LinearInterpCoeff(const vector3d<double> &x0, const vector3d<double> &x1,
+                         const vector3d<double> &x);
+
+// auto return type to handle the case where an arrayView should return a 
+// different type
+template <typename T>
+auto LinearInterp(const T &d0, const T &d1, const double &coeff) {
+  return (1.0 - coeff) * d0 + coeff * d1;
+}
+
+
+std::array<double, 7> TrilinearInterpCoeff(
+    const vector3d<double> &x0, const vector3d<double> &x1,
+    const vector3d<double> &x2, const vector3d<double> &x3,
+    const vector3d<double> &x4, const vector3d<double> &x5,
+    const vector3d<double> &x6, const vector3d<double> &x7,
+    const vector3d<double> &x);
+
+// auto return type to handle the case where an arrayView should return a 
+// different type
+template <typename T>
+auto TrilinearInterp(const std::array<double, 7> &coeffs, const T &d0, const T &d1,
+                  const T &d2, const T &d3, const T &d4, const T &d5,
+                  const T &d6, const T &d7) {
+  // 4 linear interpolations to convert to 2D
+  const auto d04 = LinearInterp(d0, d4, coeffs[0]);
+  const auto d15 = LinearInterp(d1, d5, coeffs[1]);
+  const auto d26 = LinearInterp(d2, d6, coeffs[2]);
+  const auto d37 = LinearInterp(d3, d7, coeffs[3]);
+
+  // 2 linear interpolations to convert to 1D
+  const auto d0415 = LinearInterp(d04, d15, coeffs[4]);
+  const auto d2637 = LinearInterp(d26, d37, coeffs[5]);
+
+  // 1 linear interpolation to complete trilinear interpolation
+  return LinearInterp(d0415, d2637, coeffs[6]);
 }
 
 #endif

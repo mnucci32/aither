@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -244,7 +244,7 @@ void SwapGeomSlice(connection &inter, procBlock &blk1, procBlock &blk2) {
   const auto adjEdge1 = blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts());
   const auto adjEdge2 = blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts());
 
-  // if an connection border needs to be updated, update
+  // if a connection border needs to be updated, update
   for (auto ii = 0U; ii < adjEdge1.size(); ii++) {
     if (adjEdge1[ii]) {
       inter.UpdateBorderFirst(ii);
@@ -255,45 +255,53 @@ void SwapGeomSlice(connection &inter, procBlock &blk1, procBlock &blk2) {
   }
 }
 
+void SwapGeomSliceMPI(connection &inter, procBlock &blk, const int &tag,
+                      const MPI_Datatype &MPI_vec3d,
+                      const MPI_Datatype &MPI_vec3dMag) {
+  // inter -- connection boundary information
+  // blk -- first block involved in connection boundary
+  // Get indices for slice coming from block to swap
+  auto is = 0, ie = 0;
+  auto js = 0, je = 0;
+  auto ks = 0, ke = 0;
 
-/* Function to populate ghost cells with proper cell states for inviscid flow
-calculation. This function operates on the entire grid and uses connection
-boundaries to pass the correct data between grid blocks.
-*/
-void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
-                           const physics &phys, vector<connection> &connections,
-                           const int &rank) {
-  // states -- vector of all procBlocks in the solution domain
-  // inp -- all input variables
-  // phys -- physics models
-  // connections -- vector of connection boundary types
-  // rank -- processor rank
-
-  // loop over all blocks and assign inviscid ghost cells
-  for (auto &state : states) {
-    state.AssignInviscidGhostCells(inp, phys);
+  const auto rank = blk.Rank();
+  if (rank == inter.RankFirst()) {  // local block first in connection
+    inter.FirstSliceIndices(is, ie, js, je, ks, ke, blk.NumGhosts());
+  } else if (rank == inter.RankSecond()) {  // local block second in connection
+    inter.SecondSliceIndices(is, ie, js, je, ks, ke, blk.NumGhosts());
+  } else {
+    cerr << "ERROR: Error in SwapGeomSliceMPI(). Processor rank does "
+            "not match either of connection ranks!" << endl;
+    exit(EXIT_FAILURE);
   }
 
-  // loop over connections and swap ghost cells where needed
-  for (auto &conn : connections) {
-    if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
-      // both sides of connection on this processor, swap w/o mpi
-      states[conn.LocalBlockFirst()].SwapStateSlice(
-          conn, states[conn.LocalBlockSecond()]);
-    } else if (conn.RankFirst() == rank) {
-      // rank matches rank of first side of connection, swap over mpi
-      states[conn.LocalBlockFirst()].SwapStateSliceMPI(conn, rank);
-    } else if (conn.RankSecond() == rank) {
-      // rank matches rank of second side of connection, swap over mpi
-      states[conn.LocalBlockSecond()].SwapStateSliceMPI(conn, rank);
+  // get local geomslice to swap
+  auto slice = geomSlice(blk, {is, ie}, {js, je}, {ks, ke});
+
+  // swap geomSlices with partner block
+  slice.PackSwapUnpackMPI(inter, MPI_vec3d, MPI_vec3dMag, rank, tag);
+
+  // change connections to work with slice and ghosts
+  auto interAdj = inter;
+  // block to insert into is first in connection
+  if (rank == inter.RankFirst()) {
+    interAdj.AdjustForSlice(true, blk.NumGhosts());
+  } else {  // block to insert into is second in connection, so pass swapped
+            // version
+    interAdj.AdjustForSlice(false, blk.NumGhosts());
+  }
+
+  // insert geomSlice into procBlock
+  // return vector determining if any of the 4 edges of the connection need to
+  // be updated for a "t" intersection
+  const auto adjEdge = blk.PutGeomSlice(slice, interAdj, blk.NumGhosts());
+
+  // if a connection border needs to be updated, update
+  for (auto ii = 0U; ii < adjEdge.size(); ++ii) {
+    if (adjEdge[ii]) {
+      inter.UpdateBorderFirst(ii);
     }
-    // if rank doesn't match either side of connection, then do nothing and
-    // move on to the next connection
-  }
-
-  // loop over all blocks and get ghost cell edge data
-  for (auto &state : states) {
-    state.AssignInviscidGhostCellsEdge(inp, phys);
   }
 }
 
@@ -359,284 +367,6 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
 }
 
 
-// function to calculate the distance to the nearest viscous wall of all
-// cell centers
-void CalcWallDistance(vector<procBlock> &localBlocks, const kdtree &tree) {
-  for (auto &block : localBlocks) {
-    block.CalcWallDistance(tree);
-  }
-}
-
-void AssignSolToTimeN(vector<procBlock> &blocks, const physics &phys) {
-  for (auto &block : blocks) {
-    block.AssignSolToTimeN(phys);
-  }
-}
-
-void AssignSolToTimeNm1(vector<procBlock> &blocks) {
-  for (auto &block : blocks) {
-    block.AssignSolToTimeNm1();
-  }
-}
-
-void ExplicitUpdate(vector<procBlock> &blocks, const input &inp,
-                    const physics &phys, const int &mm, residual &residL2,
-                    resid &residLinf) {
-  // create dummy update (not used in explicit update)
-  blkMultiArray3d<varArray> du;
-  // loop over all blocks and update
-  for (auto &block : blocks) {
-    block.UpdateBlock(inp, phys, du, mm, residL2, residLinf);
-  }
-}
-
-double ImplicitUpdate(vector<procBlock> &blocks,
-                      vector<matMultiArray3d> &mainDiagonal, const input &inp,
-                      const physics &phys, const int &mm, residual &residL2,
-                      resid &residLinf, const vector<connection> &connections,
-                      const int &rank) {
-  // blocks -- vector of procBlocks on current processor
-  // mainDiagonal -- main diagonal of A matrix for all blocks on processor
-  // inp -- input variables
-  // phys -- physics models
-  // mm -- nonlinear iteration
-  // residL2 -- L2 residual
-  // residLinf -- L infinity residual
-
-  // initialize matrix error
-  auto matrixError = 0.0;
-
-  const auto numG = blocks[0].NumGhosts();
-
-  // add volume and time term and calculate inverse of main diagonal
-  for (auto bb = 0U; bb < blocks.size(); bb++) {
-    blocks[bb].InvertDiagonal(mainDiagonal[bb], inp);
-  }
-
-  // initialize matrix update
-  vector<blkMultiArray3d<varArray>> du(blocks.size());
-  for (auto bb = 0U; bb < blocks.size(); bb++) {
-    du[bb] = blocks[bb].InitializeMatrixUpdate(inp, phys, mainDiagonal[bb]);
-  }
-
-  // Solve Ax=b with supported solver
-  if (inp.MatrixSolver() == "lusgs" || inp.MatrixSolver() == "blusgs") {
-    // calculate order by hyperplanes for each block
-    vector<vector<vector3d<int>>> reorder(blocks.size());
-    for (auto bb = 0U; bb < blocks.size(); bb++) {
-      reorder[bb] = HyperplaneReorder(blocks[bb].NumI(), blocks[bb].NumJ(),
-                                      blocks[bb].NumK());
-    }
-
-    // start sweeps through domain
-    for (auto ii = 0; ii < inp.MatrixSweeps(); ii++) {
-      // swap updates for ghost cells
-      SwapImplicitUpdate(du, connections, rank, numG);
-
-      // forward lu-sgs sweep
-      for (auto bb = 0U; bb < blocks.size(); bb++) {
-        blocks[bb].LUSGS_Forward(reorder[bb], du[bb], phys, inp,
-                                 mainDiagonal[bb], ii);
-      }
-
-      // swap updates for ghost cells
-      SwapImplicitUpdate(du, connections, rank, numG);
-
-      // backward lu-sgs sweep
-      for (auto bb = 0U; bb < blocks.size(); bb++) {
-        matrixError += blocks[bb].LUSGS_Backward(reorder[bb], du[bb], phys, inp,
-                                                 mainDiagonal[bb], ii);
-      }
-    }
-  } else if (inp.MatrixSolver() == "dplur" || inp.MatrixSolver() == "bdplur") {
-    for (auto ii = 0; ii < inp.MatrixSweeps(); ii++) {
-      // swap updates for ghost cells
-      SwapImplicitUpdate(du, connections, rank, numG);
-
-      for (auto bb = 0U; bb < blocks.size(); bb++) {
-        // Calculate correction (du)
-        matrixError += blocks[bb].DPLUR(du[bb], phys, inp, mainDiagonal[bb]);
-      }
-    }
-  } else {
-    cerr << "ERROR: Matrix solver " << inp.MatrixSolver() <<
-        " is not recognized!" << endl;
-    cerr << "Please choose lusgs, blusgs, dplur, or bdplur." << endl;
-    exit(EXIT_FAILURE);
-  }
-
-  // Update blocks and reset main diagonal
-  for (auto bb = 0U; bb < blocks.size(); bb++) {
-    // Update solution
-    blocks[bb].UpdateBlock(inp, phys, du[bb], mm, residL2, residLinf);
-
-    // Assign time n to time n-1 at end of nonlinear iterations
-    if (inp.IsMultilevelInTime() && mm == inp.NonlinearIterations() - 1) {
-      blocks[bb].AssignSolToTimeNm1();
-    }
-
-    // zero flux jacobians
-    mainDiagonal[bb].Zero();
-  }
-
-  return matrixError;
-}
-
-void SwapImplicitUpdate(vector<blkMultiArray3d<varArray>> &du,
-                        const vector<connection> &connections, const int &rank,
-                        const int &numGhosts) {
-  // du -- implicit update in conservative variables
-  // conn -- connection boundary conditions
-  // rank -- processor rank
-  // numGhosts -- number of ghost cells
-
-  // loop over all connections and swap connection updates when necessary
-  for (auto &conn : connections) {
-    if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
-      // both sides of connection are on this processor, swap w/o mpi
-      du[conn.LocalBlockFirst()].SwapSlice(conn, du[conn.LocalBlockSecond()]);
-    } else if (conn.RankFirst() == rank) {
-      // rank matches rank of first side of connection, swap over mpi
-      du[conn.LocalBlockFirst()].SwapSliceMPI(conn, rank, MPI_DOUBLE);
-    } else if (conn.RankSecond() == rank) {
-      // rank matches rank of second side of connection, swap over mpi
-      du[conn.LocalBlockSecond()].SwapSliceMPI(conn, rank, MPI_DOUBLE);
-    }
-    // if rank doesn't match either side of connection, then do nothing and
-    // move on to the next connection
-  }
-}
-
-
-void SwapTurbVars(vector<procBlock> &states,
-                  const vector<connection> &connections, const int &rank,
-                  const int &numGhosts) {
-  // states -- vector of all procBlocks in the solution domain
-  // conn -- connection boundary conditions
-  // rank -- processor rank
-  // numGhosts -- number of ghost cells
-
-  // loop over all connections and swap connection updates when necessary
-  for (auto &conn : connections) {
-    if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
-      // both sides of connection are on this processor, swap w/o mpi
-      states[conn.LocalBlockFirst()].SwapTurbSlice(
-          conn, states[conn.LocalBlockSecond()]);
-    } else if (conn.RankFirst() == rank) {
-      // rank matches rank of first side of connection, swap over mpi
-      states[conn.LocalBlockFirst()].SwapTurbSliceMPI(conn, rank);
-    } else if (conn.RankSecond() == rank) {
-      // rank matches rank of second side of connection, swap over mpi
-      states[conn.LocalBlockSecond()].SwapTurbSliceMPI(conn, rank);
-    }
-    // if rank doesn't match either side of connection, then do nothing and
-    // move on to the next connection
-  }
-}
-
-void SwapEddyViscAndGradients(vector<procBlock> &states,
-                              const vector<connection> &connections,
-                              const int &rank,
-                              const MPI_Datatype &MPI_tensorDouble,
-                              const MPI_Datatype &MPI_vec3d,
-                              const int &numGhosts) {
-  // states -- vector of all procBlocks in the solution domain
-  // conn -- connection boundary conditions
-  // rank -- processor rank
-  // MPI_tensorDouble -- MPI datatype for tensor<double>
-  // MPI_vec3d -- MPI datatype for vector3d<double>
-  // numGhosts -- number of ghost cells
-
-  // loop over all connections and swap connection updates when necessary
-  for (auto &conn : connections) {
-    if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
-      // both sides of connection are on this processor, swap w/o mpi
-      states[conn.LocalBlockFirst()].SwapEddyViscAndGradientSlice(
-          conn, states[conn.LocalBlockSecond()]);
-    } else if (conn.RankFirst() == rank) {
-      // rank matches rank of first side of connection, swap over mpi
-      states[conn.LocalBlockFirst()].SwapEddyViscAndGradientSliceMPI(
-          conn, rank, MPI_tensorDouble, MPI_vec3d);
-    } else if (conn.RankSecond() == rank) {
-      // rank matches rank of second side of connection, swap over mpi
-      states[conn.LocalBlockSecond()].SwapEddyViscAndGradientSliceMPI(
-          conn, rank, MPI_tensorDouble, MPI_vec3d);
-    }
-    // if rank doesn't match either side of connection, then do nothing and
-    // move on to the next connection
-  }
-}
-
-void SwapWallDist(vector<procBlock> &states,
-                  const vector<connection> &connections, const int &rank,
-                  const int &numGhosts) {
-  // states -- vector of all procBlocks in the solution domain
-  // conn -- connection boundary conditions
-  // rank -- processor rank
-  // numGhosts -- number of ghost cells
-
-  // loop over all connections and swap connection updates when necessary
-  for (auto &conn : connections) {
-    if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
-      // both sides of connection are on this processor, swap w/o mpi
-      states[conn.LocalBlockFirst()].SwapWallDistSlice(
-          conn, states[conn.LocalBlockSecond()]);
-    } else if (conn.RankFirst() == rank) {
-      // rank matches rank of first side of connection, swap over mpi
-      states[conn.LocalBlockFirst()].SwapWallDistSliceMPI(conn, rank);
-    } else if (conn.RankSecond() == rank) {
-      // rank matches rank of second side of connection, swap over mpi
-      states[conn.LocalBlockSecond()].SwapWallDistSliceMPI(conn, rank);
-    }
-    // if rank doesn't match either side of connection, then do nothing and
-    // move on to the next connection
-  }
-}
-
-void CalcResidual(vector<procBlock> &states,
-                  vector<matMultiArray3d> &mainDiagonal, const physics &phys,
-                  const input &inp, const vector<connection> &connections,
-                  const int &rank, const MPI_Datatype &MPI_tensorDouble,
-                  const MPI_Datatype &MPI_vec3d) {
-  // states -- vector of all procBlocks on processor
-  // mainDiagonal -- main diagonal of A matrix for implicit solve
-  // phys -- physics models
-  // inp -- input variables
-  // connections -- connection boundary conditions
-  // rank -- processor rank
-  // MPI_tensorDouble -- MPI datatype for tensor<double>
-  // MPI_vec3d -- MPI datatype for vector3d<double>
-
-  for (auto bb = 0U; bb < states.size(); bb++) {
-    // calculate residual
-    states[bb].CalcResidualNoSource(phys, inp, mainDiagonal[bb]);
-  }
-  // swap mut & gradients calculated during residual calculation
-  SwapEddyViscAndGradients(states, connections, rank, MPI_tensorDouble,
-                           MPI_vec3d, inp.NumberGhostLayers());
-
-  if (inp.IsRANS()) {
-    // swap turbulence variables calculated during residual calculation
-    SwapTurbVars(states, connections, rank, inp.NumberGhostLayers());
-  }
-  if (inp.IsRANS() || phys.Chemistry()->IsReacting()) {
-    for (auto bb = 0U; bb < states.size(); bb++) {
-      // calculate source terms for residual
-      states[bb].CalcSrcTerms(phys, inp, mainDiagonal[bb]);
-    }
-  }
-}
-
-void CalcTimeStep(vector<procBlock> &states, const input &inp) {
-  // states -- vector of all procBlocks on processor
-  // inp -- input variables
-
-  for (auto &state : states) {
-    // calculate time step
-    state.CalcBlockTimeStep(inp);
-  }
-}
-
 
 // function to reorder the block by hyperplanes
 /* A hyperplane is a plane of i+j+k=constant within an individual block. The
@@ -667,21 +397,31 @@ vector<vector3d<int>> HyperplaneReorder(const int &imax, const int &jmax,
   return reorder;
 }
 
-void ResizeArrays(const vector<procBlock> &states, const input &inp,
-                  vector<matMultiArray3d> &jac) {
-  // states -- all states on processor
-  // sol -- vector of solutions to be resized
-  // jac -- vector of flux jacobians to be resized
+void SwapImplicitUpdate(vector<blkMultiArray3d<varArray>> &du,
+                        const vector<connection> &connections, const int &rank,
+                        const int &numGhosts) {
+  // du -- implicit update in conservative variables
+  // conn -- connection boundary conditions
+  // rank -- processor rank
+  // numGhosts -- number of ghost cells
 
-  const auto fluxJac = inp.IsBlockMatrix() ?
-      fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations()) :
-      fluxJacobian(1, std::min(1, inp.NumTurbEquations()));
-
-  for (auto bb = 0U; bb < states.size(); bb++) {
-    jac[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(), states[bb].NumK(),
-                        0, fluxJac);
+  // loop over all connections and swap connection updates when necessary
+  for (auto &conn : connections) {
+    if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
+      // both sides of connection are on this processor, swap w/o mpi
+      du[conn.LocalBlockFirst()].SwapSlice(conn, du[conn.LocalBlockSecond()]);
+    } else if (conn.RankFirst() == rank) {
+      // rank matches rank of first side of connection, swap over mpi
+      du[conn.LocalBlockFirst()].SwapSliceMPI(conn, rank, MPI_DOUBLE);
+    } else if (conn.RankSecond() == rank) {
+      // rank matches rank of second side of connection, swap over mpi
+      du[conn.LocalBlockSecond()].SwapSliceMPI(conn, rank, MPI_DOUBLE);
+    }
+    // if rank doesn't match either side of connection, then do nothing and
+    // move on to the next connection
   }
 }
+
 
 vector3d<double> TauNormal(const tensor<double> &velGrad,
                            const vector3d<double> &area, const double &mu,
@@ -881,4 +621,39 @@ string GetEnvironmentVariable(const string &var) {
 
 double Kronecker(const int &ii, const int &jj) {
   return (ii == jj) ? 1.0 : 0.0;
+}
+
+double LinearInterpCoeff(const vector3d<double> &x0, const vector3d<double> &x1,
+                         const vector3d<double> &x) {
+  const auto dir = (x1 - x0).Normalize();
+  const auto dist = x0.Distance(x1);
+  return (x - x0).DotProd(dir) / dist;
+}
+
+std::array<double, 7> TrilinearInterpCoeff(
+    const vector3d<double> &x0, const vector3d<double> &x1,
+    const vector3d<double> &x2, const vector3d<double> &x3,
+    const vector3d<double> &x4, const vector3d<double> &x5,
+    const vector3d<double> &x6, const vector3d<double> &x7,
+    const vector3d<double> &x) {
+  std::array<double, 7> coeffs;
+  // 4 linear interpolations to convert to 2D
+  coeffs[0] = LinearInterpCoeff(x0, x4, x);
+  const auto x04 = LinearInterp(x0, x4, coeffs[0]);
+  coeffs[1] = LinearInterpCoeff(x1, x5, x);
+  const auto x15 = LinearInterp(x1, x5, coeffs[1]);
+  coeffs[2] = LinearInterpCoeff(x2, x6, x);
+  const auto x26 = LinearInterp(x2, x6, coeffs[2]);
+  coeffs[3] = LinearInterpCoeff(x3, x7, x);
+  const auto x37 = LinearInterp(x3, x7, coeffs[3]);
+
+  // 2 linear interpolations to convert to 1D
+  coeffs[4] = LinearInterpCoeff(x04, x15, x);
+  const auto x0415 = LinearInterp(x04, x15, coeffs[4]);
+  coeffs[5] = LinearInterpCoeff(x26, x37, x);
+  const auto x2637 = LinearInterp(x26, x37, coeffs[5]);
+
+  // 1 linear interpolation to complete trilinear interpolation
+  coeffs[6] = LinearInterpCoeff(x0415, x2637, x);
+  return coeffs;
 }

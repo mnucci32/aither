@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 #include "plot3d.hpp"
+#include "parallel.hpp"
 
 using std::cout;
 using std::cerr;
@@ -447,13 +448,13 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
 /* Member function to split a plot3dBlock along a plane defined by a direction
 and an index.
 */
-void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &blk1,
-                        plot3dBlock &blk2) const {
+plot3dBlock plot3dBlock::Split(const string &dir, const int &ind) {
   // dir -- plane to split along, either i, j, or k
   // ind -- index (face) to split at (w/o counting ghost cells)
 
-  blk1 = plot3dBlock(coords_.Slice(dir, {coords_.Start(dir), ind + 1}));
-  blk2 = plot3dBlock(coords_.Slice(dir, {ind, coords_.End(dir)}));
+  const auto blk2 = plot3dBlock(coords_.Slice(dir, {ind, coords_.End(dir)}));
+  (*this) = plot3dBlock(coords_.Slice(dir, {coords_.Start(dir), ind + 1}));
+  return blk2;
 }
 
 /* Member function to join a plot3dBlock along a plane defined by a direction.
@@ -480,8 +481,8 @@ void plot3dBlock::Join(const plot3dBlock &blk, const string &dir) {
   plot3dBlock newBlk(iTot, jTot, kTot);
 
   newBlk.coords_.Insert(dir, {coords_.Start(dir), coords_.End(dir)}, coords_);
-
-  newBlk.coords_.Insert(dir, {coords_.End(dir), newBlk.coords_.End(dir)},
+  // lower and upper splits share one plane of nodes
+  newBlk.coords_.Insert(dir, {coords_.End(dir) - 1, newBlk.coords_.End(dir)},
                         blk.coords_);
   (*this) = newBlk;
 }
@@ -494,4 +495,93 @@ double PyramidVolume(const vector3d<double> &p, const vector3d<double> &a,
   auto xac = c - a;
   auto xbd = d - b;
   return 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
+}
+
+vector<plot3dBlock> GatherP3ds(const vector<plot3dBlock> &grid,
+                               const decomposition &decomp, const int &rank,
+                               const MPI_Datatype &MPI_vec3d) {
+  // find out how many total blocks there are
+  auto numBlks = grid.size();
+  if (rank == ROOTP) {
+    MPI_Reduce(MPI_IN_PLACE, &numBlks, 1, MPI_INT, MPI_SUM, ROOTP,
+               MPI_COMM_WORLD);
+  } else {
+    MPI_Reduce(&numBlks, &numBlks, 1, MPI_INT, MPI_SUM, ROOTP, MPI_COMM_WORLD);
+  }
+
+  vector<plot3dBlock> allGrids;
+  if (rank == ROOTP) {
+    // first copy local data
+    allGrids.resize(numBlks);
+    for (auto gp = 0U; gp < numBlks; ++gp) {
+      MSG_ASSERT(gp <= numBlks, "global position outside of range");
+      const auto sendingRank = decomp.Rank(gp);
+      if (sendingRank == ROOTP) {  // data already on rank 0
+        allGrids[gp] = grid[decomp.LocalPosition(gp)];
+      } else {  // need to receive remote data
+        MPI_Status status;  // allocate MPI_Status structure
+        // probe message to get correct data size
+        auto recvBufSize = 0;
+        MPI_Probe(sendingRank, gp, MPI_COMM_WORLD, &status);
+        // use MPI_CHAR because sending buffer was allocated with chars
+        MPI_Get_count(&status, MPI_CHAR, &recvBufSize);
+        // allocate buffer of correct size
+        // use unique_ptr to manage memory; use underlying pointer with MPI
+        auto recvBuffer = std::make_unique<char[]>(recvBufSize);
+        auto *rawRecvBuffer = recvBuffer.get();
+        // receive message from remote
+        MPI_Recv(rawRecvBuffer, recvBufSize, MPI_PACKED, sendingRank, gp,
+                 MPI_COMM_WORLD, &status);
+        auto position = 0;
+        // unpack dimensions
+        auto numI = 0, numJ = 0, numK = 0;
+        MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &numI, 1, MPI_INT,
+                   MPI_COMM_WORLD);
+        MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &numJ, 1, MPI_INT,
+                   MPI_COMM_WORLD);
+        MPI_Unpack(rawRecvBuffer, recvBufSize, &position, &numK, 1, MPI_INT,
+                   MPI_COMM_WORLD);
+        allGrids[gp].ClearResize(numI, numJ, numK);
+        // unpack nodes
+        MPI_Unpack(rawRecvBuffer, recvBufSize, &position,
+                   &(*std::begin(allGrids[gp])), allGrids[gp].Size(), MPI_vec3d,
+                   MPI_COMM_WORLD);
+      }
+    }
+  } else {
+    // send remote data
+    for (auto lp = 0U; lp < grid.size(); ++lp) {
+      // add size for number of bc surfaces
+      // determine size of buffer to send
+      auto sendBufSize = 0;
+      auto tempSize = 0;
+      MPI_Pack_size(3, MPI_INT, MPI_COMM_WORLD, &tempSize);
+      sendBufSize += tempSize;
+      MPI_Pack_size(grid[lp].Size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize);
+      sendBufSize += tempSize;
+
+      // allocate buffer to pack data into
+      // use unique_ptr to manage memory; use underlying pointer with MPI calls
+      auto sendBuffer = std::make_unique<char[]>(sendBufSize);
+      auto *rawSendBuffer = sendBuffer.get();
+      const auto numI = grid[lp].NumI();
+      const auto numJ = grid[lp].NumJ();
+      const auto numK = grid[lp].NumK();
+      // pack data to send into buffer
+      auto position = 0;
+      // int and vector data
+      MPI_Pack(&numI, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
+               MPI_COMM_WORLD);
+      MPI_Pack(&numJ, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
+               MPI_COMM_WORLD);
+      MPI_Pack(&numK, 1, MPI_INT, rawSendBuffer, sendBufSize, &position,
+               MPI_COMM_WORLD);
+      MPI_Pack(&(*std::begin(grid[lp])), grid[lp].Size(), MPI_vec3d,
+               rawSendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+      const auto globalPos = decomp.GlobalPos(rank, lp);
+      MPI_Send(rawSendBuffer, sendBufSize, MPI_PACKED, ROOTP, globalPos,
+               MPI_COMM_WORLD);
+    }
+  }
+  return allGrids;
 }

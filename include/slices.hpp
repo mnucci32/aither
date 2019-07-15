@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ class connection;
 class range;
 
 class geomSlice {
-  multiArray3d<vector3d<double>> center_;  // coordinates of cell center_
+  multiArray3d<vector3d<double>> center_;  // coordinates of cell center
   multiArray3d<unitVec3dMag<double>> fAreaI_;  // face area vector for i-faces
   multiArray3d<unitVec3dMag<double>> fAreaJ_;  // face area vector for j-faces
   multiArray3d<unitVec3dMag<double>> fAreaK_;  // face area vector for k-faces
@@ -101,6 +101,9 @@ class geomSlice {
   vector3d<double> FCenterK(const int &ii, const int &jj, const int &kk) const {
     return fCenterK_(ii, jj, kk);
   }
+  void PackSwapUnpackMPI(const connection &, const MPI_Datatype &,
+                         const MPI_Datatype &, const int &, const int &);
+  void SameSizeResize(const int &, const int &, const int &, const int &);
 
   // destructor
   ~geomSlice() noexcept {}

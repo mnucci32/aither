@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "procBlock.hpp"           // procBlock
 #include "boundaryConditions.hpp"  // connection
 #include "resid.hpp"               // resid
+#include "gridLevel.hpp"
 #include "macros.hpp"
 
 using std::max_element;
@@ -127,9 +128,9 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
       auto affectedConnections = GetBlockInterConnBCs(bcs, grid, blk);
 
       // split grid
-      plot3dBlock lBlk, uBlk;
-      grid[blk].Split(dir, ind, lBlk, uBlk);
+      const auto uBlk = grid[blk].Split(dir, ind);
       grid.push_back(uBlk);
+
       // split bcs
       vector<boundarySurface> altSurf;
       auto newBcs = bcs[blk].Split(dir, ind, blk, newBlk, altSurf);
@@ -142,9 +143,6 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
             affectedConnections.at(alt).second, alt.PartnerBlock(), dir, ind,
             blk, newBlk);
       }
-
-      // reassign split grid
-      grid[blk] = lBlk;
 
       decomp.Split(blk, ind, dir);
       decomp.SendToProc(blk, ol, ul);
@@ -184,21 +182,6 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
 void SendNumProcBlocks(const vector<int> &loadBal, int &numProcBlock) {
   MPI_Scatter(&loadBal[0], 1, MPI_INT, &numProcBlock, 1, MPI_INT, ROOTP,
               MPI_COMM_WORLD);
-}
-
-// function to send each processor the vector of connections it needs to compute
-// its boundary conditions
-void SendConnections(vector<connection> &connections,
-                     const MPI_Datatype &MPI_connection) {
-  // first determine the number of connections and send that to all processors
-  auto numCon = static_cast<int>(connections.size());
-  MPI_Bcast(&numCon, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
-
-  connections.resize(numCon);  // allocate space to receive the connections
-
-  // broadcast all connections to all processors
-  MPI_Bcast(&connections[0], connections.size(), MPI_connection, ROOTP,
-            MPI_COMM_WORLD);
 }
 
 /* Function to set custom MPI datatypes to allow for easier data transmission */
@@ -331,64 +314,6 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d,
   MPI_Type_free(&MPI_tensorDouble);
 }
 
-/* Function to send procBlocks to their appropriate processor. This function is
-called after the decomposition has been run. The procBlock data all
-resides on the ROOT processor. In this function, the ROOT processor packs the
-procBlocks and sends them to the appropriate processor. All the non-ROOT
-processors receive and unpack the data from ROOT. This is used to send the
-geometric block data from ROOT to all the processors at the beginning of the
-simulation.
-*/
-vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
-                                 const int &rank, const int &numProcBlock,
-                                 const MPI_Datatype &MPI_vec3d,
-                                 const MPI_Datatype &MPI_vec3dMag,
-                                 const input &inp) {
-  // blocks -- full vector of all procBlocks. This is only used on ROOT
-  //           processor, all other processors just need a dummy variable to
-  //           call the function
-  // rank -- processor rank. Used to determine if process should send or
-  //         receive
-  // numProcBlock -- number of procBlocks that the processor should have. (All
-  //                 processors may give different values).
-  // MPI_vec3d -- MPI_Datatype used for vector3d<double>  transmission
-  // MPI_vec3dMag -- MPI_Datatype used for unitVec3dMag<double>  transmission
-  // input -- input variables
-
-  // vector of procBlocks for each processor
-  vector<procBlock> localBlocks(numProcBlock);
-
-  //------------------------------------------------------------------------
-  //                                  ROOT
-  //------------------------------------------------------------------------
-  if (rank == ROOTP) {  // may have to pack and send data
-    // loop over ALL blocks
-    for (auto &blk : blocks) {
-      // no need to send data because it is already on root processor
-      if (blk.Rank() == ROOTP) {
-        localBlocks[blk.LocalPosition()] = blk;
-      } else {  // send data to receiving processors
-        // pack and send procBlock
-        blk.PackSendGeomMPI(MPI_vec3d, MPI_vec3dMag);
-      }
-    }
-    //--------------------------------------------------------------------------
-    //                                NON - ROOT
-    //--------------------------------------------------------------------------
-  } else {  // receive and unpack data (non-root)
-    for (auto ii = 0; ii < numProcBlock; ++ii) {
-      // recv and unpack procBlock
-      procBlock tempBlock;
-      tempBlock.RecvUnpackGeomMPI(MPI_vec3d, MPI_vec3dMag, inp);
-
-      // add procBlock to output vector
-      localBlocks[tempBlock.LocalPosition()] = tempBlock;
-    }
-  }
-
-  return localBlocks;
-}
-
 /* Function to send procBlocks to the root processor. In this function, the
 non-ROOT processors pack the procBlocks and send them to the ROOT processor.
 The ROOT processor receives and unpacks the data from the non-ROOT processors.
@@ -462,7 +387,7 @@ void BroadcastString(string &str) {
             MPI_COMM_WORLD);  // broadcast string size
   
   // allocate a char buffer of string size
-  auto buf = unique_ptr<char>(new char[strSize]);
+  auto buf = std::make_unique<char[]>(strSize);
   snprintf(buf.get(), strSize, "%s", str.c_str());  // copy string into buffer
   MPI_Bcast(buf.get(), strSize, MPI_CHAR, ROOTP,
             MPI_COMM_WORLD);  // broadcast string as char
@@ -651,6 +576,18 @@ void decomposition::Split(const int &low, const int &ind, const string &dir) {
   localPos_.push_back(this->NumBlocksOnProc(rank_[low]) - 1);
 }
 
+int decomposition::GlobalPos(const int &rank, const int &localPos) const {
+  auto globalPos = -1;
+  for (auto ii = 0U; ii < rank_.size(); ++ii) {
+    if (rank_[ii] == rank && localPos_[ii] == localPos) {
+        globalPos = ii;
+        break;
+      }
+  }
+  MSG_ASSERT(globalPos >= 0, "could not find global pos");
+  return globalPos;
+}
+
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const decomposition &d) {
   // os -- stream to print to
@@ -809,6 +746,57 @@ void decomposition::PrintDiagnostics(const vector<plot3dBlock> &grid) const {
   }
 }
 
+void decomposition::Broadcast() { 
+  // broadcast rank
+  auto vecSize = rank_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  rank_.resize(vecSize);
+  MPI_Bcast(&(*std::begin(rank_)), vecSize, MPI_INT, ROOTP, MPI_COMM_WORLD);
+
+  // broadcast parent block
+  vecSize = parBlock_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  parBlock_.resize(vecSize);
+  MPI_Bcast(&(*std::begin(parBlock_)), vecSize, MPI_INT, ROOTP, MPI_COMM_WORLD);
+
+  // broadcast local position
+  vecSize = localPos_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  localPos_.resize(vecSize);
+  MPI_Bcast(&(*std::begin(localPos_)), vecSize, MPI_INT, ROOTP, MPI_COMM_WORLD);
+
+  // broadcast lower block split history
+  vecSize = splitHistBlkLow_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  splitHistBlkLow_.resize(vecSize);
+  MPI_Bcast(&(*std::begin(splitHistBlkLow_)), vecSize, MPI_INT, ROOTP,
+            MPI_COMM_WORLD);
+
+  // broadcast upper block split history
+  vecSize = splitHistBlkUp_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  splitHistBlkUp_.resize(vecSize);
+  MPI_Bcast(&(*std::begin(splitHistBlkUp_)), vecSize, MPI_INT, ROOTP,
+            MPI_COMM_WORLD);
+
+  // broadcast index split history
+  vecSize = splitHistIndex_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  splitHistIndex_.resize(vecSize);
+  MPI_Bcast(&(*std::begin(splitHistIndex_)), vecSize, MPI_INT, ROOTP,
+            MPI_COMM_WORLD);
+
+  // broadcast direction split history
+  vecSize = splitHistDir_.size(); 
+  MPI_Bcast(&vecSize, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+  splitHistDir_.resize(vecSize);
+  for (auto &dir : splitHistDir_) {
+    BroadcastString(dir);
+  }
+
+  // broadcast number of processors
+  MPI_Bcast(&numProcs_, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+}
 
 void BroadcastViscFaces(const MPI_Datatype &MPI_vec3d,
                         vector<vector3d<double>> &viscFaces) {

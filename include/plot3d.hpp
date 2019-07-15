@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-18  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-19  Michael Nucci (mnucci@pm.me)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -64,6 +64,18 @@ class plot3dBlock {
 
   vector3d<double> Centroid(const int &, const int &, const int &) const;
 
+  // provide begin and end so std::begin and std::end can be used
+  // use lower case to conform with std::begin, std::end
+  auto begin() noexcept {return coords_.begin();}
+  const auto begin() const noexcept {return coords_.begin();}
+  auto end() noexcept {return coords_.end();}
+  const auto end() const noexcept {return coords_.end();}
+
+  void ClearResize(const int &ni, const int &nj, const int &nk) {
+    coords_.ClearResize(ni, nj, nk, 0);
+  }
+
+  int Size() const { return coords_.Size(); }
   int NumI() const { return coords_.NumI(); }
   int NumJ() const { return coords_.NumJ(); }
   int NumK() const { return coords_.NumK(); }
@@ -73,20 +85,21 @@ class plot3dBlock {
   int NumCells() const {
     return this->NumCellsI() * this->NumCellsJ() * this->NumCellsK();
   }
-  double X(const int &ii, const int &jj, const int &kk) const {
+  const double &X(const int &ii, const int &jj, const int &kk) const {
     return coords_(ii, jj, kk)[0];
   }
-  double Y(const int &ii, const int &jj, const int &kk) const {
+  const double &Y(const int &ii, const int &jj, const int &kk) const {
     return coords_(ii, jj, kk)[1];
   }
-  double Z(const int &ii, const int &jj, const int &kk) const {
+  const double &Z(const int &ii, const int &jj, const int &kk) const {
     return coords_(ii, jj, kk)[2];
   }
-  vector3d<double> Coords(const int &ii, const int &jj, const int &kk) const {
+  const vector3d<double> &Coords(const int &ii, const int &jj,
+                                 const int &kk) const {
     return coords_(ii, jj, kk);
   }
 
-  void Split(const string &, const int &, plot3dBlock &, plot3dBlock &) const;
+  plot3dBlock Split(const string &, const int &);
   void Join(const plot3dBlock &, const string &);
 
   // destructor
@@ -99,5 +112,8 @@ vector<plot3dBlock> ReadP3dGrid(const string &, const double &, double &);
 double PyramidVolume(const vector3d<double> &, const vector3d<double> &,
                      const vector3d<double> &, const vector3d<double> &,
                      const vector3d<double> &);
+vector<plot3dBlock> GatherP3ds(const vector<plot3dBlock> &,
+                               const decomposition &, const int &,
+                               const MPI_Datatype &MPI_vec3d);
 
 #endif
