@@ -39,14 +39,6 @@ class logFileManager {
   // Constructor
   logFileManager(const input& inp, const int &rank);
 
-  // move constructor and assignment operator
-  logFileManager(logFileManager&&) noexcept = default;
-  logFileManager& operator=(logFileManager&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  logFileManager(const logFileManager&) = default;
-  logFileManager& operator=(const logFileManager&) = default;
-
   // Member functions
   residual &L2First() { return l2First_; }
   const residual &L2First() const { return l2First_; }
